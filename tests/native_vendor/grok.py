@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, cast
 
+from . import installation
 from .common import binary_digest, environment, write_skill
 
 PREFIX = "ai-stp-qualification-"
@@ -193,6 +194,43 @@ def prepare(distribution: Path, root: Path) -> tuple[Path, str]:
     return executable, version
 
 
+def qualify_installed(
+    executable: Path, engine: Path, root: Path, engine_proof: dict[str, Any]
+) -> dict[str, Any]:
+    case = installation.Installation(engine, root / "i", "GROK_HOME")
+    case.environment["GROK_DISABLE_AUTOUPDATER"] = "1"
+    (case.source / "guide.md").write_text(
+        "Format only caller-supplied fixture text.\n",
+        encoding="utf-8",
+    )
+    receipt = case.install("grok-build", "instruction", PREFIX + "installed-grok", "global")
+    path = case.vendor_home / "AGENTS.md"
+    loaded = inspect(executable, case.project, case.environment)
+    assert any(
+        Path(row["path"]).samefile(path) and row["sizeBytes"] == path.stat().st_size
+        for row in loaded["projectInstructions"]
+    )
+    removal = case.remove(receipt)
+    case.apply(removal)
+    assert not path.exists()
+    refreshed = inspect(executable, case.project, case.environment)
+    assert not any(Path(row["path"]) == path for row in refreshed["projectInstructions"])
+    case.removed()
+    return {
+        "state": "passed",
+        "evidence_kind": "native_engine_vendor_configuration_read",
+        "engine": engine_proof,
+        "install_and_remove_receipts_idempotent": True,
+        "original_context_preserved_across_selected_view": True,
+        "vendor_instruction_observed": True,
+        "instruction_absent_after_fresh_inspection": True,
+        "unowned_preserved_and_pending_cleared": True,
+        "active_reader_control": "not_observed_one_shot_inspection",
+        "runtime_loading": "not_observed",
+        "inference_turns_started": 0,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--distribution", type=Path, required=True)
@@ -211,6 +249,12 @@ def main() -> None:
         executable, version = prepare(arguments.distribution, root)
         digest = binary_digest(executable)
         result = qualify(executable.resolve(), root)
+        engine = installation.prepare(root, source)
+        result["installed_configuration"] = (
+            qualify_installed(executable.resolve(), engine[0], root, engine[1])
+            if engine is not None
+            else {"state": "not_selected"}
+        )
         assert binary_digest(executable) == digest, "Vendor binary changed during qualification"
     proof = {
         "schema_version": 1,

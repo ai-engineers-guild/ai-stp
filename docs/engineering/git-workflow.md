@@ -58,6 +58,17 @@ On Windows, the Codex user-skill fixture owns one temporary child of the disposa
 runner native profile and verifies the vendor-reported file identity. Existing
 profile files are preserved. Grok uses its redirected fixture home on every OS.
 
+Full source qualification makes this owner depend on the same-run CLI archives.
+Each reader verifies its platform inventory, checksum files and source-bound archive
+manifest before executing the extracted engine. Installed controls use only a
+disposable hosted OS user; HOME/XDG redirection does not isolate native custody.
+The public engine authors, plans, prepares, applies and removes a controlled setup
+while another context is selected. Codex verifies refusal with an active reader,
+then resumes the original operation after reader exit. Grok verifies instruction
+metadata before and after removal. The nested proof kind is
+native_engine_vendor_configuration_read. Runtime invocation remains not_observed.
+PR discovery without same-run CLI archives records installed checks as not_selected.
+
 ## Integration and delivery
 
 1. Branch from current `dev`, implement, regenerate affected projections and run

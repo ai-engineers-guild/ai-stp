@@ -2,6 +2,11 @@ name: native-vendor
 
 on:
   workflow_call:
+    inputs:
+      installed_engine:
+        description: Require the native CLI artifacts from this same source run
+        type: boolean
+        default: false
   workflow_dispatch:
   pull_request:
     paths:
@@ -26,7 +31,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, macos-15, windows-2025]
+        include:
+          - os: ubuntu-26.04
+            target: x86_64-unknown-linux-gnu
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
     env:
       AI_STP_NATIVE_VENDOR_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -40,6 +51,13 @@ jobs:
         with:
           python-version: '3.15.2'
           bun-version: '1.4.4'
+      - name: Read the same-run qualified native CLI archive
+        if: inputs.installed_engine
+        id: engine
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ai-stp-rust-${{ matrix.target }}-${{ github.sha }}
+          path: ${{ runner.temp }}/ai-stp-engine-archives
       - name: Prepare the exact official vendor distribution
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
@@ -48,6 +66,8 @@ jobs:
           directory: ${{ runner.temp }}/ai-stp-codex-distribution
       - name: Read actual vendor configuration and refusal controls
         env:
+          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
           AI_STP_CODEX_MANIFEST: .github/codex-${{ runner.os }}.json
           AI_STP_CODEX_TOOLS: ${{ runner.temp }}/ai-stp-codex-distribution
           AI_STP_CODEX_PROOF: ${{ runner.temp }}/codex-loading-proof.json
@@ -57,6 +77,8 @@ jobs:
           recipe: ci-native-vendor-codex
       - name: Read actual Grok configuration and refusal controls
         env:
+          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
           AI_STP_GROK_PROOF: ${{ runner.temp }}/grok-loading-proof.json
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2

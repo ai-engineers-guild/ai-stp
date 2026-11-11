@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
 
+from . import installation
 from .common import binary_digest, environment, write_skill
 
 PREFIX = "ai-stp-qualification-"
@@ -276,6 +277,72 @@ def prepare(manifest: Path, tools: Path, root: Path) -> tuple[Path, dict[str, An
     return executable, declaration
 
 
+@contextmanager
+def installed_reader(
+    executable: Path, case: installation.Installation, label: str
+) -> Generator[Rpc]:
+    with (case.root / label).open("wb") as errors:
+        process = subprocess.Popen(
+            [str(executable), "app-server", "--listen", "stdio://"],
+            cwd=case.project,
+            env=case.environment,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=errors,
+        )
+        rpc = Rpc(process)
+        try:
+            rpc.initialize()
+            yield rpc
+        finally:
+            rpc.close()
+
+
+def qualify_installed(
+    executable: Path, engine: Path, root: Path, engine_proof: dict[str, Any]
+) -> dict[str, Any]:
+    case = installation.Installation(engine, root / "i", "CODEX_HOME")
+    (case.vendor_home / "config.toml").write_text(
+        'cli_auth_credentials_store = "file"\n[analytics]\nenabled = false\n',
+        encoding="utf-8",
+    )
+    name = PREFIX + "installed-codex"
+    (case.source / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: Controlled native installation fixture\n---\n"
+        "Format only caller-supplied fixture text.\n",
+        encoding="utf-8",
+    )
+    receipt = case.install("codex", "skill", name, "user_root")
+    path = case.vendor_home / "skills" / name / "SKILL.md"
+    expected = binary_digest(path)
+    with installed_reader(executable, case, "reader.log") as rpc:
+        data = rpc.request("skills/list", {"cwds": [str(case.project)], "forceReload": True})
+        observed_paths(entries(data), name, [path])
+        removal = case.remove(receipt)
+        case.run(case.apply_arguments(removal), refused=True)
+        assert binary_digest(path) == expected, "Active-reader refusal changed installed bytes"
+    case.apply(removal)
+    with installed_reader(executable, case, "restarted-reader.log") as rpc:
+        data = rpc.request("skills/list", {"cwds": [str(case.project)], "forceReload": True})
+        observed_paths(entries(data), name, [])
+    assert not path.exists()
+    case.removed()
+    return {
+        "state": "passed",
+        "evidence_kind": "native_engine_vendor_configuration_read",
+        "engine": engine_proof,
+        "install_and_remove_receipts_idempotent": True,
+        "original_context_preserved_across_selected_view": True,
+        "vendor_skill_observed": True,
+        "active_reader_refusal_preserves_bytes": True,
+        "original_removal_after_reader_exit": True,
+        "skill_absent_after_reader_restart": True,
+        "unowned_preserved_and_pending_cleared": True,
+        "runtime_loading": "not_observed",
+        "inference_turns_started": 0,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
@@ -301,6 +368,12 @@ def main() -> None:
         executable, declaration = prepare(arguments.manifest, arguments.tools, root)
         digest = binary_digest(executable)
         result = qualify(executable.resolve(), root, native_user_root)
+        engine = installation.prepare(root, source)
+        result["installed_configuration"] = (
+            qualify_installed(executable.resolve(), engine[0], root, engine[1])
+            if engine is not None
+            else {"state": "not_selected"}
+        )
         assert binary_digest(executable) == digest, "Vendor binary changed during qualification"
     proof = {
         "schema_version": 1,

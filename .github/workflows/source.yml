@@ -75,8 +75,11 @@ jobs:
     uses: ./.github/workflows/safety-runtime.yml
 
   vendor-discovery:
+    needs: archives
     if: github.event_name != 'pull_request'
     uses: ./.github/workflows/native-vendor.yml
+    with:
+      installed_engine: true
 
   secrets:
     runs-on: ubuntu-26.04
