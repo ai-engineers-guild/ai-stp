@@ -45,6 +45,11 @@ def test_every_owning_job_is_joined_into_qualification() -> None:
     assert jobs["wasi-confinement"]["needs"] == "native-experiments"
     assert jobs["wasi-confinement"]["uses"] == "./.github/workflows/wasi-confinement.yml"
     assert jobs["qualification"]["if"] == "always()"
+    vendor = jobs["vendor-discovery"]
+    assert vendor["needs"] == "archives"
+    assert vendor["uses"] == "./.github/workflows/native-vendor-checks.yml"
+    assert vendor["with"] == {"installed_engine": True}
+
     experiment = yaml.safe_load((ROOT / ".github/workflows/wasi-confinement.yml").read_text())
     assert experiment["jobs"]["confinement"]["needs"] == "component"
     assert set(experiment["jobs"]["confinement"]["strategy"]["matrix"]["os"]) == {

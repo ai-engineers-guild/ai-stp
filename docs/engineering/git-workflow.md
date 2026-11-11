@@ -68,6 +68,11 @@ then resumes the original operation after reader exit. Grok verifies instruction
 metadata before and after removal. The nested proof kind is
 native_engine_vendor_configuration_read. Runtime invocation remains not_observed.
 PR discovery without same-run CLI archives records installed checks as not_selected.
+The manual vendor diagnostic may select an explicit same-repository archive run
+and exact engine source. Its proof separates fixture and engine identities and
+marks diagnostic_only; it has no delivery authority. Full source callers cannot
+select another producer. Windows refusals record read-only ACL/attribute summaries
+of the new synthetic fixture directories; they never repair existing permissions.
 
 ## Integration and delivery
 
