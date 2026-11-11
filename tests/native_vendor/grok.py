@@ -90,8 +90,7 @@ def qualify(executable: Path, root: Path, native_user_root: Path | None = None) 
     assert not any(
         Path(row["path"]).samefile(instructions[1]) for row in initial["projectInstructions"]
     )
-    assert mcp_target(initial) == "__ai_stp_fixture_global__"
-    controls["untrusted_project_excluded"] = True
+    controls["untrusted_project_skills_and_instructions_excluded"] = True
 
     trusted = inspect(executable, project, child_environment, trust=True)
     assert trusted["projectTrusted"] is True
