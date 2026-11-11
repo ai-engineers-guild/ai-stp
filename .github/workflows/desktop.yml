@@ -15,6 +15,9 @@ on:
         description: Build diagnostic packages without application acceptance or release permission
         type: boolean
         default: false
+      windows_gui_source_run:
+        description: Diagnose the installed Windows MSI from a successful Dev run
+        type: string
 
 permissions:
   contents: read
@@ -30,6 +33,7 @@ env:
 
 jobs:
   desktop:
+    if: github.event_name != 'workflow_dispatch' || inputs.windows_gui_source_run == ''
     name: desktop-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -298,3 +302,55 @@ jobs:
           name: desktop-preflight-intent-${{ matrix.os }}
           path: ${{ runner.temp }}/desktop-preflight.json
           if-no-files-found: error
+
+  windows-gui:
+    if: github.event_name == 'workflow_dispatch' && inputs.windows_gui_source_run != ''
+    runs-on: windows-2025
+    timeout-minutes: 12
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Admit the exact qualified source and package
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.windows_gui_source_run }}
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_RUN}" =~ ^[1-9][0-9]*$ ]]
+          run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN}")"
+          source="$(jq -er --arg repo "${GITHUB_REPOSITORY}" '
+            select(.path == ".github/workflows/check.yml" and .head_branch == "dev"
+              and .event == "push" and .conclusion == "success"
+              and .head_repository.full_name == $repo) | .head_sha | select(test("^[0-9a-f]{40}$"))
+          ' <<<"${run}")"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN}/jobs?per_page=100" \
+            --jq '[.jobs[] | select(.name == "full-qualification" and .conclusion == "success")] | length' \
+            | grep -x 1
+          printf 'sha=%s\n' "${source}" >> "${GITHUB_OUTPUT}"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.windows_gui_source_run }}
+          name: ai-stp-desktop-windows-2025
+          path: ${{ runner.temp }}/windows-desktop-bundle
+          digest-mismatch: error
+      - name: Exercise the installed MSI through Windows UI Automation
+        shell: powershell
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: >-
+          .\.github\scripts\qualify-installed-windows-desktop.ps1
+          -Bundle "$env:RUNNER_TEMP\windows-desktop-bundle"
+          -Source $env:SOURCE_SHA -Output "$env:RUNNER_TEMP\installed-windows-gui.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: desktop-windows-gui-diagnostic
+          path: ${{ runner.temp }}/installed-windows-gui.json
+          if-no-files-found: error
+          retention-days: 7
