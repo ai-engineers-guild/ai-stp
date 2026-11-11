@@ -54,9 +54,9 @@ use a separate frozen Bun lock with installation scripts disabled; only the nati
 payload is decompressed. Both readers verify unchanged binary bytes.
 Proof kind is vendor_configuration_read; installation
 effects, runtime invocation and current authority retain their respective owners.
-On Windows, the user-skill fixture owns one temporary child of the disposable
+On Windows, the Codex user-skill fixture owns one temporary child of the disposable
 runner native profile and verifies the vendor-reported file identity. Existing
-profile files are preserved.
+profile files are preserved. Grok uses its redirected fixture home on every OS.
 
 ## Integration and delivery
 

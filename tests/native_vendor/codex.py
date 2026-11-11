@@ -15,12 +15,13 @@ import tarfile
 import tempfile
 import threading
 import time
-from contextlib import suppress
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
 
-from .common import binary_digest, environment, native_user_scope, write_skill
+from .common import binary_digest, environment, write_skill
 
 PREFIX = "ai-stp-qualification-"
 
@@ -116,6 +117,23 @@ class Rpc:
         self.reader.join(timeout=5)
         assert not self.reader.is_alive(), "Owned RPC reader did not stop"
         self.output.close()
+
+
+@contextmanager
+def native_user_scope() -> Generator[Path | None]:
+    """Windows known-folder APIs require an owned child of the native CI profile."""
+    if os.name != "nt":
+        yield None
+        return
+    assert os.environ.get("GITHUB_ACTIONS") == "true"
+    assert os.environ.get("RUNNER_OS") == "Windows"
+    profile_home = Path.home().resolve()
+    parent = profile_home / ".agents" / "skills"
+    assert parent.resolve().is_relative_to(profile_home)
+    parent.mkdir(parents=True, exist_ok=True)
+    assert parent.resolve().is_relative_to(profile_home)
+    with tempfile.TemporaryDirectory(prefix="stp-codex-", dir=parent) as temporary:
+        yield Path(temporary)
 
 
 def entries(result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -277,7 +295,7 @@ def main() -> None:
         tempfile.TemporaryDirectory(
             prefix="stp-codex-", dir=os.environ.get("RUNNER_TEMP")
         ) as temporary,
-        native_user_scope("codex") as native_user_root,
+        native_user_scope() as native_user_root,
     ):
         root = Path(temporary)
         executable, declaration = prepare(arguments.manifest, arguments.tools, root)

@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, cast
 
-from .common import binary_digest, environment, native_user_scope, write_skill
+from .common import binary_digest, environment, write_skill
 
 PREFIX = "ai-stp-qualification-"
 
@@ -58,14 +58,14 @@ def mcp_target(result: dict[str, Any]) -> str:
     return cast(str, rows[0]["target"])
 
 
-def qualify(executable: Path, root: Path, native_user_root: Path | None = None) -> dict[str, Any]:
+def qualify(executable: Path, root: Path) -> dict[str, Any]:
     home, vendor_home, project = root / "h", root / "g", root / "p"
     for directory in [home, vendor_home, project, root / "t"]:
         directory.mkdir()
     subprocess.run(["git", "init", "--quiet", str(project)], check=True, timeout=10)
     roots = {
         "config": vendor_home / "skills",
-        "user": native_user_root if native_user_root is not None else home / ".agents" / "skills",
+        "user": home / ".agents" / "skills",
         "project": project / ".grok" / "skills",
     }
     unique = {
@@ -134,9 +134,7 @@ def qualify(executable: Path, root: Path, native_user_root: Path | None = None) 
         "evidence_kind": "vendor_configuration_read",
         "commands": ["inspect --json", "--trust inspect --json"],
         "inference_turns_started": 0,
-        "user_scope_fixture": (
-            "native_disposable_runner_profile" if native_user_root is not None else "isolated_home"
-        ),
+        "user_scope_fixture": "isolated_home",
     }
 
 
@@ -208,12 +206,11 @@ def main() -> None:
         tempfile.TemporaryDirectory(
             prefix="stp-grok-", dir=os.environ.get("RUNNER_TEMP")
         ) as temporary,
-        native_user_scope("grok") as native_user_root,
     ):
         root = Path(temporary)
         executable, version = prepare(arguments.distribution, root)
         digest = binary_digest(executable)
-        result = qualify(executable.resolve(), root, native_user_root)
+        result = qualify(executable.resolve(), root)
         assert binary_digest(executable) == digest, "Vendor binary changed during qualification"
     proof = {
         "schema_version": 1,

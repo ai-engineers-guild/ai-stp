@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import tempfile
-from collections.abc import Generator
-from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -49,20 +46,3 @@ def write_skill(root: Path, folder: str, name: str, description: str) -> Path:
 def binary_digest(executable: Path) -> str:
     with executable.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
-
-
-@contextmanager
-def native_user_scope(vendor: str) -> Generator[Path | None]:
-    """Windows known-folder APIs require an owned child of the native CI profile."""
-    if os.name != "nt":
-        yield None
-        return
-    assert os.environ.get("GITHUB_ACTIONS") == "true"
-    assert os.environ.get("RUNNER_OS") == "Windows"
-    profile_home = Path.home().resolve()
-    parent = profile_home / ".agents" / "skills"
-    assert parent.resolve().is_relative_to(profile_home)
-    parent.mkdir(parents=True, exist_ok=True)
-    assert parent.resolve().is_relative_to(profile_home)
-    with tempfile.TemporaryDirectory(prefix=f"stp-{vendor}-", dir=parent) as temporary:
-        yield Path(temporary)
