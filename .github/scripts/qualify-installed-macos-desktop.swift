@@ -64,7 +64,7 @@ func press(_ node: AXUIElement) throws {
 }
 
 func settings(_ process: Process) throws {
-    try press(visible(process, "Settings", role: kAXLinkRole))
+    try press(visible(process, "Settings", role: "AXLink"))
     _ = try visible(process, "Local workspace")
 }
 
