@@ -580,3 +580,8 @@ ci-native-vendor-grok:
 [private]
 ci-native-vendor-pi:
     python -m tests.native_vendor.pi --distribution tests/native_vendor/pi-distribution --proof "${AI_STP_PI_PROOF}"
+
+[group('ci')]
+[private]
+ci-native-vendor-claude:
+    python -m tests.native_vendor.claude --distribution tests/native_vendor/claude-distribution --proof "${AI_STP_CLAUDE_PROOF}"
