@@ -533,4 +533,4 @@ ci-confinement-verify-runtime-digest-and-exercise-the-identical-guest-component:
 ci-python-dependencies:
     set -euo pipefail
     just back-dependencies
-    uv run --offline --no-sync pytest -q tests/contract/test_python_dependencies.py
+    uv run --offline --no-sync pytest --no-cov -q tests/contract/test_python_dependencies.py
