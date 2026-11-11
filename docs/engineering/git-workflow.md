@@ -86,6 +86,16 @@ marks diagnostic_only; it has no delivery authority. Full source callers cannot
 select another producer. Windows refusals record read-only ACL/attribute summaries
 of the new synthetic fixture directories; they never repair existing permissions.
 
+
+The installed ABBA owner retains both end-to-end navigation and an independent
+WebView observation from the trusted navigation click through usable content,
+loaded fonts and two paint frames. The nonnegative residual includes automation
+and control preparation; it is not an isolated IPC cost. WebView startup uses its
+own performance time origin. Report schema 2 records the observer hash and raw
+stage samples. Both packages use the same observer on the same worker; historical
+schema-1 measurements retain their original definition. These observations do
+not establish a performance budget or causal speedup.
+
 ## Integration and delivery
 
 1. Branch from current `dev`, implement, regenerate affected projections and run
