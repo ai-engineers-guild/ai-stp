@@ -126,6 +126,10 @@ func prove() throws {
     defer { if process.isRunning { process.terminate() } }
     _ = try visible(process, "Engine \(cliVersion)")
     try settings(process)
+    guard let fixture = ProcessInfo.processInfo.environment["XDG_DATA_HOME"] else {
+        throw ProbeFailure("An isolated XDG data directory is required")
+    }
+    _ = try visible(process, fixture + "/ai-stp")
     try press(visible(process,
         "Initialize or resume this device using the selected credential storage.", role: kAXCheckBoxRole))
     try press(visible(process, "Initialize workspace", role: kAXButtonRole, enabled: true))
