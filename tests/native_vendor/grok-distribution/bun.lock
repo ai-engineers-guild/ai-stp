@@ -1,0 +1,29 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "ai-stp-grok-qualification",
+      "dependencies": {
+        "@xai-official/grok": "1.0.77",
+      },
+    },
+  },
+  "packages": {
+    "@iarna/toml": ["@iarna/toml@3.0.0", "", {}, "sha512-td6ZUkz2oS3VeleBcN+m//Q6HlCFCPrnI0FZhrt/h4XqLEdOyYp2u21nd8MdsR+WJy5r9PTDaHTDDfhf4H4l6Q=="],
+
+    "@xai-official/grok": ["@xai-official/grok@1.0.77", "", { "dependencies": { "@iarna/toml": "^3.0.0" }, "optionalDependencies": { "@xai-official/grok-darwin-arm64": "1.0.77", "@xai-official/grok-darwin-x64": "1.0.77", "@xai-official/grok-linux-arm64": "1.0.77", "@xai-official/grok-linux-x64": "1.0.77", "@xai-official/grok-win32-arm64": "1.0.77", "@xai-official/grok-win32-x64": "1.0.77" }, "os": [ "linux", "win32", "darwin", ], "cpu": [ "x64", "arm64", ], "hasInstallScript": true, "bin": { "grok": "bin/grok" } }, "sha512-zNGi+PGXR/cxL3URtxEIHX91Lm06jOb28ra98FWEO9keIJOO83Pr67rpmLtwufp7A51NvMM4Nm0Kh77/9l9rQg=="],
+
+    "@xai-official/grok-darwin-arm64": ["@xai-official/grok-darwin-arm64@1.0.77", "", { "os": "darwin", "cpu": "arm64" }, "sha512-84xJbu3gT5CdY1o3uSxRXtcZyoPLdn2KmrkODUHyzB45+DnlpZDzZK33dSM3nlxh6X9NSeqWoqtO4eQnACo0Wg=="],
+
+    "@xai-official/grok-darwin-x64": ["@xai-official/grok-darwin-x64@1.0.77", "", { "os": "darwin", "cpu": "x64" }, "sha512-6nipHWpGs7+SOmA7rSBvykPwjL4e2cevlrvFcAD1uXBvVRxvTZoBB6GrwGYFEK8TZaE/jPj0LtaoZ4zNr889Uw=="],
+
+    "@xai-official/grok-linux-arm64": ["@xai-official/grok-linux-arm64@1.0.77", "", { "os": "linux", "cpu": "arm64" }, "sha512-Kb4yKbVEztX07iM7cvKB2L/xiQP1M/kLjJnyRk84gNtr3IG7ahqJp6005uB/VLvw0isv1Cj50zJ9jYTK7NiOqw=="],
+
+    "@xai-official/grok-linux-x64": ["@xai-official/grok-linux-x64@1.0.77", "", { "os": "linux", "cpu": "x64" }, "sha512-DuPSEw1NYj/bwLOCK/7LJw83N1rgKc8hEsIg4CggJ9y74yabAOUdamr4lfI+i2cKLPq9h8TQf2KNbyE/zX89yg=="],
+
+    "@xai-official/grok-win32-arm64": ["@xai-official/grok-win32-arm64@1.0.77", "", { "os": "win32", "cpu": "arm64" }, "sha512-eYZZkszz2Ki/EFQPBarVUTQROQAG984yVKzy5fJFo3sbFvhEIYbv3THJgemf5zW0XCgaYbAhx2H6GcpEUWyM3A=="],
+
+    "@xai-official/grok-win32-x64": ["@xai-official/grok-win32-x64@1.0.77", "", { "os": "win32", "cpu": "x64" }, "sha512-suC0MKHxQ5fQt7bVpAqFl1pdUMS35AOZiecDi+dIUKhYhrB+3cjpyLXUeCnUyS+nqZNyMnHl2dZMZpYM+chKfw=="],
+  }
+}

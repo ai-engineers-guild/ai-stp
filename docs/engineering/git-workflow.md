@@ -45,13 +45,18 @@ job-local source file; it leaves runner sources, resolver and trust unchanged.
 Index retrieval refuses partial failures before package installation.
 
 The vendor-discovery owner reads the vendor's local configuration API with an
-isolated profile and checksum-pinned official distribution. Codex controls cover
+isolated profile and integrity-pinned official distribution. The three native jobs share the
+Codex/Grok SDK preparation rather than allocating a job per vendor. Codex controls cover
 scope discovery, distinct same-name skills, reload, malformed-input refusal and
-configuration precedence. Proof kind is vendor_configuration_read; installation
+configuration precedence. Grok controls cover project trust, scope and instruction
+discovery, skill precedence, removal and MCP configuration fallback. Grok packages
+use a separate frozen Bun lock with installation scripts disabled; only the native
+payload is decompressed. Both readers verify unchanged binary bytes.
+Proof kind is vendor_configuration_read; installation
 effects, runtime invocation and current authority retain their respective owners.
-On Windows, the user-skill fixture owns one temporary child of the disposable
+On Windows, the Codex user-skill fixture owns one temporary child of the disposable
 runner native profile and verifies the vendor-reported file identity. Existing
-profile files are preserved.
+profile files are preserved. Grok uses its redirected fixture home on every OS.
 
 ## Integration and delivery
 

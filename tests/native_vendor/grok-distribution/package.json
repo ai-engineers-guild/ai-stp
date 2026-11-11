@@ -1,0 +1,8 @@
+{
+  "name": "ai-stp-grok-qualification",
+  "private": true,
+  "packageManager": "bun@1.4.4",
+  "dependencies": {
+    "@xai-official/grok": "1.0.77"
+  }
+}
