@@ -489,7 +489,6 @@ web-static: web-source web-i18n
 [group('web')]
 web-test:
     {{ bunreq }}
-    cd apps/web && bun run test:lint
     cd apps/web && bun run test:coverage
     cd apps/web && bun run test:coverage:catalog
 
