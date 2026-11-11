@@ -42,7 +42,8 @@ class Pipe:
 
     def close(self) -> None:
         self.stopped.set()
-        self.input.close()
+        with suppress(BrokenPipeError):
+            self.input.close()
         try:
             self.process.wait(timeout=5)
         except subprocess.TimeoutExpired:
