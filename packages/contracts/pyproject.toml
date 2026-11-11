@@ -38,7 +38,7 @@ Repository = "https://github.com/ai-engineers-guild/ai-stp"
 mock = ["httpx>=0.28"]
 
 [build-system]
-requires = ["uv_build>=0.13.5,<0.14"]
+requires = ["uv_build>=0.13.7,<0.14"]
 build-backend = "uv_build"
 
 [tool.deptry.per_rule_ignores]
