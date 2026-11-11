@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.gui_platform || 'packages' }}
   cancel-in-progress: true
 
 env:

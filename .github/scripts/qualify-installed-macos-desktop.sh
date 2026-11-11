@@ -24,7 +24,7 @@ cleanup() {
   rm -rf "${fixture}"
 }
 trap cleanup EXIT
-mkdir -m 700 "${fixture}/mount" "${fixture}/home"
+mkdir -m 700 "${fixture}/mount" "${fixture}/state"
 hdiutil attach -readonly -nobrowse -mountpoint "${fixture}/mount" "${installer}" >/dev/null
 touch "${fixture}/mounted"
 ditto "${fixture}/mount/ai-stp-desktop.app" "${fixture}/ai-stp-desktop.app"
@@ -33,7 +33,8 @@ rm "${fixture}/mounted"
 app="${fixture}/ai-stp-desktop.app/Contents/MacOS/ai-stp-desktop"
 cli="${fixture}/ai-stp-desktop.app/Contents/Resources/cli/ai-stp-desktop-cli"
 test -x "${app}" && test -x "${cli}"
-version=$(HOME="${fixture}/home" swift .github/scripts/qualify-installed-macos-desktop.swift "${app}" "${cli}")
+# Preserve the disposable login session for the existing native Keychain.
+version=$(AI_STP_STATE_DIR="${fixture}/state" swift .github/scripts/qualify-installed-macos-desktop.swift "${app}" "${cli}")
 [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 jq -n --arg source "${source}" --arg installer "${expected}" --arg version "${version}" \
   --arg app "$(shasum -a 256 "${app}" | cut -d ' ' -f 1)" \
