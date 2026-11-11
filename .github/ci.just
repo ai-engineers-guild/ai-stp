@@ -421,6 +421,30 @@ ci-desktop-probe-the-packaged-cli-resource-tree:
     set -euo pipefail
     cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- desktop-package-probe
 
+# Installed desktop personal workspace on the two native GUI owners.
+[group('ci')]
+[private]
+[script('bash')]
+ci-desktop-installed-personal-workspace:
+    set -euo pipefail
+    bundle="apps/desktop/src-tauri/target/release/bundle"
+    output="${RUNNER_TEMP}/installed-personal-desktop.json"
+    case "${RUNNER_OS}" in
+      macOS)
+        bash .github/scripts/qualify-installed-macos-desktop.sh \
+          "${bundle}" "${GITHUB_SHA}" "${output}"
+        ;;
+      Windows)
+        powershell.exe -NoProfile -NonInteractive -File \
+          .github/scripts/qualify-installed-windows-desktop.ps1 \
+          -Bundle "$(cygpath -aw "${bundle}")" -Source "${GITHUB_SHA}" \
+          -Output "$(cygpath -aw "${output}")"
+        ;;
+      *)
+        exit 2
+        ;;
+    esac
+
 # Desktop three installed linux desktop journeys with bundled cli and native vault.
 [group('ci')]
 [private]

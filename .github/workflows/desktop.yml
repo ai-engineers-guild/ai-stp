@@ -242,7 +242,7 @@ jobs:
           path: ${{ runner.temp }}/installed-desktop-performance.json
           if-no-files-found: error
           retention-days: 7
-      - name: Seal the platform installers after native acceptance
+      - name: Seal the exact platform installers
         if: ${{ !inputs.packages_only }}
         shell: bash
         env:
@@ -252,6 +252,21 @@ jobs:
           python -m release_scripts.desktop_artifacts seal
           --directory apps/desktop/src-tauri/target/release/bundle
           --source "${SOURCE_SHA}" --platform "${PLATFORM}"
+      - name: Qualify personal workspace on installed macOS and Windows
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        timeout-minutes: 8
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+        with:
+          recipe: ci-desktop-installed-personal-workspace
+      - name: Retain installed macOS and Windows personal results
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-personal-desktop-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-personal-desktop.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload bundles
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
