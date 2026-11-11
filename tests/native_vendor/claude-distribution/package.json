@@ -1,0 +1,8 @@
+{
+  "name": "ai-stp-claude-qualification",
+  "private": true,
+  "packageManager": "bun@1.4.4",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.322"
+  }
+}
