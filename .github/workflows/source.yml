@@ -363,8 +363,8 @@ jobs:
         shell: bash
         run: |
           bash .github/scripts/observe-native-package-network.sh before-index
-          sudo apt-get update --error-on=any -qq
-          sudo apt-get install --yes --no-install-recommends \
+          bash .github/scripts/native-apt.sh update -qq
+          bash .github/scripts/native-apt.sh install --yes --no-install-recommends \
             dbus-daemon gnome-keyring libglib2.0-bin
       - name: Fresh concurrent Linux clients and independent CLI processes
         if: runner.os == 'Linux'
@@ -585,8 +585,8 @@ jobs:
         shell: bash
         run: |
           bash .github/scripts/observe-native-package-network.sh before-index
-          sudo apt-get update --error-on=any -qq
-          sudo apt-get install --yes --no-install-recommends \
+          bash .github/scripts/native-apt.sh update -qq
+          bash .github/scripts/native-apt.sh install --yes --no-install-recommends \
             dbus-daemon gnome-keyring libglib2.0-bin
       - name: Actual Linux Secret Service enrollment and recovery
         if: runner.os == 'Linux'
