@@ -70,6 +70,10 @@ jobs:
     if: needs.native-experiments.outputs.wasi == 'true'
     uses: ./.github/workflows/wasi-confinement.yml
 
+  safety-runtime:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/safety-runtime.yml
+
   secrets:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
@@ -393,6 +397,7 @@ jobs:
       - rust-dependencies
       - python-dependencies
       - wasi-confinement
+      - safety-runtime
       - secrets
       - integration-python
       - integration-web
@@ -427,7 +432,7 @@ jobs:
           printf 'Qualification phase: %s\n' "${PHASE}"
           jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
             --arg wasi "${WASI_SELECTED}" '
-            type == "object" and length == 20 and
+            type == "object" and length == 21 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
             ($phase != "full" or $wasi == "true") and
