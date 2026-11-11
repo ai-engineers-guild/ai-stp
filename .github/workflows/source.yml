@@ -143,6 +143,43 @@ jobs:
         with:
           recipe: rust-dependencies
 
+  python-dependencies:
+    name: python-dependencies (${{ matrix.python }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12.16", "3.13.18", "3.14.10", "current"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+        with:
+          python-version: ${{ matrix.python == 'current' && env.PYTHON_VERSION || matrix.python }}
+          uv-version: ${{ env.UV_VERSION }}
+      - name: Isolate this job's Python environment
+        run: |
+          set -euo pipefail
+          {
+            echo "UV_PYTHON=$(python -c 'import sys; print(sys.executable)')"
+            echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/ai-stp-python-dependencies"
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-cache"
+          } >> "${GITHUB_ENV}"
+      - name: Prepare the locked Python dependencies
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+        with:
+          recipe: setup-python
+      - name: Check each owner and actual refusal behavior
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+        with:
+          recipe: ci-python-dependencies
+
   integration-python:
     if: github.event_name == 'pull_request'
     needs: native-experiments
@@ -354,6 +391,7 @@ jobs:
     needs:
       - native-experiments
       - rust-dependencies
+      - python-dependencies
       - wasi-confinement
       - secrets
       - integration-python
@@ -389,7 +427,7 @@ jobs:
           printf 'Qualification phase: %s\n' "${PHASE}"
           jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
             --arg wasi "${WASI_SELECTED}" '
-            type == "object" and length == 19 and
+            type == "object" and length == 20 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
             ($phase != "full" or $wasi == "true") and
@@ -397,7 +435,7 @@ jobs:
               if .key == "analysis" then
                 .value.result == (if $private then "skipped" else "success" end)
               elif (.key == "secrets" or .key == "native-experiments"
-                    or .key == "rust-dependencies") then
+                    or .key == "rust-dependencies" or .key == "python-dependencies") then
                 .value.result == "success"
               elif .key == "wasi-confinement" then
                 .value.result == (if $wasi == "true" then "success" else "skipped" end)

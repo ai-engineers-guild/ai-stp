@@ -46,6 +46,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "docs_scripts/user-mkdocs.yml",
     ),
     "docs-regress": ("docs_scripts/mermaid_check.py",),
+    "back-dependencies": ("python -m release_scripts.python_dependencies",),
     "back-static": (
         "ruff format --check",
         "ruff check ",

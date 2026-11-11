@@ -525,3 +525,12 @@ ci-component-compile-one-portable-component-without-third-party-guest-dependenci
 ci-confinement-verify-runtime-digest-and-exercise-the-identical-guest-component:
     set -euo pipefail
     python .github/scripts/qualify-wasi-confinement.py exercise "${ARTIFACT}"
+
+# Dependency ownership and parser compatibility on the selected Python SDK.
+[group('ci')]
+[private]
+[script('bash')]
+ci-python-dependencies:
+    set -euo pipefail
+    just back-dependencies
+    uv run --offline --no-sync pytest -q tests/contract/test_python_dependencies.py
