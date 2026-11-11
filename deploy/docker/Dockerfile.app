@@ -99,11 +99,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM scanner-runtime AS worker-safety
 USER root
+COPY --from=go-tools /usr/local/go /opt/safety-go
 COPY --chown=appuser:appuser --from=tools /opt/safety-bin /opt/safety-bin
 COPY --chown=appuser:appuser --from=tools /opt/safety-venv /opt/safety-venv
 COPY --chown=appuser:appuser --from=tools /opt/safety-cisco /opt/safety-cisco
 COPY --chown=appuser:appuser scripts/safety /opt/ai_stp/scripts/safety
 RUN chmod +x /opt/ai_stp/scripts/safety/*.sh
-ENV PATH="/opt/safety-bin:${PATH}" \
+ENV PATH="/opt/safety-go/bin:/opt/safety-bin:${PATH}" \
+    GOTELEMETRY=off \
     AI_STP_SAFETY_EXTERNAL_CLI=1
 USER appuser
