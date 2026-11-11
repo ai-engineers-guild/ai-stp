@@ -382,9 +382,14 @@ back-gen:
     {{ run }} python release_scripts/first_party_corpus_digests.py
     {{ py }} {{ scripts }}/skill_projections.py
 
+[doc('Check runtime dependency ownership in each Python workspace member')]
+[group('back')]
+back-dependencies:
+    {{ run }} python -m release_scripts.python_dependencies
+
 [doc('Format, lint, types and generated drift in one pass')]
 [group('back')]
-back-static:
+back-static: back-dependencies
     {{ run }} ruff format --check .
     {{ run }} ruff check .
     {{ bunreq }}

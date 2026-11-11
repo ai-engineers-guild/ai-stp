@@ -6,11 +6,14 @@ import json
 import os
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from typing import Any, cast
 
 import yaml
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 from release_scripts._github_delivery import PromotionRefused
 from release_scripts.source_admission import admit_source
 from tests.contract.test_gate_split_covers_the_gate import command_text
@@ -52,6 +55,7 @@ class QualificationTests(unittest.TestCase):
                     "secrets",
                     "native-experiments",
                     "rust-dependencies",
+                    "python-dependencies",
                     "wasi-confinement",
                 }
                 or name.startswith("integration-") == (phase == "integration")
@@ -71,6 +75,22 @@ class QualificationTests(unittest.TestCase):
             },
         )
         return outcome.returncode == 0
+
+    def test_dependency_ownership_covers_each_supported_python_minor(self) -> None:
+        source = workflow("source.yml")
+        latest = Version(source["env"]["PYTHON_VERSION"])
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        supported = SpecifierSet(project["project"]["requires-python"])
+        selected = {
+            Version(source["env"]["PYTHON_VERSION"] if item == "current" else item)
+            for item in source["jobs"]["python-dependencies"]["strategy"]["matrix"]["python"]
+        }
+        expected = {
+            (latest.major, minor)
+            for minor in range(latest.minor + 1)
+            if Version(f"{latest.major}.{minor}") in supported
+        }
+        self.assertEqual({(item.major, item.minor) for item in selected}, expected)
 
     def test_completion_directly_depends_on_every_owning_job(self) -> None:
         jobs = workflow("source.yml")["jobs"]
@@ -116,7 +136,7 @@ class QualificationTests(unittest.TestCase):
         for name, job in source["jobs"].items():
             if name in {"analysis", "qualification", "secrets"}:
                 continue
-            if name in {"native-experiments", "rust-dependencies"}:
+            if name in {"native-experiments", "rust-dependencies", "python-dependencies"}:
                 self.assertNotIn("if", job)
                 continue
             if name == "wasi-confinement":

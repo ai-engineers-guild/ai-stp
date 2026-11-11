@@ -9,39 +9,47 @@ license-files = ["LICENSE"]
 authors = [{ name = "AI Engineers Guild" }]
 keywords = ["ai", "api", "contracts", "developer-tools", "setup"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Operating System :: MacOS",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Typing :: Typed",
+  "Development Status :: 3 - Alpha",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
 ]
 dependencies = [
-    "ai-stp-assurance==0.0.16",
-    "ai-stp-foundation==0.0.16",
-    "ai-stp-passports==0.0.16",
-    "pydantic>=2.14.1",
-    "tzdata>=2025.1; sys_platform == 'win32'",
+  "ai-stp-assurance==0.0.16",
+  "ai-stp-foundation==0.0.16",
+  "ai-stp-passports==0.0.16",
+  "pydantic>=2.14.1",
+  "tzdata>=2025.1; sys_platform == 'win32'",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ai-engineers-guild/ai-stp"
+Issues = "https://github.com/ai-engineers-guild/ai-stp/issues"
+Repository = "https://github.com/ai-engineers-guild/ai-stp"
 
 [project.optional-dependencies]
 # Only a client-side test needs an HTTP client. The platform track imports the
 # corpus and the conformance suite without pulling one it does not use.
 mock = ["httpx>=0.28"]
 
-[project.urls]
-Homepage = "https://github.com/ai-engineers-guild/ai-stp"
-Repository = "https://github.com/ai-engineers-guild/ai-stp"
-Issues = "https://github.com/ai-engineers-guild/ai-stp/issues"
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14"]
+build-backend = "uv_build"
+
+[tool.deptry.per_rule_ignores]
+# zoneinfo loads the IANA database from tzdata on Windows.
+DEP002 = ["tzdata"]
+
+[tool.deptry.package_module_name_map]
+# The conditional Windows data package is absent on Unix analysis hosts.
+tzdata = ["tzdata"]
 
 [tool.uv.sources]
 ai-stp-assurance = { workspace = true }
 ai-stp-foundation = { workspace = true }
 ai-stp-passports = { workspace = true }
-
-[build-system]
-requires = ["uv_build>=0.13.5,<0.14"]
-build-backend = "uv_build"
