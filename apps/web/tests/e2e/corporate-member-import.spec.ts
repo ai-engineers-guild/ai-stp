@@ -30,11 +30,28 @@ test("file picker, drop, preview validation, localized help and main navigation"
   await page.keyboard.press("Escape");
   await page.goto("/en/corporate/admin/invitations");
   await main.getByRole("button", { name: "Invite member", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "File import help" }).click();
+  const invitation = page.getByRole("dialog", { name: "Invite member", exact: true });
+  await invitation
+    .getByRole("textbox", { name: "Email", exact: true })
+    .fill("draft@company.example");
+  await invitation.getByRole("combobox", { name: "Role", exact: true }).selectOption("lead");
+  await invitation.getByRole("combobox", { name: "Expires in", exact: true }).selectOption("14");
+  const helpTrigger = invitation.getByRole("button", { name: "File import help", exact: true });
+  await helpTrigger.click();
   const help = page.getByRole("dialog", { name: "File import help" });
   await expect(help).toContainText("email,display_name");
   await page.keyboard.press("Escape");
-  await page.getByRole("dialog").getByRole("button", { name: "Import from file" }).click();
+  await expect(help).toHaveCount(0);
+  await expect(invitation).toBeVisible();
+  await expect(helpTrigger).toBeFocused();
+  await expect(invitation.getByRole("textbox", { name: "Email", exact: true })).toHaveValue(
+    "draft@company.example",
+  );
+  await expect(invitation.getByRole("combobox", { name: "Role", exact: true })).toHaveValue("lead");
+  await expect(invitation.getByRole("combobox", { name: "Expires in", exact: true })).toHaveValue(
+    "14",
+  );
+  await invitation.getByRole("button", { name: "Import from file" }).click();
   const dialog = page.getByRole("dialog", { name: "Import from file", exact: true });
   const picker = page.waitForEvent("filechooser");
   await dialog.locator('label[for="import-file"]').click();
@@ -92,7 +109,9 @@ test("file picker, drop, preview validation, localized help and main navigation"
     "В CSV и XLSX",
   );
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.goto("/en/corporate/admin/employee-access");
   if (info.project.name.includes("mobile"))
     await page.getByRole("button", { name: "Open menu", exact: true }).click();

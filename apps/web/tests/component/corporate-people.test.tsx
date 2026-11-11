@@ -100,9 +100,11 @@ it("returns focus to the external invitation button after Escape", async () => {
   await waitFor(() => expect(trigger).toHaveFocus());
 });
 
-it("opens localized import help and preserves role and expiry when changing invitation mode", async () => {
+it("preserves the invitation draft and focus when import help closes", async () => {
   const user = userEvent.setup();
-  render(wrap(<CorporateInviteDialog {...defaults} submit={vi.fn()} />));
+  render(wrap(<InvitationExample />));
+  await user.click(screen.getByRole("button", { name: "Invite member" }));
+  await user.type(screen.getByRole("textbox", { name: "Email" }), "draft@company.example");
   await user.selectOptions(screen.getByRole("combobox", { name: "Role" }), "lead");
   await user.selectOptions(screen.getByRole("combobox", { name: "Expires in" }), "14");
   const help = screen.getByRole("button", { name: "File import help" });
@@ -112,6 +114,8 @@ it("opens localized import help and preserves role and expiry when changing invi
   );
   await user.keyboard("{Escape}");
   await waitFor(() => expect(help).toHaveFocus());
+  expect(screen.getByRole("dialog", { name: "Invite member" })).toBeVisible();
+  expect(screen.getByRole("textbox", { name: "Email" })).toHaveValue("draft@company.example");
   await user.click(screen.getByRole("button", { name: "Import from file" }));
   expect(screen.getByRole("combobox", { name: "Role" })).toHaveValue("lead");
   expect(screen.getByRole("combobox", { name: "Expires in" })).toHaveValue("14");
