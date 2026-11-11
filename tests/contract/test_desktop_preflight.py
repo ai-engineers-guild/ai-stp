@@ -68,17 +68,21 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     ):
         assert steps[name]["if"] == "runner.os == 'Linux' && !inputs.packages_only"
     assert "preflight-" in steps["Upload bundles"]["with"]["name"]
-    assert (
-        steps["Seal the platform installers after native acceptance"]["if"]
-        == "${{ !inputs.packages_only }}"
-    )
+    assert steps["Seal the exact platform installers"]["if"] == "${{ !inputs.packages_only }}"
     order = list(steps)
-    assert order.index("Seal the platform installers after native acceptance") > order.index(
+    assert order.index("Seal the exact platform installers") > order.index(
         "Installed corporate onboarding, lost reply and original binding recovery"
     )
-    assert order.index("Seal the platform installers after native acceptance") > order.index(
+    assert order.index("Seal the exact platform installers") > order.index(
         "Retain the exact same-worker performance observations"
     )
+    personal = "Qualify personal workspace on installed macOS and Windows"
+    retained = "Retain installed macOS and Windows personal results"
+    condition = "(runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only"
+    assert steps[personal]["if"] == steps[retained]["if"] == condition
+    assert steps[personal]["with"]["recipe"] == "ci-desktop-installed-personal-workspace"
+    assert order.index("Seal the exact platform installers") < order.index(personal)
+    assert order.index(personal) < order.index(retained) < order.index("Upload bundles")
     assert steps["Upload bundles"]["with"]["if-no-files-found"] == "error"
     assert (
         '"application_acceptance":false'
