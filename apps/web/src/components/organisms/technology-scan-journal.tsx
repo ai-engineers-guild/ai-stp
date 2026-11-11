@@ -167,7 +167,7 @@ function TechnologyScanJournalTable({
       aria-label={s("title")}
       // The scroll region must remain keyboard accessible on narrow screens.
       // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
-      tabIndex={0} // oxlint-disable-line jsx-a11y/no-noninteractive-tabindex -- Focusable data rows support keyboard selection.
+      tabIndex={0}
     >
       <Table className="technology-journal-table">
         <caption className="sr-only">{s("title")}</caption>

@@ -106,7 +106,7 @@ export function PeopleTable({
       aria-label={label}
       // Keyboard access is required for scrolling the table on narrow viewports.
       // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
-      tabIndex={0} // oxlint-disable-line jsx-a11y/no-noninteractive-tabindex -- Focusable data rows support keyboard selection.
+      tabIndex={0}
       className={`relative min-w-0 overflow-x-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         framed ? "rounded-lg border border-border" : ""
       }`}

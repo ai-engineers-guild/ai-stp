@@ -127,7 +127,11 @@ try {
       assert.equal(result.status, 0, result.stdout + result.stderr);
       assert.deepEqual(codes, []);
     } else {
-      assert.equal(result.status, 1, result.stdout + result.stderr);
+      assert.equal(
+        result.status,
+        1,
+        expectedRules.join(", ") + ": " + result.stdout + result.stderr,
+      );
       for (const rule of expectedRules) assert(codes.includes(rule), rule + ": " + result.stdout);
     }
     checks += 1;
@@ -140,13 +144,10 @@ try {
     'import React from "react"; export function Invalid() { return ["x"].map(value => <img src={value} />); } export class Legacy extends React.Component { componentWillMount() {} render() { return null; } }',
     ["jsx-a11y(alt-text)", "react(jsx-key)", "react(no-unsafe)"],
   );
-  await checkOxlint("export const Row = () => <tr tabIndex={0} />;", [
+  await checkOxlint("export const Invalid = () => <div tabIndex={0} />;", [
     "jsx-a11y(no-noninteractive-tabindex)",
   ]);
-  await checkOxlint(
-    "export const Row = () => <tr\n tabIndex={0} // oxlint-disable-line jsx-a11y/no-noninteractive-tabindex -- Focusable data rows support keyboard selection.\n />;",
-    [],
-  );
+  await checkOxlint("export const Row = () => <tr tabIndex={0} />;", []);
 } finally {
   for (const directory of directories.toReversed()) {
     await rm(directory, { recursive: true, force: true });
