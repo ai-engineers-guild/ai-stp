@@ -58,7 +58,7 @@ malformed skills and empty ephemeral sessions. Only the new fixture project may
 receive the vendor's per-process approval flag. Codex and Grok verify unchanged
 binary bytes; Pi verifies its unchanged JavaScript entry and records its lock digest.
 Claude uses the official native npm payload with scripts disabled and sends only
-the SDK initialize request. It verifies skill/agent discovery, project shadowing
+the SDK initialize request. It verifies skill/agent discovery, their different precedence
 and removal, and actual owned SessionStart command-hook dispatch without a user
 prompt. Claude qualification requires a disposable hosted user even for metadata,
 because initialization executes configured hooks. Source paths are not inferred

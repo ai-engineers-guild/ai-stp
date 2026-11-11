@@ -196,10 +196,10 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
     shadow_skill: dict[str, Path] = {}
     shadow_agent: dict[str, Path] = {}
     for scope in skills:
-        write_skill(skills[scope], "unique", PREFIX + scope, "Controlled skill " + scope)
+        write_skill(skills[scope], PREFIX + scope, PREFIX + scope, "Controlled skill " + scope)
         write_agent(agents[scope], PREFIX + scope, "Controlled agent " + scope)
         shadow_skill[scope] = write_skill(
-            skills[scope], "shadow", PREFIX + "shadow", "Controlled shadow skill " + scope
+            skills[scope], PREFIX + "shadow", PREFIX + "shadow", "Controlled shadow skill " + scope
         )
         shadow_agent[scope] = write_agent(
             agents[scope], PREFIX + "shadow", "Controlled shadow agent " + scope
@@ -222,19 +222,19 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
         observed(first, "agents", PREFIX + scope, "Controlled agent " + scope)
     controls["user_and_project_skill_discovery"] = True
     controls["user_and_project_agent_discovery"] = True
-    observed(first, "commands", PREFIX + "shadow", "Controlled shadow skill project")
+    observed(first, "commands", PREFIX + "shadow", "Controlled shadow skill user")
     observed(first, "agents", PREFIX + "shadow", "Controlled shadow agent project")
-    controls["project_skill_and_agent_shadow_wins"] = True
+    controls["user_skill_and_project_agent_precedence"] = True
 
-    shadow_skill["project"].unlink()
+    shadow_skill["user"].unlink()
     shadow_agent["project"].unlink()
     second = inspect("refreshed.log")
-    observed(second, "commands", PREFIX + "shadow", "Controlled shadow skill user")
+    observed(second, "commands", PREFIX + "shadow", "Controlled shadow skill project")
     observed(second, "agents", PREFIX + "shadow", "Controlled shadow agent user")
     for scope in skills:
         observed(second, "commands", PREFIX + scope, "Controlled skill " + scope)
         observed(second, "agents", PREFIX + scope, "Controlled agent " + scope)
-    controls["removed_project_layers_fall_back_to_user"] = True
+    controls["removed_winning_layers_reveal_fallbacks"] = True
     observations = hook_events(events)
     assert observations, "Actual SessionStart hook did not execute"
     controls["configured_startup_hook_executes_without_prompt"] = True
