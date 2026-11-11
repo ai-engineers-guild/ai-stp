@@ -159,7 +159,7 @@ export function CorporateCreateForm({
   const values = (name: string) => selected[name] ?? [];
   const target = resource === "members" ? "employees" : resource;
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const body =

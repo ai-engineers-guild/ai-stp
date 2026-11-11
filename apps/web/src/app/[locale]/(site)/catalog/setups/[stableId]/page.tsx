@@ -1,7 +1,7 @@
 import { loadContextBudget } from "@/lib/context-budget";
 import type { Metadata } from "next";
 import { catalogReturnHref } from "@/lib/catalog-return";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
@@ -31,7 +31,7 @@ import { CorporateCatalogUsage } from "@/components/organisms/corporate-catalog-
 import { usageSectionLabels } from "@/lib/corporate-directory-types";
 import { CorporateCatalogOwnerEditor } from "@/components/organisms/corporate-catalog-owner-editor";
 import { SetupComposition } from "@/components/organisms/setup-composition";
-import { SetupFamilyBlock, setupFamilyLabels } from "@/components/molecules/setup-family";
+import { SetupFamilyBlock, setupFamilyLabels } from "@/components/organisms/setup-family";
 import {
   catalogRelations,
   readSetup,
@@ -84,7 +84,6 @@ export default async function SetupDetailPage({ params, searchParams }: PageProp
     locale,
     "/catalog?include_experimental=1&resource=setups",
   );
-  setRequestLocale(locale);
   const setupId = tryAsSetupId(stableId);
   if (!setupId) notFound();
   const token = await sessionCookieValue();

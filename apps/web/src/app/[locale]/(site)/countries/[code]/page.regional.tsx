@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { SeoJsonLd } from "@/components/molecules/seo-json-ld";
 import { readCountry } from "@/lib/api/catalog";
@@ -24,7 +24,6 @@ export default async function CountryPage({
   params: Promise<{ locale: string; code: string }>;
 }) {
   const { locale, code } = await params;
-  setRequestLocale(locale);
   const t = await getTranslations("regionalServices");
   if (process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED === "false") notFound();
   const country = await readCountry(code).catch(() => null);

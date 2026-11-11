@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Link } from "@/lib/i18n/navigation";
 import { readCorporateContext } from "@/lib/api/corporate";
@@ -214,7 +214,6 @@ export default async function FutureCorporateReport({
 }) {
   const { locale, report } = await params;
   if (report !== "usage" && report !== "coverage" && report !== "provider") notFound();
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/reports/${report}`);
   const t = await getTranslations("corporateReports");
 

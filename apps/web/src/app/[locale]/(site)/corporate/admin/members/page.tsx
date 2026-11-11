@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -32,7 +32,6 @@ export default async function CorporateMembersPage({ params, searchParams }: Pag
     const suffix = rest.size ? `?${rest.toString()}` : "";
     redirect(`/${locale}/corporate/admin/invitations${suffix}`);
   }
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/members`);
   const t = await getTranslations("people");
   const h = await getTranslations("hub");

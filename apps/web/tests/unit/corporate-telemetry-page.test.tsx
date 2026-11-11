@@ -12,7 +12,6 @@ const readPolicy = vi.hoisted(() =>
 
 vi.mock("next-intl/server", () => ({
   getTranslations: () => Promise.resolve((key: string) => key),
-  setRequestLocale: vi.fn(),
 }));
 vi.mock("@/lib/auth/require-session", () => ({
   requireSession: vi.fn(),

@@ -383,7 +383,7 @@ export async function readCorporateCatalogAssignments(
   subjectId: string,
 ) {
   const items: CorporateCatalogAssignmentList["items"] = [];
-  let total = 0;
+  let total: number;
   do {
     const page = await apiRequest<CorporateCatalogAssignmentList>(
       `/v1/corporate/organizations/${organizationId}/catalog-assignments`,

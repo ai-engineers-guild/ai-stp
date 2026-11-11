@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/atoms/badge";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -12,7 +12,6 @@ export default async function ReportCasePage({
   params: Promise<{ locale: string; caseId: string }>;
 }) {
   const { locale, caseId } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/reports/${caseId}`);
   const t = await getTranslations("reports");
   const tc = await getTranslations("common");

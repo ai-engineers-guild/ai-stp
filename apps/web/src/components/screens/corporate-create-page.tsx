@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateCreateForm } from "@/components/organisms/corporate-create-form";
@@ -18,7 +18,6 @@ export async function CorporateCreatePage({
   embedded?: boolean;
 }) {
   const routeResource = resource === "members" ? "employees" : resource;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${routeResource}/new`);
   const token = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("hub");

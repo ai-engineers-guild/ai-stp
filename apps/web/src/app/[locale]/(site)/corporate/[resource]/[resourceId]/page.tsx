@@ -1,5 +1,5 @@
 import { CorporateProjectRepository } from "@/components/organisms/corporate-project-repository";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
@@ -52,7 +52,6 @@ export default async function CorporateResourcePage({ params, searchParams }: Pa
     resource !== "roles"
   )
     notFound();
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${resource}/${resourceId}`);
   const t = await getTranslations("corporate");
   const tc = await getTranslations("common");

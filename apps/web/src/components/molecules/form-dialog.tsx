@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent, ReactNode } from "react";
+import type { SubmitEvent, ReactNode } from "react";
 
 import { Button } from "@/components/atoms/button";
 import {
@@ -48,7 +48,7 @@ export function FormDialog({
   /** Wider body for permission matrices and multi-column forms. */
   wide?: boolean;
   error?: string | null;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: SubmitEvent<HTMLFormElement>) => void;
   children?: ReactNode;
 }) {
   return (

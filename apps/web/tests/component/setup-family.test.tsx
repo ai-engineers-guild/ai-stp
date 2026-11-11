@@ -16,7 +16,7 @@ vi.mock("@/components/organisms/contact-report-dialog", () => ({
   ContactReportDialog: () => null,
 }));
 
-import { SetupFamilyBlock } from "@/components/molecules/setup-family";
+import { SetupFamilyBlock } from "@/components/organisms/setup-family";
 import type { SetupFamilyPublic } from "@/lib/api/generated/types.gen";
 
 const labels = {

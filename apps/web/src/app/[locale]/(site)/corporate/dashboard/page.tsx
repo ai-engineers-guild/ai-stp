@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { DashboardBuilder } from "@/components/organisms/dashboard-builder";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -12,7 +12,6 @@ export default async function CorporateDashboard({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/dashboard`);
   const t = await getTranslations("dashboardBuilder");
   const token = await sessionCookieValue();

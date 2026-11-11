@@ -1,7 +1,7 @@
 import { loadContextBudget } from "@/lib/context-budget";
 import type { Metadata } from "next";
 import { catalogReturnHref } from "@/lib/catalog-return";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { ObjectAuthorRail } from "@/components/molecules/catalog-author-link";
@@ -86,7 +86,6 @@ export default async function ComponentDetailPage({ params, searchParams }: Page
     locale,
     "/catalog?include_experimental=1&resource=components",
   );
-  setRequestLocale(locale);
   const componentId = tryAsComponentId(stableId);
   if (!componentId) notFound();
   const token = await sessionCookieValue();

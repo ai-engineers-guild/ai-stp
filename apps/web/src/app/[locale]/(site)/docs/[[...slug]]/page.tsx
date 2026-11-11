@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { DocsNav } from "@/components/organisms/docs-nav";
 import { DocsSearch } from "@/components/organisms/docs-search";
@@ -10,7 +10,6 @@ type Props = { params: Promise<{ locale: string; slug?: string[] }> };
 
 export default async function DocsPage({ params }: Props) {
   const { locale, slug = [] } = await params;
-  setRequestLocale(locale);
   const canonical = canonicalDocsSlug(slug);
   if (canonical) {
     redirect(canonical.length > 0 ? `/${locale}/docs/${canonical.join("/")}` : `/${locale}/docs`);

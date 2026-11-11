@@ -42,7 +42,7 @@ export function InvitationTable({
       aria-label={t("invitationsTable")}
       // Keyboard access lets narrow-screen users scroll every table column.
       // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
-      tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0} // oxlint-disable-line jsx-a11y/no-noninteractive-tabindex -- The named scroll region must remain reachable by keyboard.
     >
       <Table className="min-w-[950px]">
         <THead>

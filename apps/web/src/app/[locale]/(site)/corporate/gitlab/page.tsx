@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { GitLabConnector } from "@/components/organisms/gitlab-connector";
@@ -13,7 +13,6 @@ export default async function CorporateGitLabPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const session = await requireSession(locale, `/${locale}/corporate/gitlab`);
   const token = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("gitlabConnector");

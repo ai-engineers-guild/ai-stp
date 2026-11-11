@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CatalogFilters } from "@/components/organisms/catalog-filters";
@@ -34,7 +34,6 @@ function catalogParams(
 // eslint-disable-next-line max-lines-per-function
 export default async function AssignedObjectsPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const raw = await searchParams;
   const session = await requireSession(locale, `/${locale}/assigned`);
   const token = (await sessionCookieValue()) ?? "";
@@ -49,7 +48,7 @@ export default async function AssignedObjectsPage({ params, searchParams }: Page
   const query = parsed.value;
 
   let assignments: CorporateCatalogAssignment[] = [];
-  let corporateContext: Awaited<ReturnType<typeof readCorporateContext>> = null;
+  let corporateContext: Awaited<ReturnType<typeof readCorporateContext>>;
   try {
     corporateContext = await readCorporateContext(token);
     if (corporateContext) {

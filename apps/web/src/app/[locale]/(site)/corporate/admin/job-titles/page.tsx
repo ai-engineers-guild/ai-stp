@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateJobTitles } from "@/components/organisms/corporate-job-titles";
@@ -10,7 +10,6 @@ import { PeopleHeader } from "@/app/[locale]/(site)/corporate/admin/people-share
 
 export default async function JobTitlesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/job-titles`);
   const t = await getTranslations("corporate");
   const people = await getTranslations("people");

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -14,7 +14,6 @@ export default async function AccountProfileEditPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/account/profile/edit`);
   const t = await getTranslations("account");
   const common = await getTranslations("common");

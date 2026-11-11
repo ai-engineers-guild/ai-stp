@@ -1,7 +1,7 @@
 import { loadPublisherProfiles, mapPool, readAssignedObjectSummary } from "@/lib/catalog-load";
 import type { OwnerCardItem } from "@/components/organisms/object-card";
 import { assignmentCardItem } from "@/lib/assignment-card";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -24,7 +24,6 @@ export default async function TechnologyDetailPage({
   params: Promise<{ locale: string; technologyId: string }>;
 }) {
   const { locale, technologyId } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/technologies/${technologyId}`);
   const session = (await sessionCookieValue()) ?? "";
   const t = await getTranslations("technology");

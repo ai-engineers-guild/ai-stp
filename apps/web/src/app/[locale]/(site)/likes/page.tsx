@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
 import { StatePanel } from "@/components/molecules/state-panel";
@@ -15,7 +15,6 @@ type PageProps = { params: Promise<{ locale: string }> };
 
 export default async function MyLikesPage({ params }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/likes`);
   const [t, tc, tCatalog] = await Promise.all([
     getTranslations("myLikes"),

@@ -2,9 +2,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import js from "@eslint/js";
-import importPlugin from "eslint-plugin-import";
-import jsxA11y from "eslint-plugin-jsx-a11y";
-import react from "eslint-plugin-react";
+import { createTypeScriptImportResolver } from "eslint-import-resolver-typescript";
+import { importX } from "eslint-plugin-import-x";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -47,32 +46,23 @@ export default [
       },
     },
     plugins: {
-      import: importPlugin,
-      react,
+      "import-x": importX,
       "react-hooks": reactHooks,
-      "jsx-a11y": jsxA11y,
     },
     settings: {
-      react: { version: "detect" },
-      "import/resolver": {
-        node: true,
-      },
+      "import-x/resolver-next": [
+        createTypeScriptImportResolver({ project: path.join(__dirname, "tsconfig.json") }),
+      ],
     },
     rules: {
-      ...react.configs.recommended.rules,
-      ...react.configs["jsx-runtime"].rules,
       ...reactHooks.configs.recommended.rules,
-      ...jsxA11y.configs.recommended.rules,
-      "react/prop-types": "off",
-      "react/react-in-jsx-scope": "off",
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unsafe-argument": "error",
       "@typescript-eslint/no-unsafe-assignment": "error",
       "@typescript-eslint/no-unsafe-call": "error",
       "@typescript-eslint/no-unsafe-member-access": "error",
       "@typescript-eslint/no-unsafe-return": "error",
-      // next-intl still documents setRequestLocale for App Router static rendering.
-      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/no-deprecated": "error",
       "@typescript-eslint/no-unnecessary-type-parameters": "off",
       // `void <identifier>` is this tree's marker for a binding held
       // deliberately — an unused action param that must keep its signature, a
@@ -106,9 +96,10 @@ export default [
       "max-lines": ["error", { max: 450, skipBlankLines: true, skipComments: true }],
       "max-lines-per-function": ["error", { max: 160, skipBlankLines: true, skipComments: true }],
       complexity: ["error", 25],
-      "import/no-restricted-paths": [
+      "import-x/no-restricted-paths": [
         "error",
         {
+          basePath: __dirname,
           zones: [
             {
               target: "./src/components/atoms",

@@ -1,5 +1,5 @@
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
@@ -92,7 +92,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   if (!isAppLocale(locale)) {
     notFound();
   }
-  setRequestLocale(locale);
   const messages = await getMessages({ locale });
   const projection = await readProjection();
   const canonical = (await readCanonicalPathname()) ?? `/${locale}`;

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/atoms/badge";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
@@ -21,7 +21,6 @@ export default async function CategoryDirectoryPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/categories`);
   const session = (await sessionCookieValue()) ?? "";
   const h = await getTranslations("hub");

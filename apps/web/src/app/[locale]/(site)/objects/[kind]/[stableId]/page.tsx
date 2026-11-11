@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound, redirect } from "next/navigation";
 
 import { Badge } from "@/components/atoms/badge";
@@ -19,7 +19,6 @@ type PageProps = {
 
 export default async function OwnerObjectDetailPage({ params }: PageProps) {
   const { locale, kind, stableId } = await params;
-  setRequestLocale(locale);
   if (kind !== "component" && kind !== "setup") {
     notFound();
   }

@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
 
 import { MachineDocumentView } from "@/components/layouts/machine-document";
 import { requireSession } from "@/lib/auth/require-session";
@@ -18,7 +17,6 @@ type PageProps = {
  */
 export default async function MachineProjectionPage({ params, searchParams }: PageProps) {
   const { locale, path } = await params;
-  setRequestLocale(locale);
   const segments = path ?? [];
   const pathname = `/${locale}/ai/${segments.join("/")}`;
   if (parseProjectionRoute(pathname).isProtected) await requireSession(locale, pathname);

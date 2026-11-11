@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateTechCategories } from "@/components/organisms/corporate-tech-categories";
@@ -18,7 +18,6 @@ export default async function TechCategoriesPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/tech-categories`);
   const t = await getTranslations("technologyCategories");
   const people = await getTranslations("people");

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { CountryFlag } from "@/components/atoms/country-flag";
 import { HistoryBackButton } from "@/components/molecules/history-back-button";
@@ -29,7 +29,6 @@ export default async function ServicePage({
   params: Promise<{ locale: string; domain: string }>;
 }) {
   const { locale, domain } = await params;
-  setRequestLocale(locale);
   const t = await getTranslations("regionalServices");
   if (process.env.NEXT_PUBLIC_EXTERNAL_CATALOG_ENABLED === "false") notFound();
   const service = await readExternalProduct(domain).catch(() => null);

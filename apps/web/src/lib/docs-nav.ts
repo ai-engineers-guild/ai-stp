@@ -60,14 +60,14 @@ export function buildDocsNav(input: {
 
 export function loadDocsNav(locale: string, pages: readonly DocsNavPage[]): DocsNavNode[] {
   const root = path.join(userFacingRoot, "docs", locale);
-  let rootYaml = "";
+  let rootYaml: string;
   try {
     rootYaml = readFileSync(path.join(root, ".pages"), "utf8");
   } catch {
     return pages.map((page) => ({ title: page.title, href: hrefFromDocsSlugs(page.slugs) }));
   }
   const nestedYaml: Record<string, string> = {};
-  let entries: Dirent[] = [];
+  let entries: Dirent[];
   try {
     entries = readdirSync(root, { withFileTypes: true });
   } catch {

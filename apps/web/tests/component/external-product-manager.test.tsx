@@ -16,7 +16,7 @@ vi.mock("@/actions/external-products", () => ({
 const { ExternalProductManager } = await import("@/components/organisms/external-product-manager");
 
 function renderManager(selectedDomains: string[] = ["notion.so"]) {
-  const presentationSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => {
+  const presentationSubmit = vi.fn((event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
   });
   const view = render(

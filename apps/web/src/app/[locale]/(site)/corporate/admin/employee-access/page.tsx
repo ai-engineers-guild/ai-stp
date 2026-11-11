@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateMembersDirectory } from "@/components/organisms/corporate-members-directory";
 import {
@@ -74,7 +74,6 @@ export default async function EmployeeAccessPage({
 }) {
   const { locale } = await params;
   const filters = await searchParams;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/employee-access`);
   const h = await getTranslations("hub");
   const t = await getTranslations("accessUi");

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { PrivacyPreferencesForm } from "@/components/organisms/privacy-preferences-form";
@@ -15,7 +15,6 @@ type PageProps = {
 
 export default async function AccountPrivacyPage({ params }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/account/privacy`);
   const t = await getTranslations("account");
   const tConsent = await getTranslations("consent");

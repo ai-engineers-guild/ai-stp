@@ -1,7 +1,7 @@
 /* eslint-disable max-lines -- canonical catalog route owns public and corporate projections. */
 
 import type { Metadata } from "next";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { StatePanel } from "@/components/molecules/state-panel";
 import { OwnerObjectActions } from "@/components/organisms/owner-object-actions";
@@ -34,8 +34,7 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
-  setRequestLocale(locale);
-  const t = await getTranslations("catalog");
+  const t = await getTranslations({ locale, namespace: "catalog" });
   const description = t("seoDescription");
   return {
     title: t("title"),
@@ -50,9 +49,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 // eslint-disable-next-line max-lines-per-function, complexity
 export default async function CatalogPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const sp = await searchParams;
-  const t = await getTranslations("catalog");
+  const t = await getTranslations({ locale, namespace: "catalog" });
   const tc = await getTranslations("common");
 
   const parsed = parseCatalogSearchParams(sp);
@@ -91,7 +89,6 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   type DirectoryRead = PromiseSettledResult<
     Awaited<ReturnType<typeof readCorporateDirectoryPages>>
   >;
-  let facetReads: [DirectoryRead, DirectoryRead] | null = null;
   const facetReadsPending =
     corporateContext && sessionToken
       ? Promise.allSettled([
@@ -113,7 +110,7 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   }
   const started = startCatalogResourceReads(query, undefined, catalogScope);
   if (facetReadsPending) {
-    facetReads = await facetReadsPending;
+    const facetReads: [DirectoryRead, DirectoryRead] = await facetReadsPending;
     if (corporateContext) {
       const [members, technologies] = facetReads;
       corporateFacets = buildCorporateCatalogFacets(

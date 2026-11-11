@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { TechnologyLandscapeResults } from "@/components/organisms/technology-landscape-results";
 import { TechnologyLandscapeFilters } from "@/components/organisms/technology-landscape-filters";
@@ -31,7 +31,6 @@ export default async function TechnologyLandscapePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/technology-landscape`);
   const session = (await sessionCookieValue()) ?? "",
     t = await getTranslations("technology"),

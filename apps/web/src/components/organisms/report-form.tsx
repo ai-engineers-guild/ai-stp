@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, useTransition, type SubmitEvent } from "react";
 import { useRouter } from "@/lib/i18n/navigation";
 
 import { createReportAction } from "@/actions/reports";
@@ -214,7 +214,7 @@ export function ReportForm({ csrfToken, locale, defaults, labels }: ReportFormPr
     countryNameEn: setCountryNameEn,
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!previewed || !consent) {
       setError(labels.needPreview);

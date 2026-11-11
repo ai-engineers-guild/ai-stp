@@ -1,4 +1,3 @@
-import { setRequestLocale } from "next-intl/server";
 import { GithubConnector } from "@/components/organisms/github-connector";
 import { readAccount } from "@/lib/api/account";
 import { readCsrfToken } from "@/lib/auth/session";
@@ -6,7 +5,6 @@ import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 
 export default async function GithubPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   const session = await requireSession(locale, `/${locale}/account/github`);
   const account = await readAccount((await sessionCookieValue()) ?? "");
   return (

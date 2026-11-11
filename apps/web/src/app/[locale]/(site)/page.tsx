@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
 import { LandingHeroPreview } from "@/components/organisms/landing-hero-preview";
@@ -14,8 +14,7 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
-  setRequestLocale(locale);
-  const t = await getTranslations("landing");
+  const t = await getTranslations({ locale, namespace: "landing" });
   const description = t("seoDescription");
   return {
     title: t("title"),
@@ -37,8 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function LandingPage({ params }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
-  const t = await getTranslations("landing");
+  const t = await getTranslations({ locale, namespace: "landing" });
 
   return (
     <div data-ui={UI.landing.page} className="min-w-0">

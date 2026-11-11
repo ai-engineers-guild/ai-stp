@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
 import { ConfirmPublicationForm } from "@/components/organisms/confirm-publication-form";
@@ -14,7 +14,6 @@ type PageProps = {
 
 export default async function PublicationPlanPage({ params }: PageProps) {
   const { locale, planId } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/publications/${planId}`);
   const t = await getTranslations("publications");
   const tc = await getTranslations("common");

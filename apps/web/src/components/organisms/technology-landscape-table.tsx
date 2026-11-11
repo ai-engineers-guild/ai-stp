@@ -42,7 +42,7 @@ export function TechnologyLandscapeTable({ state }: { state: LandscapeState }) {
         aria-label={w("summary")}
         // The scroll region must remain keyboard accessible on narrow screens.
         // biome-ignore lint/a11y/noNoninteractiveTabindex: The named table scroll region must remain reachable by keyboard.
-        tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0} // oxlint-disable-line jsx-a11y/no-noninteractive-tabindex -- The named scroll region must remain reachable by keyboard.
       >
         <Table>
           <caption className="sr-only">{w("summary")}</caption>

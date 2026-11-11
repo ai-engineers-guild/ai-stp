@@ -31,7 +31,7 @@ function mediaSchema(t: ObjectsTranslator) {
       if (item.kind === "youtube") {
         if (!normalizeYoutubeUrl(item.url) && !isYoutubeVideoId(item.url)) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             message: t("mediaYoutubeInvalid"),
             path: ["url"],
           });
@@ -44,7 +44,7 @@ function mediaSchema(t: ObjectsTranslator) {
         !isExternalMediaUrl(item.url)
       ) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: t("mediaSourceInvalid"),
           path: ["url"],
         });

@@ -920,7 +920,7 @@ const writeSchema = z.object({
   fields: entityProfileViewSchema.shape.fields,
   expected_revision: z.number().int(),
   authorization_revision: z.literal(1),
-  idempotency_key: z.string().uuid(),
+  idempotency_key: z.uuid(),
 });
 const ok = (body: unknown): WorkspaceMockResult => ({ status: 200, body });
 const error = (status: number, code: string): WorkspaceMockResult => ({
@@ -973,12 +973,12 @@ function fixtureDigest(value: string | Uint8Array): string {
 
 const uploadQuerySchema = z.object({
   purpose: z.enum(["avatar", "media"]),
-  expected_revision: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().safe()),
+  expected_revision: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int()),
   authorization_revision: z
     .string()
     .regex(/^[1-9]\d*$/)
     .transform(Number)
-    .pipe(z.number().int().safe()),
+    .pipe(z.number().int()),
 });
 
 function corporateMediaUploadHandler(

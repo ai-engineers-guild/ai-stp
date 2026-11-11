@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/atoms/badge";
 import { ReportForm } from "@/components/organisms/report-form";
@@ -25,7 +25,6 @@ type PageProps = {
 export default async function ReportsPage({ params, searchParams }: PageProps) {
   const { locale } = await params;
   const sp = await searchParams;
-  setRequestLocale(locale);
   const returnQuery = new URLSearchParams();
   if (sp.object_kind) returnQuery.set("object_kind", sp.object_kind);
   if (sp.stable_id) returnQuery.set("stable_id", sp.stable_id);

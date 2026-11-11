@@ -116,7 +116,6 @@ export function EditMemberDialog({
               },
             });
             if (!result.ok) failed = result.message;
-            else revision = readRevision(result.data) ?? revision;
           }
           if (canAssign && !failed) {
             const result = await saveTeams(member, context, csrfToken, teamIds, leadIds);

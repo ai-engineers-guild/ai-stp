@@ -54,7 +54,7 @@ export function CorporateMembershipPolicyControls({
   );
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
-  function savePolicy(event: React.FormEvent<HTMLFormElement>) {
+  function savePolicy(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const visibility = formData.get("peopleVisibility");

@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { readCorporateContext } from "@/lib/api/corporate";
 import { requireSession, sessionCookieValue } from "@/lib/auth/require-session";
 import { Link } from "@/lib/i18n/navigation";
@@ -11,7 +11,6 @@ export default async function OrganizationPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/organization`);
   const t = await getTranslations("hub");
   const context = await readCorporateContext((await sessionCookieValue()) ?? "");

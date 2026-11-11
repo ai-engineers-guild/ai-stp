@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { CorporateAccessModel } from "@/components/organisms/corporate-access-model";
 import { ApiError } from "@/lib/api/errors";
@@ -18,7 +18,6 @@ export default async function CorporateAccessModelPage({
 }) {
   const { locale } = await params;
   const filters = await searchParams;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/access-model`);
   const h = await getTranslations("hub");
   const t = await getTranslations("accessUi");

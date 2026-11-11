@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { readCorporateOverview, readCorporateDirectoryPages } from "@/lib/api/corporate";
 import { ApiError } from "@/lib/api/errors";
 import { CorporateOverviewTree } from "@/components/organisms/corporate-overview-tree";
@@ -19,7 +19,6 @@ export async function CorporateOverview({
   returnTo?: string;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, returnTo ?? `/${locale}/corporate`);
   const t = await getTranslations("hub");
   const common = await getTranslations("common");

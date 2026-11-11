@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { StatePanel } from "@/components/molecules/state-panel";
 import { permissionDefinitions } from "@/lib/corporate-permission-ui";
 import { CorporateRolesWorkspace } from "@/components/organisms/corporate-roles-workspace";
@@ -17,7 +17,6 @@ export default async function CorporateRolesPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/admin/roles`);
   const h = await getTranslations("hub");
   const t = await getTranslations("accessUi");

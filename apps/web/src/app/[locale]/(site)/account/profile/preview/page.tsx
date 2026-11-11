@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/atoms/button";
 import { ProfilePreview } from "@/components/organisms/profile-preview";
@@ -14,7 +14,6 @@ type PageProps = {
 
 export default async function AccountProfilePreviewPage({ params }: PageProps) {
   const { locale } = await params;
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/account/profile/preview`);
   const t = await getTranslations("account");
   const tc = await getTranslations("common");

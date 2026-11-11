@@ -1,4 +1,4 @@
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { notFound, permanentRedirect } from "next/navigation";
 import { CorporateDirectory } from "@/components/organisms/corporate-directory";
 import { CorporateTeammatesList } from "@/components/organisms/corporate-teammates";
@@ -28,7 +28,6 @@ export default async function CorporateDirectoryPage({
   }
   const apiResource = resource === "employees" ? "members" : resource;
   if (apiResource !== "members" && !isCorporateTeamProjectResource(apiResource)) notFound();
-  setRequestLocale(locale);
   await requireSession(locale, `/${locale}/corporate/${resource}`);
   const t = await getTranslations("hub");
   const c = await getTranslations("common");

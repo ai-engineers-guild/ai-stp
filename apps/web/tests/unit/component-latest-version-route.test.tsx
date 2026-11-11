@@ -15,7 +15,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
   },
   redirect,
 }));
-vi.mock("next-intl/server", () => ({ setRequestLocale: vi.fn(), getTranslations: vi.fn() }));
+vi.mock("next-intl/server", () => ({ getTranslations: vi.fn() }));
 vi.mock("@/lib/auth/require-session", () => ({ sessionCookieValue: () => Promise.resolve(null) }));
 vi.mock("@/lib/api/catalog", () => ({
   readComponent: component,
