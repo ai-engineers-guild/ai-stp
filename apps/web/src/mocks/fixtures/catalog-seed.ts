@@ -38,7 +38,7 @@ import {
   type SetupSummaryFixture,
 } from "./catalog-types";
 
-export const codexComponentSummary = makeComponentSummary({
+const codexComponentSummary = makeComponentSummary({
   stable_id: SEED_A2_SKILL_CORE_ID,
   latest_version: "1.0",
   latest_name: "northwind-refactor-skill",
@@ -51,7 +51,7 @@ export const codexComponentSummary = makeComponentSummary({
   owner_id: SEED_AUTHOR_NORTHWIND_ID,
 });
 
-export const piComponentSummary = makeComponentSummary({
+const piComponentSummary = makeComponentSummary({
   stable_id: SEED_A3_MCP_ID,
   latest_version: "1.0",
   latest_name: "river-docs-mcp",
@@ -64,7 +64,7 @@ export const piComponentSummary = makeComponentSummary({
   owner_id: SEED_AUTHOR_RIVER_ID,
 });
 
-export const opencodeComponentSummary = makeComponentSummary({
+const opencodeComponentSummary = makeComponentSummary({
   stable_id: SEED_A1_HOOK_ID,
   latest_version: "1.0",
   latest_name: "firstparty-audit-hook",
@@ -283,7 +283,7 @@ export const multiAuthorComponents: ComponentSummaryFixture[] = [
   ),
 ];
 
-export const codexSetupSummary = makeSetupSummary({
+const codexSetupSummary = makeSetupSummary({
   stable_id: SEED_A2_SETUP_ID,
   latest_version: "1.0",
   latest_name: "northwind-python-workspace",
@@ -303,7 +303,7 @@ export const codexSetupSummary = makeSetupSummary({
   ],
 });
 
-export const piSetupSummary = makeSetupSummary({
+const piSetupSummary = makeSetupSummary({
   stable_id: SEED_A3_SETUP_ID,
   latest_version: "1.0",
   latest_name: "river-docs-workspace",

@@ -9,7 +9,7 @@ import type {
 
 export type UsageQueryParams = Record<string, string | string[] | undefined>;
 
-export type UsageFilterKeys =
+type UsageFilterKeys =
   | "team_id"
   | "employee_id"
   | "project_id"
@@ -20,7 +20,7 @@ export type UsageFilterKeys =
   | "component_stable_id"
   | "outcome";
 
-export const FILTER_KEYS: readonly UsageFilterKeys[] = [
+const FILTER_KEYS: readonly UsageFilterKeys[] = [
   "team_id",
   "employee_id",
   "project_id",
@@ -32,7 +32,7 @@ export const FILTER_KEYS: readonly UsageFilterKeys[] = [
   "outcome",
 ];
 
-export function calculateInvokedFrom(period: string): string {
+function calculateInvokedFrom(period: string): string {
   const days = Number(period.slice(0, -1));
   const ms = (Number.isFinite(days) && days > 0 ? days : 7) * 86_400_000;
   return new Date(Date.now() - ms).toISOString();

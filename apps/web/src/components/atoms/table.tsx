@@ -7,10 +7,10 @@ import { cn } from "@/lib/cn";
  * Consumers compose `Table`, `THead`, `TBody`, `Tr`, `Th`, `Td` and pass
  * layout extras (min-width, alignment, col widths) through `className`.
  */
-export const tableClass = "w-full border-collapse text-sm";
-export const tableHeadCellClass =
+const tableClass = "w-full border-collapse text-sm";
+const tableHeadCellClass =
   "text-muted-foreground h-12 px-3 text-left text-xs font-medium whitespace-nowrap";
-export const tableCellClass = "px-3 py-2 text-sm";
+const tableCellClass = "px-3 py-2 text-sm";
 
 export const Table = React.forwardRef<
   HTMLTableElement,

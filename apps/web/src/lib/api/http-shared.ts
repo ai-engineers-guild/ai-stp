@@ -19,7 +19,7 @@ export function usesMock(path: string, env: AppEnv): boolean {
 
 export type QueryValue = string | number | boolean | ReadonlyArray<string> | undefined;
 
-export function buildQuery(query: Record<string, QueryValue> | undefined): URLSearchParams {
+function buildQuery(query: Record<string, QueryValue> | undefined): URLSearchParams {
   const params = new URLSearchParams();
   if (!query) {
     return params;

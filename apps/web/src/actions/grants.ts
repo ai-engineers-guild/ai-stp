@@ -6,12 +6,7 @@ import { cookies } from "next/headers";
 
 import { getTranslations } from "next-intl/server";
 
-import {
-  createDirectGrant,
-  createGrantInvitation,
-  revokeAccessGrant,
-  revokeGrantInvitation,
-} from "@/lib/api/grants";
+import { createDirectGrant, createGrantInvitation, revokeAccessGrant } from "@/lib/api/grants";
 import { ApiError } from "@/lib/api/errors";
 import { readSession, requireCsrf, SESSION_COOKIE } from "@/lib/auth/session";
 
@@ -80,23 +75,6 @@ export async function createDirectGrantAction(input: {
     expected_grant_id: input.expectedGrantId,
     expected_revision: input.expectedRevision,
   });
-  revalidatePath("/[locale]/access", "page");
-  return { operationId: result.operationId };
-}
-
-export async function revokeInvitationAction(input: {
-  csrfToken: string;
-  invitationId: string;
-  reason: string;
-}): Promise<{ operationId: string | null }> {
-  await requireCsrf(input.csrfToken);
-  const sessionToken = await sessionTokenOrThrow();
-  const result = await revokeGrantInvitation(
-    sessionToken,
-    input.invitationId,
-    input.reason,
-    randomBytes(16).toString("hex"),
-  );
   revalidatePath("/[locale]/access", "page");
   return { operationId: result.operationId };
 }

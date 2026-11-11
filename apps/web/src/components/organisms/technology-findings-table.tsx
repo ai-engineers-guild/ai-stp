@@ -174,13 +174,7 @@ export function TechnologyFindingsTable({ state }: { state: TechnologyReviewStat
   );
 }
 
-export function TechnologyFindingTableRow({
-  state,
-  row,
-}: {
-  state: TechnologyReviewState;
-  row: Row;
-}) {
+function TechnologyFindingTableRow({ state, row }: { state: TechnologyReviewState; row: Row }) {
   const {
     w,
     t,

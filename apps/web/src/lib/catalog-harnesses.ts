@@ -48,17 +48,6 @@ export function namedPassportHarnesses(passport: ComponentPassportCompatibility)
   return [];
 }
 
-export function componentOperatingSystems(passport: ComponentPassportCompatibility): string[] {
-  if (passport.adaptations) {
-    return uniqueInOrder(
-      passport.adaptations.flatMap((adaptation) =>
-        (adaptation.scope_adaptations ?? []).flatMap((scope) => scope.supported_os ?? []),
-      ),
-    );
-  }
-  return passport.supported_os ? Array.from(passport.supported_os) : [];
-}
-
 export function componentPassportPrimary(passport: ComponentPassportCompatibility) {
   const adaptation = passport.adaptations?.[0];
   return {

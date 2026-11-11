@@ -25,7 +25,7 @@ export function isCisCountryCode(code: string): code is CisCountryCode {
   return CIS_SET.has(code);
 }
 
-export function flagAssetFor(code: string): string | undefined {
+function flagAssetFor(code: string): string | undefined {
   const normalized = code.trim().toUpperCase();
   return isCisCountryCode(normalized) ? FLAG_ASSETS[normalized] : undefined;
 }

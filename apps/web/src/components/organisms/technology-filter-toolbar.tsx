@@ -31,7 +31,7 @@ export type TechnologyFilterFacet =
 
 export type TechnologyFilterValues = Record<string, string[] | string | boolean>;
 
-export function emptyFilterValue(facet: TechnologyFilterFacet): string[] | string | boolean {
+function emptyFilterValue(facet: TechnologyFilterFacet): string[] | string | boolean {
   return facet.kind === "options" ? [] : facet.kind === "date" ? "" : false;
 }
 

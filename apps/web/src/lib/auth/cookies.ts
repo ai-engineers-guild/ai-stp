@@ -13,7 +13,7 @@ export const CORPORATE_ORG_COOKIE = "ai_stp_corporate_org";
  */
 export type InvitationClaimVariant = "accept" | "confirm";
 
-export const INVITATION_CLAIM_PATH_PREFIX = "/api/corporate/invitations/";
+const INVITATION_CLAIM_PATH_PREFIX = "/api/corporate/invitations/";
 
 export function invitationClaimCookieName(
   invitationId: string,

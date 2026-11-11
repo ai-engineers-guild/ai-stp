@@ -17,4 +17,4 @@ export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link({ hre
   });
 });
 
-export const { redirect, usePathname, useRouter, getPathname } = navigation;
+export const { usePathname, useRouter } = navigation;

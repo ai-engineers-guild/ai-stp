@@ -53,7 +53,7 @@ const profileLinksSchema = z
   .refine((items) => new Set(items.map((item) => item.url)).size === items.length, {
     message: "duplicate link URL",
   });
-export const entityProfileFieldsSchema = z
+const entityProfileFieldsSchema = z
   .object({
     description: z.string().max(20000),
     avatar_asset_id: z

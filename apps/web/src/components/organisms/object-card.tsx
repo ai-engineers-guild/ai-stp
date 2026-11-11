@@ -591,7 +591,7 @@ function isSetupSummary(item: CatalogItem): item is SetupSummary {
   return "family_member_count" in item;
 }
 
-export function formatAssuranceCounts(verified: number, assessed: number, label: string): string {
+function formatAssuranceCounts(verified: number, assessed: number, label: string): string {
   if (assessed <= 0) {
     return `${label}: 0 / 0`;
   }

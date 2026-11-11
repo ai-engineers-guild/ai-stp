@@ -332,17 +332,6 @@ export async function readEmployeeTechnologies(
   );
 }
 
-export async function readTechnologyEmployees(
-  sessionToken: string,
-  organizationId: string,
-  technologyId: string,
-) {
-  return apiRequest<EmployeeTechnologyList>(
-    `/v1/corporate/organizations/${organizationId}/technologies/${technologyId}/employees`,
-    { sessionToken, query: { limit: "256" } },
-  );
-}
-
 /** Corporate organizations the account currently belongs to. */
 export async function readCorporateOrganizations(
   sessionToken: string,
@@ -420,7 +409,6 @@ export {
   distributeCorporateAssignment,
   planCorporateAssignment,
   readCorporateAssignmentDistribution,
-  readEffectiveCorporateAssignment,
 } from "./corporate-distribution";
 
 export async function readCorporateCatalogScopeOptions(

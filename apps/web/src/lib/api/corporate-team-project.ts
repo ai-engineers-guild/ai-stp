@@ -1,7 +1,7 @@
 import { readCorporateDirectory } from "@/lib/api/corporate";
 import { readProjectTechnologyDetail, readTeamProjects } from "@/lib/api/technology";
 
-export const corporateTeamProjectResources = ["teams", "projects"] as const;
+const corporateTeamProjectResources = ["teams", "projects"] as const;
 export type CorporateTeamProjectResource = (typeof corporateTeamProjectResources)[number];
 
 export function isCorporateTeamProjectResource(

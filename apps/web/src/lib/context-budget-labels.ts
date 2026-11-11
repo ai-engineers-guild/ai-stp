@@ -1,4 +1,4 @@
-export type ContextCostLabels = {
+type ContextCostLabels = {
   title: string;
   rateLabel: string;
   estimate: string;

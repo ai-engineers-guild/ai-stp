@@ -5,7 +5,6 @@ import { JSON_SCHEMA, load } from "js-yaml";
 import { z } from "zod";
 
 export const CONTENT_TYPES = ["article", "blog_post", "changelog", "release_notes"] as const;
-export type ContentType = (typeof CONTENT_TYPES)[number];
 
 const contentMetaSchema = z
   .object({
@@ -109,10 +108,6 @@ function parseFile(file: string): ContentEntry {
 
 let cached: ContentEntry[] | null = null;
 
-export function resetContentCache(): void {
-  cached = null;
-}
-
 export function allContentEntries(): ContentEntry[] {
   if (cached) return cached;
   const entries = readdirSync(contentRoot(), { recursive: true, withFileTypes: true })
@@ -130,12 +125,6 @@ export function allContentEntries(): ContentEntry[] {
 
 export function publishedContent(locale: string): ContentEntry[] {
   return allContentEntries().filter((entry) => entry.locale === locale && !entry.draft);
-}
-
-export function findContent(locale: string, type: string, slug: string): ContentEntry | null {
-  return (
-    publishedContent(locale).find((entry) => entry.type === type && entry.slug === slug) ?? null
-  );
 }
 
 export function assertContentLocaleParity(): void {

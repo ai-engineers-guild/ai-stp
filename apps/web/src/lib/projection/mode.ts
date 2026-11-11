@@ -24,4 +24,4 @@ export async function readSearch(): Promise<string> {
 }
 
 // Re-export pure path helpers so server modules keep a single import site.
-export { pairedPath, pathWithoutLocale, projectedHref } from "@/lib/projection/paths";
+export { pairedPath, pathWithoutLocale } from "@/lib/projection/paths";

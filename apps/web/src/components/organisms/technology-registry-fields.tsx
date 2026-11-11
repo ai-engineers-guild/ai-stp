@@ -41,24 +41,6 @@ export function AreaField({
   );
 }
 
-export function CategoryStateField({ prefix }: { prefix: string }) {
-  const t = useTranslations("technology");
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={`${prefix}-state`}>{t("categoryState")}</Label>
-      <Select
-        id={`${prefix}-state`}
-        name="state"
-        defaultValue="active"
-        className="h-11 w-full rounded-sm border border-input bg-background px-3 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="active">{t("values.active")}</option>
-        <option value="draft">{t("values.draft")}</option>
-      </Select>
-    </div>
-  );
-}
-
 export function TechnologyFields({
   prefix,
   categories,

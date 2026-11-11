@@ -102,7 +102,10 @@ export async function privateApiRequest<T>(
   return executeJsonRequest<T>(path, request);
 }
 
-/** Existing callers keep this name; it is the private helper. */
+/**
+ * Existing callers keep this name; it is the private helper.
+ * @alias
+ */
 export const apiRequest = privateApiRequest;
 
 /** Binary POST/PUT (avatar upload) - does not JSON-encode the body. */

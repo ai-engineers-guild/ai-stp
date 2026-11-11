@@ -5,7 +5,7 @@ import {
   namedPassportHarnesses,
   namedProjectionKinds,
 } from "@/lib/catalog-harnesses";
-import { installSetupStart, installTaskStart, registryCommand } from "@/lib/cli-copy";
+import { installTaskStart, registryCommand } from "@/lib/cli-copy";
 import { isComponentType, type ComponentTypeId } from "@/lib/projection/inventory";
 import { sourceLinksFor, type PublicSourceLink } from "@/lib/source-url";
 import type { ComponentVersionPassport, GitSource } from "@/lib/api/generated/types.gen";
@@ -37,26 +37,7 @@ export type ComponentSummaryFacts = {
   } | null;
 };
 
-export type SetupSummaryFacts = {
-  stable_id: string;
-  publisher_id: string;
-  latest_name: string;
-  latest_description: string;
-  latest_version: string;
-  latest_harness_id: string;
-  latest_purpose: string;
-  latest_target_role: string | null;
-  latest_posture: string | null;
-  latest_lifecycle: string;
-  latest_tags: string[];
-  latest_trust: TrustLike;
-  usage_metrics?: {
-    detail_views_count: number;
-    artifact_downloads_count: number;
-  } | null;
-};
-
-export type PublicDependency = {
+type PublicDependency = {
   stableId: string;
   version: string;
 };
@@ -374,45 +355,6 @@ export function componentFactsFromLoaders(input: {
       : null,
     usageMetrics: input.usage ?? input.summary.usage_metrics ?? null,
   });
-}
-
-/** Public setup facts shown on the human detail page, without media. */
-export function setupPublicFacts(
-  summary: SetupSummaryFacts,
-  digest: string,
-  extras?: { countryCodes?: string[]; services?: string[] },
-): PublicObjectFacts {
-  const facts: PublicObjectFacts = {
-    stableId: summary.stable_id,
-    name: summary.latest_name,
-    version: summary.latest_version,
-    description: summary.latest_description,
-    digest,
-    harness: summary.latest_harness_id,
-    purpose: summary.latest_purpose,
-    // `?? undefined`, not `?? ""`: this shape marks an absent fact by omitting
-    // the key, where the machine document marks it with an empty value. Two
-    // conventions because they answer different readers.
-    targetRole: summary.latest_target_role ?? undefined,
-    posture: summary.latest_posture ?? undefined,
-    trustLane: summary.latest_trust.trust_lane,
-    authorVerified: summary.latest_trust.author_verified,
-    componentVerified: summary.latest_trust.component_verified,
-    lifecycle: summary.latest_lifecycle,
-    publisher: summary.publisher_id,
-    tags: [...summary.latest_tags],
-    install: installSetupStart(summary.stable_id, summary.latest_version),
-    inspect: registryCommand(summary.stable_id, summary.latest_version),
-    countryCodes: extras?.countryCodes ?? [],
-    services: extras?.services ?? [],
-    requiredEnv: [],
-    dependencies: [],
-    requiresCapabilities: [],
-    compatibilityEvidence: [],
-    versions: [summary.latest_version],
-  };
-  applyUsageFacts(facts, summary.usage_metrics);
-  return facts;
 }
 
 function applyUsageFacts(

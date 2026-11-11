@@ -78,10 +78,6 @@ export function fieldErrorsFromIssues(
   return result;
 }
 
-export function fieldError(result: FieldErrors, ...paths: string[]): string | undefined {
-  return paths.map((path) => result[path]).find(Boolean);
-}
-
 export function withoutFieldErrors(result: FieldErrors, prefixes: readonly string[]): FieldErrors {
   return Object.fromEntries(
     Object.entries(result).filter(([path]) => !prefixes.some((prefix) => path.startsWith(prefix))),

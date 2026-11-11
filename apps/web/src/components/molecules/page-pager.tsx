@@ -13,7 +13,7 @@ import { Icon } from "@/theme";
  * (`onPage`) by client-filtered tables. Numbered entries always come from
  * `lib/page-window`; current page carries `aria-current="page"`.
  */
-export type PagePagerControls = {
+type PagePagerControls = {
   previous: string;
   next: string;
   page: (value: number) => string;

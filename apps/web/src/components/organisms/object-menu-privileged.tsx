@@ -28,7 +28,7 @@ import { Input } from "@/components/atoms/input";
 import type { ObjectVisibilityEdit } from "@/components/organisms/component-actions";
 import { useRouter } from "@/lib/i18n/navigation";
 
-export function ObjectVisibilityDialog({
+function ObjectVisibilityDialog({
   open,
   onOpenChange,
   edit,

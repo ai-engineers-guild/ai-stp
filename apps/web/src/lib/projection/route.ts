@@ -15,9 +15,9 @@ export const PROTECTED_SEGMENTS = new Set([
 ]);
 
 export const PROJECTION_HEADER = "x-projection";
-export const PATHNAME_HEADER = "x-pathname";
-export const SEARCH_HEADER = "x-search";
-export const LOCALE_HEADER = "X-NEXT-INTL-LOCALE";
+const PATHNAME_HEADER = "x-pathname";
+const SEARCH_HEADER = "x-search";
+const LOCALE_HEADER = "X-NEXT-INTL-LOCALE";
 export type ParsedProjectionRoute = {
   isLocale: boolean;
   isMachine: boolean;

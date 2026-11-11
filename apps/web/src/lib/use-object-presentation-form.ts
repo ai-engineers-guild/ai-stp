@@ -18,7 +18,7 @@ import {
 } from "@/lib/component-media";
 import type { OwnerPresentationMedia } from "@/lib/api/owner";
 
-export type MediaUploadState = "idle" | "uploading" | "ready" | "error";
+type MediaUploadState = "idle" | "uploading" | "ready" | "error";
 
 export type PresentationMediaDraft = OwnerPresentationMedia & {
   sourceMode: "upload" | "url";

@@ -34,7 +34,7 @@ type ComponentPassportInput = {
   ownerId?: string;
 };
 
-export function buildComponentPassport(input: ComponentPassportInput) {
+function buildComponentPassport(input: ComponentPassportInput) {
   return {
     schema_version: 1 as const,
     kind: "component" as const,
@@ -108,7 +108,7 @@ type SetupPassportInput = {
   relatedSetupIds?: string[];
 };
 
-export function buildSetupPassport(input: SetupPassportInput) {
+function buildSetupPassport(input: SetupPassportInput) {
   return {
     schema_version: 1 as const,
     kind: "setup" as const,

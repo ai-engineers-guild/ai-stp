@@ -6,7 +6,6 @@ import type { useTranslations } from "next-intl";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
-import { FieldHint } from "@/components/molecules/field-hint";
 import { InfoNote } from "@/components/molecules/info-note";
 import { SettingsSection } from "@/components/molecules/settings-section";
 
@@ -14,10 +13,8 @@ import type { CorporateTelemetryPolicyView } from "@/lib/api/generated/types.gen
 
 type T = ReturnType<typeof useTranslations>;
 
-export const selectClass =
+const selectClass =
   "border-input bg-background text-foreground focus-visible:ring-ring h-11 w-full rounded-sm border px-3 text-sm focus-visible:ring-2";
-
-export { FieldHint };
 
 const RETENTION_PRESETS = [30, 90, 180, 365, 730, 1095] as const;
 
@@ -135,7 +132,7 @@ export function PresetCadenceField({
 }
 
 /** Preset picker for a *_days field: the submitted hidden value is days. */
-export function PresetDaysField({
+function PresetDaysField({
   id,
   name,
   label,

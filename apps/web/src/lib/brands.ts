@@ -12,7 +12,6 @@ export type SetupId = Brand<string, "SetupId">;
 export type DeviceId = Brand<string, "DeviceId">;
 export type VersionId = Brand<string, "VersionId">;
 export type CursorToken = Brand<string, "CursorToken">;
-export type OperationId = Brand<string, "OperationId">;
 export type ETag = Brand<string, "ETag">;
 
 const ACCOUNT_RE = /^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
@@ -69,10 +68,6 @@ export function asVersionId(value: string): VersionId {
 
 export function asCursorToken(value: string): CursorToken {
   return value as CursorToken;
-}
-
-export function asOperationId(value: string): OperationId {
-  return value as OperationId;
 }
 
 export function asETag(value: string): ETag {

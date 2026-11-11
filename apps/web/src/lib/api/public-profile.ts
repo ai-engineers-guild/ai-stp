@@ -119,22 +119,6 @@ export async function previewOwnerPublicProfile(sessionToken: string): Promise<O
   return apiRequest<OwnerPreview>("/v1/account/public-profile/preview", { sessionToken });
 }
 
-export async function registerAvatarUpload(
-  csrfToken: string,
-  file: File | Blob,
-  contentType: string,
-): Promise<{ avatar_asset_id: string; public_url: string | null }> {
-  const sessionToken = await profileMutationSession(csrfToken);
-  // Binary body goes through raw fetch so we can set Content-Type image/* (not JSON).
-  const { apiRequestBinary } = await import("@/lib/api/http");
-  return apiRequestBinary("/v1/account/public-profile/avatar", {
-    method: "POST",
-    sessionToken,
-    contentType,
-    body: file,
-  });
-}
-
 export async function importAvatarFromIdentity(
   csrfToken: string,
   provider: "github" | "google",

@@ -1,7 +1,7 @@
 import { FIXTURE_TIMESTAMP } from "./identity";
 
 export const FIXTURE_DEVICE_ID = "device_01JQZK7B8N4M6P2R9T5V0X3Y7Z";
-export const FIXTURE_DEVICE_ID_2 = "device_01JQZK7B8N4M6P2R9T5V0X3Y70";
+const FIXTURE_DEVICE_ID_2 = "device_01JQZK7B8N4M6P2R9T5V0X3Y70";
 
 export const deviceList = {
   schema_version: 1 as const,

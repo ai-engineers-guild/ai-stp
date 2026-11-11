@@ -34,7 +34,7 @@ export function TechnologyLandscapeResults(props: Parameters<typeof useLandscape
   );
 }
 
-export function TechnologyLandscapeMap({ state }: { state: LandscapeState }) {
+function TechnologyLandscapeMap({ state }: { state: LandscapeState }) {
   const { w, groups } = state;
   return (
     <section>
@@ -209,7 +209,7 @@ function LandscapeAreaCard({
   );
 }
 
-export function TechnologyLandscapeDialog({ state }: { state: LandscapeState }) {
+function TechnologyLandscapeDialog({ state }: { state: LandscapeState }) {
   const { t, w, active, setActive, classification } = state;
   return (
     <Dialog

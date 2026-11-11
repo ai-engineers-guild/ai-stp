@@ -7,12 +7,12 @@ import { cn } from "@/lib/cn";
 
 export const Sheet = DialogPrimitive.Root;
 export const SheetTrigger = DialogPrimitive.Trigger;
-export const SheetPortal = DialogPrimitive.Portal;
+const SheetPortal = DialogPrimitive.Portal;
 export const SheetClose = DialogPrimitive.Close;
 export const SheetTitle = DialogPrimitive.Title;
 export const SheetDescription = DialogPrimitive.Description;
 
-export const SheetOverlay = React.forwardRef<
+const SheetOverlay = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
 >(({ className, ...props }, ref) => (

@@ -5,7 +5,6 @@ import type {
   AreaList,
   CategoryList,
   TechnologyList,
-  TechnologyMappingList,
   TechnologyScanDetail,
   TechnologyScanList,
 } from "./generated/types.gen";
@@ -52,33 +51,6 @@ export async function readTechnologyScanJournal(
     },
   );
   return { permissions, scans };
-}
-
-export async function readTechnologyScanDetail(
-  sessionToken: string,
-  organizationId: string,
-  scanId: string,
-) {
-  const permissions = await readTechnologyCapabilities(sessionToken, organizationId);
-  if (!permissions.capabilities.includes("landscape.read")) return null;
-  const path = `/v1/corporate/organizations/${organizationId}`;
-  const [scan, technologies, categories, mappings] = await Promise.all([
-    privateApiRequest<TechnologyScanDetail>(`${path}/technology-scans/${scanId}`, {
-      sessionToken,
-    }),
-    permissions.capabilities.includes("technology.list")
-      ? privateApiRequest<TechnologyList>(`${path}/technologies`, {
-          sessionToken,
-          query: { limit: "256", include_archived: "true" },
-        })
-      : null,
-    permissions.capabilities.includes("category.list") &&
-    permissions.capabilities.includes("category.read")
-      ? privateApiRequest<CategoryList>(`${path}/technology-categories`, { sessionToken })
-      : null,
-    privateApiRequest<TechnologyMappingList>(`${path}/technology-mappings`, { sessionToken }),
-  ]);
-  return { permissions, scan, technologies, categories, mappings };
 }
 
 export async function readTechnologyReviewWorkspace(

@@ -36,7 +36,7 @@ export type DeepLinkView = {
   cli_command: string;
 };
 
-export const DEFAULT_LOCALE: DeepLinkLocale = "ru";
+const DEFAULT_LOCALE: DeepLinkLocale = "ru";
 
 export class DeepLinkError extends Error {
   constructor(message: string) {
@@ -116,7 +116,7 @@ function routeFor(target: DeepLinkTarget): string {
   return route;
 }
 
-export function canonicalArgv(target: DeepLinkTarget): string[] {
+function canonicalArgv(target: DeepLinkTarget): string[] {
   const argv = ["ai-stp", "link", "web", "--kind", target.kind, "--id", target.stable_id];
   if (target.version !== null) {
     argv.push("--version", target.version);

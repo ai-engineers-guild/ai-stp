@@ -1,7 +1,6 @@
 import { apiRequest } from "@/lib/api/http";
 
-export { legalSourceUrl, readPublicLegalDocument } from "@/lib/api/public-legal";
-export type { PublicLegalDocument } from "@/lib/api/public-legal";
+export { legalSourceUrl } from "@/lib/api/public-legal";
 
 export type LegalOnboarding = {
   account_status: "onboarding_pending" | "active";

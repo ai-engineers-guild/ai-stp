@@ -16,7 +16,7 @@ import { readPublisherProfile } from "@/lib/api/public-profile";
 import { asAccountId, tryAsComponentId, tryAsSetupId, type AccountId } from "@/lib/brands";
 import type { ParsedCatalogQuery } from "@/lib/catalog-query";
 
-export const PUBLISHER_PROFILE_CONCURRENCY = 6;
+const PUBLISHER_PROFILE_CONCURRENCY = 6;
 
 export type PublisherAuthorProfile = {
   displayName: string | null;
@@ -45,7 +45,7 @@ type CatalogSearchInput = NonNullable<Parameters<typeof searchComponents>[0]>;
 // Field-by-field copy of the parsed catalog query; keep one function so callers
 // cannot drop a filter when adding an axis.
 // eslint-disable-next-line complexity
-export function catalogSearchInput(
+function catalogSearchInput(
   query: ParsedCatalogQuery,
   resource: "components" | "setups",
 ): CatalogSearchInput {

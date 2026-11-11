@@ -361,5 +361,3 @@ export function CorporateDirectoryCard({
     </li>
   );
 }
-
-export type { Labels as CorporateDirectoryCardLabels };
