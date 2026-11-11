@@ -129,7 +129,7 @@ install_python_tools() {
   log "creating safety venv at ${PIP_VENV}"
   uv venv "${PIP_VENV}"
   uv pip sync --python "${PIP_VENV}" --require-hashes \
-    -r "${SCRIPT_DIR}/requirements.lock"
+    "${SCRIPT_DIR}/requirements.lock"
 
   log "preparing the isolated locked Cisco scanner"
   uv sync --project "${CISCO_ROOT}" --locked --no-dev
