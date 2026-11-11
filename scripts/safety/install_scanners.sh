@@ -39,28 +39,17 @@ verify_sha256() {
   printf '%s  %s\n' "${expected}" "${file}" | sha256sum -c - >/dev/null
 }
 
-verify_upstream_checksums() {
-  local file="$1" asset="$2" checksums_url="$3" checksums
-  checksums="$(mktemp)"
-  download "${checksums_url}" "${checksums}"
-  expected="$(awk -v asset="${asset}" '$2 == asset || $2 == "*" asset {print $1; exit}' "${checksums}")"
-  rm -f "${checksums}"
-  [[ -n "${expected}" ]] || { log "checksum missing for ${asset}"; exit 1; }
-  verify_sha256 "${file}" "${expected}"
-}
-
 install_gitleaks() {
   local ver="${GITLEAKS_VERSION}"
-  local asset archive
+  local asset archive expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="gitleaks_${ver}_linux_x64.tar.gz" ;;
-    linux-aarch64|linux-arm64) asset="gitleaks_${ver}_linux_arm64.tar.gz" ;;
+    linux-x86_64|linux-amd64) asset="gitleaks_${ver}_linux_x64.tar.gz"; expected="${GITLEAKS_LINUX_X86_64}" ;;
+    linux-aarch64|linux-arm64) asset="gitleaks_${ver}_linux_arm64.tar.gz"; expected="${GITLEAKS_LINUX_AARCH64}" ;;
     *) log "refuse gitleaks: unsupported ${OS}-${ARCH}"; exit 1 ;;
   esac
   archive="$(mktemp)"
   download "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/${asset}" "${archive}"
-  verify_upstream_checksums "${archive}" "${asset}" \
-    "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_checksums.txt"
+  verify_sha256 "${archive}" "${expected}"
   tar -xzf "${archive}" -C "${PREFIX}" gitleaks
   rm -f "${archive}"
   chmod +x "${PREFIX}/gitleaks"
@@ -70,17 +59,16 @@ install_gitleaks() {
 install_osv_scanner() {
   # Asset names omit the version (google/osv-scanner release convention).
   local ver="${OSV_SCANNER_VERSION}"
-  local asset
+  local asset expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="osv-scanner_linux_amd64" ;;
-    linux-aarch64|linux-arm64) asset="osv-scanner_linux_arm64" ;;
+    linux-x86_64|linux-amd64) asset="osv-scanner_linux_amd64"; expected="${OSV_SCANNER_LINUX_X86_64}" ;;
+    linux-aarch64|linux-arm64) asset="osv-scanner_linux_arm64"; expected="${OSV_SCANNER_LINUX_AARCH64}" ;;
     *) log "refuse osv-scanner: unsupported ${OS}-${ARCH}"; exit 1 ;;
   esac
   download \
     "https://github.com/google/osv-scanner/releases/download/v${ver}/${asset}" \
     "${PREFIX}/osv-scanner"
-  verify_upstream_checksums "${PREFIX}/osv-scanner" "${asset}" \
-    "https://github.com/google/osv-scanner/releases/download/v${ver}/osv-scanner_SHA256SUMS"
+  verify_sha256 "${PREFIX}/osv-scanner" "${expected}"
   chmod +x "${PREFIX}/osv-scanner"
   log "osv-scanner ${ver} -> ${PREFIX}/osv-scanner"
 }
@@ -154,16 +142,15 @@ python_tool_version() {
 
 install_gosec() {
   local ver="${GOSEC_VERSION}"
-  local asset archive
+  local asset archive expected
   case "${OS}-${ARCH}" in
-    linux-x86_64|linux-amd64) asset="gosec_${ver}_linux_amd64.tar.gz" ;;
-    linux-aarch64|linux-arm64) asset="gosec_${ver}_linux_arm64.tar.gz" ;;
+    linux-x86_64|linux-amd64) asset="gosec_${ver}_linux_amd64.tar.gz"; expected="${GOSEC_LINUX_X86_64}" ;;
+    linux-aarch64|linux-arm64) asset="gosec_${ver}_linux_arm64.tar.gz"; expected="${GOSEC_LINUX_AARCH64}" ;;
     *) log "refuse gosec: unsupported ${OS}-${ARCH}"; exit 1 ;;
   esac
   archive="$(mktemp)"
   download "https://github.com/securego/gosec/releases/download/v${ver}/${asset}" "${archive}"
-  verify_upstream_checksums "${archive}" "${asset}" \
-    "https://github.com/securego/gosec/releases/download/v${ver}/gosec_${ver}_checksums.txt"
+  verify_sha256 "${archive}" "${expected}"
   tar -xzf "${archive}" -C "${PREFIX}" gosec
   rm -f "${archive}"
   chmod +x "${PREFIX}/gosec"
