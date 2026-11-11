@@ -29,8 +29,9 @@ requires this owner. The selected runtime-image tests require their exact image,
 source and architecture inputs; ordinary backend test runs report them as requiring
 that separate owner.
 
-Current image cases exercise actual Go safe/finding/incomplete results, local Go
-database preparation and stale/missing refusal, the non-root worker, mandatory
+Current image cases exercise Cisco safe/attack/read-refusal and OSV offline
+vulnerable/clean/stale/unstamped/corrupt/missing controls, Go safe/finding/incomplete
+results, local Go database preparation and stale/missing refusal, the non-root worker, mandatory
 Bubblewrap, filtered environment and an isolated loopback connection with a live
 positive control. The named AppArmor fixture exists only in the disposable CI
 runner. Proof archives contain source/image identity and the declared case results;

@@ -38,18 +38,21 @@ def probe(image: str, case: str) -> dict[str, Any]:
     assert information["Config"]["Labels"]["org.opencontainers.image.revision"] == source
     token = uuid.uuid4().hex
     name = f"ai-stp-runtime-{token}"
-    fixture = Path(__file__).resolve().parents[2] / "fixtures" / "safety_runtime_probe.py"
+    fixture = Path(__file__).resolve().parents[2] / "fixtures" / "safety_runtime"
     try:
         completed = subprocess.run(
             [
                 "docker",
                 "run",
                 "--rm",
-                "--interactive",
                 "--name",
                 name,
                 "--label",
                 f"ai-stp.qualification-owner={token}",
+                "--mount",
+                f"type=bind,source={fixture},target=/qualification-probes/safety_runtime,readonly",
+                "--env",
+                "PYTHONPATH=/qualification-probes",
                 "--network",
                 "none",
                 "--security-opt",
@@ -64,10 +67,10 @@ def probe(image: str, case: str) -> dict[str, Any]:
                 "AI_STP_RUNTIME_PRIVATE_CANARY=controlled-private-runtime-value",
                 image,
                 "python",
-                "-",
+                "-m",
+                "safety_runtime.main",
                 case,
             ],
-            input=fixture.read_text(),
             capture_output=True,
             text=True,
             check=False,
@@ -112,3 +115,13 @@ def test_strict_runtime_environment_and_network(runtime_image: str) -> None:
         "network_namespace_distinct": True,
         "loopback_denied": True,
     }
+
+
+def test_actual_cisco_reports_and_read_refusal(runtime_image: str) -> None:
+    result = probe(runtime_image, "cisco")
+    assert len(result["checks"]) == 3
+
+
+def test_actual_osv_offline_data_and_refusals(runtime_image: str) -> None:
+    result = probe(runtime_image, "osv")
+    assert len(result["checks"]) == 6

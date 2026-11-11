@@ -1,23 +1,18 @@
-"""Actual locked scanner behavior inside the disposable worker image."""
+"""Actual Go reports and local database producer/consumer behavior."""
 
 from __future__ import annotations
 
 import json
 import os
-import platform
 import subprocess
 import sys
-import tempfile
-import threading
 import zipfile
 from datetime import UTC, datetime
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from ai_stp_platform.safety.adapters import _cli, gosec, govulncheck
+from ai_stp_platform.safety.adapters import gosec, govulncheck
 from ai_stp_platform.safety.policy import CHECK_REGISTRY
-from ai_stp_platform.safety.sandbox import sandbox_status
 from ai_stp_platform.safety.types import ArtifactManifest
 
 
@@ -134,82 +129,3 @@ def go_cases(root: Path) -> dict[str, Any]:
                 "reason": missing.detail["reason"],
             }
     return results
-
-
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"controlled-loopback")
-
-    def log_message(self, format: str, *args: object) -> None:
-        return
-
-
-def boundary_cases(root: Path) -> dict[str, Any]:
-    canary = "controlled-private-runtime-value"
-    assert os.environ.get("AI_STP_RUNTIME_PRIVATE_CANARY") == canary
-    code, out, _, _ = _cli.run_cli(
-        [
-            "python",
-            "-c",
-            "import os; print(os.environ.get('AI_STP_RUNTIME_PRIVATE_CANARY', 'absent'))",
-        ],
-        cwd=root,
-        timeout=10,
-    )
-    assert code == 0 and out.strip() == "absent"
-    parent_namespace = str(Path("/proc/self/ns/net").readlink())
-    code, out, _, _ = _cli.run_cli(["readlink", "/proc/self/ns/net"], cwd=root, timeout=10)
-    assert code == 0 and out.strip().startswith("net:[") and out.strip() != parent_namespace
-    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            url = f"http://127.0.0.1:{server.server_port}/"
-            positive = subprocess.run(
-                ["curl", "--fail", "--silent", "--max-time", "2", url],
-                capture_output=True,
-                check=True,
-                timeout=5,
-            )
-            assert positive.stdout == b"controlled-loopback"
-            code, _, _, _ = _cli.run_cli(
-                ["curl", "--fail", "--silent", "--max-time", "2", url], cwd=root, timeout=5
-            )
-            assert code == 7, code
-        finally:
-            server.shutdown()
-            thread.join(timeout=2)
-            assert not thread.is_alive()
-    return {
-        "private_environment_filtered": True,
-        "network_namespace_distinct": True,
-        "loopback_denied": True,
-    }
-
-
-def main() -> None:
-    assert os.geteuid() == 10001, "image must retain its declared non-root worker"
-    assert sys.version_info[:2] == (3, 14)
-    status = sandbox_status()
-    assert status["mode"] == "bwrap", status
-    assert os.environ.get("AI_STP_SAFETY_REQUIRE_BWRAP") == "1"
-    assert sys.argv[1] in {"go", "boundary"}
-    with tempfile.TemporaryDirectory(prefix="ai-stp-image-qualification-") as temporary:
-        root = Path(temporary)
-        checks = go_cases(root) if sys.argv[1] == "go" else boundary_cases(root)
-    print(
-        json.dumps(
-            {
-                "architecture": platform.machine(),
-                "python": platform.python_version(),
-                "sandbox": status["mode"],
-                "checks": checks,
-            }
-        )
-    )
-
-
-if __name__ == "__main__":
-    main()

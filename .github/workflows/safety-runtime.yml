@@ -11,7 +11,7 @@ on:
       - deploy/apparmor/ai-stp-worker
       - scripts/safety/**
       - apps/platform/src/ai_stp_platform/safety/**
-      - tests/fixtures/safety_runtime_probe.py
+      - tests/fixtures/safety_runtime/**
       - tests/scenario/platform/test_safety_image_runtime.py
       - pyproject.toml
       - uv.lock
