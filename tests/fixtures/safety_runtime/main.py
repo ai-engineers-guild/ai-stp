@@ -8,6 +8,7 @@ import platform
 import sys
 import tempfile
 from collections.abc import Callable
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +35,10 @@ def main() -> None:
     status = sandbox_status()
     assert status["mode"] == "bwrap", status
     assert os.environ.get("AI_STP_SAFETY_REQUIRE_BWRAP") == "1"
-    with tempfile.TemporaryDirectory(prefix="ai-stp-image-qualification-") as temporary:
+    with (
+        tempfile.TemporaryDirectory(prefix="ai-stp-image-qualification-") as temporary,
+        redirect_stdout(sys.stderr),
+    ):
         checks = CASES[sys.argv[1]](Path(temporary))
     print(
         json.dumps(
