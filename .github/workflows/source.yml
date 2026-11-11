@@ -157,7 +157,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           python-version: ${{ matrix.python == 'current' && env.PYTHON_VERSION || matrix.python }}
           uv-version: ${{ env.UV_VERSION }}
@@ -171,12 +171,12 @@ jobs:
           } >> "${GITHUB_ENV}"
       - name: Prepare the locked Python dependencies
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: setup-python
       - name: Check each owner and actual refusal behavior
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-python-dependencies
 
