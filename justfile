@@ -523,13 +523,12 @@ web-storybook:
 # gives the same build the recipe used to do itself.
 [doc('Browser scenarios over the production build')]
 [group('web')]
-web-regress: web-build
+web-regress *args: web-build
     {{ bunreq }}
-    # Browser bytes belong to the user's Playwright cache. OS packages belong
-    # to the runner image and are provisioned out of band: a repository check
-    # may not invoke sudo or block waiting for an administrator password.
+    # The workstation/runner provider owns browser bytes and OS packages.
+    # This check only exercises the selected, already provisioned channel.
     {{ run }} python release_scripts/run_bash.py .github/scripts/ensure-chrome.sh
-    cd apps/web && bun run test:e2e
+    cd apps/web && bun run test:e2e {{ args }}
 
 # Two independent production builds prove build-time feature exclusion.
 [group('web')]

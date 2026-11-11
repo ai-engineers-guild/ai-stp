@@ -60,6 +60,9 @@ scan and distribution-license review keep their existing owners.
 Run affected checks listed in AGENTS.md. `just --list` describes recipes and
 `just --show check` gives the aggregate. For local Mermaid rendering an installed
 Chrome can be selected with `PUPPETEER_EXECUTABLE_PATH`.
+For web browser checks, `PLAYWRIGHT_CHROME_CHANNEL=chrome-beta` selects an
+already provisioned Google Chrome Beta; the default is `chrome`. Checks launch
+an isolated profile, report the actual version and never install a browser.
 
 Keep lockfiles pinned. Regenerate changed schemas or projections through their
 own recipe and review the diff. Behavioral tests and machine schemas own contracts;

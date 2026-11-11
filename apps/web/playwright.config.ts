@@ -2,6 +2,8 @@ import path from "node:path";
 
 import { defineConfig, devices, type ReporterDescription } from "@playwright/test";
 
+import { chromeChannel } from "./scripts/chrome-channel";
+
 // 3100 collided with another project on the maintainer's machine and the
 // failure read as "already used" rather than as a conflict this suite could
 // have avoided. 6767 is chosen for being outside the ranges dev servers reach
@@ -15,6 +17,7 @@ const externalBaseURL = process.env["PLAYWRIGHT_EXTERNAL_BASE_URL"];
 const baseURL = externalBaseURL ?? `http://${host}:${String(port)}`;
 const baseURLHost = new URL(baseURL).hostname;
 const nextDistDir = process.env["AI_STP_NEXT_DIST_DIR"] ?? ".next";
+const selectedChromeChannel = chromeChannel();
 
 // `list` is what a person reads while the run happens. The JSON report is what
 // survives the job: a failed browser scenario used to leave nothing behind but a
@@ -28,6 +31,7 @@ const retainedReporters: ReporterDescription[] = [
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  metadata: { chromeChannel: selectedChromeChannel },
   // Mock auth/profile/catalog state is intentionally process-local and shared by
   // routes. Serial execution prevents independent scenarios from mutating the
   // same production server concurrently.
@@ -42,7 +46,7 @@ export default defineConfig({
     // to people is Chrome, and the two differ in exactly the places a browser
     // test is worth having — codecs, PDF, DRM and the release cadence itself.
     // A regression that only Chrome shows is one this suite could not see.
-    channel: "chrome",
+    channel: selectedChromeChannel,
     trace: "on-first-retry",
     // The retry is where the trace comes from; a screenshot covers the first
     // failure as well, which is the one that says whether the page ever had the
