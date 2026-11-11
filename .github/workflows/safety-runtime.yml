@@ -38,7 +38,9 @@ jobs:
             arch: arm64
     env:
       AI_STP_SAFETY_RUNTIME_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
-      AI_STP_SAFETY_RUNTIME_IMAGE: ai-stp-safety-qualified:${{ github.event.pull_request.head.sha || github.sha }}-${{ matrix.arch }}
+      AI_STP_SAFETY_RUNTIME_IMAGE: >-
+        ${{ format('ai-stp-safety-qualified:{0}-{1}',
+        github.event.pull_request.head.sha || github.sha, matrix.arch) }}
       AI_STP_SAFETY_RUNTIME_ARCH: ${{ matrix.arch }}
       AI_STP_TEST_WORKERS: '0'
     steps:
