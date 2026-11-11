@@ -1,6 +1,6 @@
 ---
 description: "Branch integration, exact-source qualification and artifact publication."
-last_verified: "2026-11-08"
+last_verified: "2026-11-11"
 ---
 
 # Git workflow
@@ -22,7 +22,8 @@ the PR is eligible to integrate; it does not claim installed acceptance.
 
 A push to `dev` runs `check`. The shared `source` workflow owns the same complete
 matrix: server/database scenarios, web/browser/SDK matrices, CLI consumers,
-archives, documentation image, Desktop installers and installed Linux journeys.
+archives, documentation image, Desktop installers, installed personal journeys
+on Linux/macOS/Windows and the installed Linux corporate journey.
 Its final `full-qualification` has a different name from PR eligibility. Both
 wrappers refuse a failed, cancelled or skipped shared workflow. The shared gate
 accounts for every owner and the exact expected skips for its selected phase.
@@ -63,8 +64,10 @@ Only successful push-to-Dev owners retain native dependency caches.
    `just delivery-promote SOURCE_SHA SOURCE_RUN_ID SOURCE_ATTEMPT` from that
    qualified checkout. It independently rechecks source evidence, complete live
    rule actor lists, current Dev and accepted Main analysis, fast-forwards Main
-   with `force: false`, reads it back and dispatches CI reconciliation. No new
-   credential or Actions bypass is required. A refused write ends the operation.
+   with `force: false` and reads it back. A new CLI version gets an immutable
+   annotated tag and its publication workflow; an existing completed version
+   dispatches deployment reconciliation. Running CLI publication is reused.
+   No new credential or Actions bypass is required. A refused write ends the operation.
 6. CI only advances the monotonic `deploy/prod` ref once Main already equals the
    qualified source and its CLI download is completely published. Admission checks
    the annotated release tag, source ancestry and all fourteen native payloads and
@@ -79,17 +82,19 @@ Only successful push-to-Dev owners retain native dependency caches.
 
 Main does not rebuild the source. Client release workflows use the current Main
 commit's successful Dev run. Desktop publication stages the qualified installers;
-explicit CLI attestation stages the fourteen qualified archives, wheels, crate
-and checksum files. Neither path recompiles the product. The OIDC-bearing CLI
+CLI publication stages the fourteen qualified archives, wheels, crate and
+checksum files, attests them and uses the same publisher as Desktop. Neither path recompiles the product. The OIDC-bearing CLI
 attestation job executes no repository code. Unsigned Desktop bundles retain
 that disclosure; publication does not assert notarization or code signing.
 
 A new CLI version reaches qualified Main before its release tag and attestation.
-Until its exact archives are published, reconciliation refuses deployment and
-leaves `deploy/prod` unchanged. Publish those admitted bytes, then retry delivery
-with the same qualified source run. Main analysis preparation and the explicit
-Main operator do not require a download that cannot yet be published; actual
-deployment always does. The canonical download link matches the source package
+Its workflow publishes those exact archives, dispatches the existing standalone
+PyPI/crates.io Trusted Publishers, and checks the actual public registry bytes.
+The existing PyPI environment review remains required. Only successful registry
+owners dispatch deployment reconciliation for the original qualified source run.
+Until publication completes, `deploy/prod` stays unchanged. Main analysis
+preparation and the explicit Main operator do not require a download that cannot
+yet be published; actual deployment always does. The canonical download link matches the source package
 version, so a deployed Web page cannot point to the unpublished next version.
 
 ## Admission and recovery
@@ -103,10 +108,9 @@ operator is an explicit, evidence-checked step, with no alternate-credential
 retry after a refusal. Existing administrator authority does not replace
 qualification or code-scanning evidence.
 
-Activating this delivery arrangement changes existing repository access and the
-default branch. It is a separate repository-administration decision after the
-candidate has qualified. Read back every rule, including complete actor lists,
-and the default branch. The hosted controller cannot change rulesets. GitHub
+The owner approved this arrangement in #1392: default Dev and all four reviewed
+rules are active. Read back every rule, including complete actor lists, and the
+default branch before promotion. The hosted controller cannot change rulesets. GitHub
 may omit actor lists from its read-only response, while GitHub still
 authorizes deployment writes. The operator requires the complete actor lists.
 Both paths refuse other visible policy drift. Until
@@ -116,7 +120,9 @@ When Main has not yet advanced, use `just delivery-promote` with the admitted
 source, run and attempt. For an interrupted deployment after Main advanced,
 dispatch `deploy` on Dev with the existing successful `source_run_id`. If the
 operator's dispatch failed after its Main update, rerunning the same command
-reuses Main and retries only reconciliation. Admission is repeated against
+reuses Main, reconciles the current CLI owner and dispatches only missing work.
+A failed publication retains its original run and immutable bytes for diagnosis;
+it is never treated as permission to rebuild or replace an asset. Admission is repeated against
 current GitHub state. Completed Main/ref/tag operations are reused; existing tags
 and release assets never move.
 Do not rebuild to repair publication. Correct source mistakes through a new PR

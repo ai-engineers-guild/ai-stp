@@ -36,8 +36,8 @@ def names(version: str, target: str) -> set[str]:
     return files | {name + ".sha256" for name in files}
 
 
-def require_published(api: GitHub, head: str) -> None:
-    """Admit the qualified source's public download before changing deploy/prod."""
+def release_version(api: GitHub, head: str) -> str:
+    """Read the one literal download version without executing source."""
     require(bool(re.fullmatch(r"[0-9a-f]{40}", head)), "Exact qualified source required")
     document = api.read("contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref=" + head)
     require(document["encoding"] == "base64", "Encoded CLI download source required")
@@ -59,7 +59,12 @@ def require_published(api: GitHub, head: str) -> None:
     )
     if match is None:
         raise PromotionRefused("Canonical stable native CLI release link required")
-    version = match[1]
+    return match[1]
+
+
+def require_published(api: GitHub, head: str) -> None:
+    """Admit the qualified source's public download before changing deploy/prod."""
+    version = release_version(api, head)
     tag = "cli-v" + version
     release = api.read("releases/tags/" + tag)
     require(

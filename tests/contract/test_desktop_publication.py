@@ -1,4 +1,4 @@
-"""The real publisher can resume drafts without replacing previously uploaded bytes."""
+"""Both native publishers resume acknowledged drafts without replacing qualified bytes."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from release_scripts.cli_artifacts import PLATFORMS, names
 from tests.contract.test_source_qualification import workflow
 
 GITHUB = r"""
@@ -30,16 +31,16 @@ if args[0] == "api":
     route = next(arg for arg in args if arg.startswith("repos/"))
     if route.endswith("git/ref/heads/main"):
         result = {"object": {"sha": "a" * 40}}
-    elif route == "repos/example/project/git/ref/tags/desktop-v0.5.0":
+    elif route == f"repos/example/project/git/ref/tags/{state['kind']}-v0.5.0":
         status = 404 if state.get("missing_tag") else 200
         result = {"object": {"type": "tag", "sha": "b" * 40}}
     elif route == "repos/example/project/git/tags/" + "b" * 40:
-        result = {"tag": "desktop-v0.5.0", "object": {"type": "commit", "sha": "a" * 40}}
+        result = {"tag": f"{state['kind']}-v0.5.0", "object": {"type": "commit", "sha": "a" * 40}}
     elif route == "repos/example/project/releases":
         assert args[args.index("--method") + 1] == "POST" and "--input" in args
         assert not state["exists"]
         payload = json.load(sys.stdin)
-        assert payload["tag_name"] == "desktop-v0.5.0"
+        assert payload["tag_name"] == f"{state['kind']}-v0.5.0"
         assert payload["target_commitish"] == "a" * 40
         assert payload["draft"] is True and payload["prerelease"] is False
         assert payload["make_latest"] == "false" and payload["body"]
@@ -57,7 +58,7 @@ if args[0] == "api":
     elif route == "repos/example/project/releases/42":
         status = state.get("read_status", 200 if state["exists"] else 404)
         result = state["release"]
-    elif route == "repos/example/project/releases/tags/desktop-v0.5.0":
+    elif route == f"repos/example/project/releases/tags/{state['kind']}-v0.5.0":
         status = 200 if state["exists"] and not state["release"]["draft"] else 404
         result = state["release"]
     else:
@@ -114,7 +115,7 @@ class Publisher:
         state.write_text(json.dumps(self.state))
         script = next(
             step["run"]
-            for step in workflow("desktop-release.yml")["jobs"]["release"]["steps"]
+            for step in workflow("client-publication.yml")["jobs"]["release"]["steps"]
             if step.get("name") == "Create the GitHub release"
         )
         script = script.replace("${{ github.repository }}", "example/project")
@@ -125,6 +126,7 @@ class Publisher:
                 "PATH": str(self.directory) + os.pathsep + os.environ.get("PATH", os.defpath),
                 "PUBLICATION_STATE": str(state),
                 "REPOSITORY": "example/project",
+                "KIND": self.state["kind"],
                 "VERSION": "0.5.0",
                 "SOURCE_SHA": "a" * 40,
                 "SOURCE_RUN_ID": "41",
@@ -138,33 +140,48 @@ class Publisher:
         self.state = json.loads(state.read_text())
         return result
 
+    @property
+    def asset_count(self) -> int:
+        return 7 if self.state["kind"] == "desktop" else 14
+
     def mutations(self) -> list[list[str]]:
         return [args for args in self.state["trace"] if args[0] == "release" or "--method" in args]
 
 
-@pytest.fixture
-def publisher(tmp_path: Path) -> Publisher:
+@pytest.fixture(params=["desktop", "cli"])
+def publisher(tmp_path: Path, request: pytest.FixtureRequest) -> Publisher:
     program = tmp_path / "gh"
     program.write_text(f"#!{sys.executable}\n" + GITHUB)
     program.chmod(0o755)
     release = tmp_path / "release"
     release.mkdir()
-    checksums: list[str] = []
-    for extension in ("deb", "rpm", "AppImage", "dmg", "msi", "exe"):
-        name = f"ai-stp_0.5.0_native.{extension}"
-        data = f"Qualified original installer: {name}\n".encode()
-        (release / name).write_bytes(data)
-        checksums.append(f"{hashlib.sha256(data).hexdigest()}  {name}\n")
-    (release / "SHA256SUMS").write_text("".join(checksums))
+    if request.param == "desktop":
+        checksums: list[str] = []
+        for extension in ("deb", "rpm", "AppImage", "dmg", "msi", "exe"):
+            name = f"ai-stp_0.5.0_native.{extension}"
+            data = f"Qualified original installer: {name}\n".encode()
+            (release / name).write_bytes(data)
+            checksums.append(f"{hashlib.sha256(data).hexdigest()}  {name}\n")
+        (release / "SHA256SUMS").write_text("".join(checksums))
+    else:
+        for name in sorted({name for target in PLATFORMS for name in names("0.5.0", target)}):
+            if name.endswith(".sha256"):
+                continue
+            data = f"Qualified original CLI payload: {name}\n".encode()
+            (release / name).write_bytes(data)
+            (release / (name + ".sha256")).write_text(
+                f"{hashlib.sha256(data).hexdigest()}  {name}\n"
+            )
     return Publisher(
         tmp_path,
         release,
         {
+            "kind": request.param,
             "exists": False,
             "trace": [],
             "release": {
                 "id": 42,
-                "tag_name": "desktop-v0.5.0",
+                "tag_name": f"{request.param}-v0.5.0",
                 "draft": True,
                 "prerelease": False,
                 "published_at": None,
@@ -178,7 +195,7 @@ def test_first_publication_and_repeated_delivery_preserve_every_asset(publisher:
     result = publisher.run()
     assert result.returncode == 0, result.stderr
     assets = publisher.state["release"]["assets"]
-    assert len(assets) == 7
+    assert len(assets) == publisher.asset_count
     assert all(
         asset["digest"]
         == "sha256:" + hashlib.sha256((publisher.release / asset["name"]).read_bytes()).hexdigest()
@@ -206,7 +223,7 @@ def test_partial_upload_can_finish_without_duplicate_or_replaced_assets(
     assert publisher.state["release"]["draft"] is True
     resumed = publisher.run()
     assert resumed.returncode == 0, resumed.stderr
-    assert len(publisher.state["release"]["assets"]) == 7
+    assert len(publisher.state["release"]["assets"]) == publisher.asset_count
     assert publisher.state["release"]["assets"][:1] == original
     assert sum("--method" in args for args in publisher.mutations()) == 1
     assert all("--clobber" not in args for args in publisher.mutations())
@@ -227,7 +244,7 @@ def test_existing_release_conflicts_refuse_before_publication_writes(
         publisher.state["release"].update(draft=False, published_at="2026-11-11T00:00:00Z")
     else:
         name = (
-            "SHA256SUMS"
+            next(publisher.release.iterdir()).name
             if failure == "digest"
             else ("unqualified.exe" if failure == "extra" else "../state.json")
         )
@@ -276,7 +293,7 @@ def test_lost_creation_reply_resumes_the_acknowledged_draft_without_recreation(
     resumed = publisher.run()
     assert resumed.returncode == 0, resumed.stderr
     assert sum("--method" in args for args in publisher.mutations()) == 1
-    assert len(publisher.state["release"]["assets"]) == 7
+    assert len(publisher.state["release"]["assets"]) == publisher.asset_count
 
 
 def test_missing_tag_refuses_before_release_creation(publisher: Publisher) -> None:

@@ -400,8 +400,8 @@ gh() {
         self.assertEqual(
             workflow("source.yml")["jobs"]["desktop"]["uses"], "./.github/workflows/desktop.yml"
         )
-        publisher = release["jobs"]["release"]["steps"]
-        self.assertEqual(publisher[0]["with"]["name"], "qualified-desktop-release")
+        publisher = workflow("client-publication.yml")["jobs"]["release"]["steps"]
+        self.assertEqual(publisher[0]["with"]["name"], "qualified-${{ inputs.kind }}-release")
         self.assertEqual(publisher[0]["with"]["digest-mismatch"], "error")
         self.assertFalse(any("actions/checkout@" in step.get("uses", "") for step in publisher))
         self.assertTrue(all("python" not in step.get("run", "") for step in publisher))

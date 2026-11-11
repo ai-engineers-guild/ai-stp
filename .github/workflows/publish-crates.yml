@@ -81,7 +81,7 @@ jobs:
           version="$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/cli/rust-toolchain.toml)"
           printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
       - uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@ca07bd07d12c91f103ce481372100cab6c83d72f
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
         with:
           rust-version: ${{ steps.toolchain.outputs.version }}
       - name: Reproduce the verified crate before acquiring publishing credentials
@@ -100,3 +100,31 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: cargo publish --locked --no-verify
+
+
+  verify-public:
+    needs: [verify, publish]
+    if: >-
+      always() && needs.verify.result == 'success' &&
+      (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: native-crate-${{ github.sha }}
+          path: release
+          digest-mismatch: error
+      - name: Download and compare the actual public source crate
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          name="ai-stp-cli-${VERSION}.crate"
+          curl --fail --silent --show-error --retry 3 --max-time 120 \
+            --proto '=https' --max-filesize 268435456 \
+            "https://static.crates.io/crates/ai-stp-cli/${name}" --output downloaded.crate
+          cmp "release/${name}" downloaded.crate

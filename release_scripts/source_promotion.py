@@ -10,6 +10,7 @@ from pathlib import Path
 
 from release_scripts._github_delivery import GitHub, PromotionRefused, require
 from release_scripts.cli_artifacts import require_published
+from release_scripts.cli_publication import prepare as prepare_cli_publication
 from release_scripts.code_scanning import require_registered
 from release_scripts.desktop_publication import reconcile
 from release_scripts.desktop_version import version
@@ -73,13 +74,27 @@ def promote(
             api.write("git/refs/heads/main", {"sha": head, "force": False})
         read_back(api, "main", head)
         source(api, head, run_id, attempt)
-        status, _ = api.request(
-            "actions/workflows/deploy.yml/dispatches",
-            method="POST",
-            body={"ref": "dev", "inputs": {"source_run_id": str(run_id)}},
+        cli_version, publication = prepare_cli_publication(api, head, run_id)
+        if publication == "running":
+            return
+        source(api, head, run_id, attempt)
+        require(
+            api.read("git/ref/heads/main")["object"]["sha"] == head,
+            "Main changed before client delivery dispatch",
         )
-        require(status == 204, f"Delivery dispatch refused ({status}); Main is already advanced")
-        print(f"Main retained qualified Dev {head}; delivery reconciliation dispatched.")
+        starting_cli = publication == "start"
+        workflow = "cli-release.yml" if starting_cli else "deploy.yml"
+        inputs = {"version": cli_version} if starting_cli else {"source_run_id": str(run_id)}
+        status, _ = api.request(
+            f"actions/workflows/{workflow}/dispatches",
+            method="POST",
+            body={"ref": f"cli-v{cli_version}" if starting_cli else "dev", "inputs": inputs},
+        )
+        require(
+            status in {200, 204},
+            f"{workflow} dispatch refused ({status}); Main is already advanced",
+        )
+        print(f"Main retained qualified Dev {head}; {workflow} dispatched.")
         return
     if previous != head:
         output_values(deployed=False)
