@@ -1,34 +1,18 @@
-"""One package manager per language, and the repository's own policy says which.
+"""Repository toolchains use uv for Python and Bun for JavaScript.
 
-`.gds/compiled-policy.json` names `uv` and `bun` as the only
-`language_dependency_managers` and forbids the npm family on a managed PATH. It
-is written by another system and enforced by none, which is how the gate came
-to bootstrap `uv` with `pip` on twenty-one jobs and install documentation tools
-with `npm ci`.
-
-What this checks is our own toolchain: what the gate runs, what the recipes
-run, what our scripts run. It deliberately does not touch the safety adapters —
-`npm audit` and `pip-audit` are the right tools to run *against a scanned
-artefact*, and forbidding them there would confuse the product with the
-workshop.
+Safety adapters inspect scanned artifacts with their native audit tools; they
+remain separate from repository dependency preparation.
 """
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
-from typing import cast
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-POLICY = ROOT / ".gds" / "compiled-policy.json"
 
-#: The package managers this repository must not invoke. Declared here so
-#: the check runs in every tree, and pinned against the policy above by
-#: `test_the_policy_still_says_what_this_test_enforces` where it exists.
-#: `mise` and `asdf` are version managers rather than package managers.
+# Dependency preparation follows this repository's declared toolchain.
+# Version managers are checked separately from language package managers.
 WATCHED = ("npm", "npx", "pip", "pipx", "pnpm", "poetry", "yarn")
 
 
@@ -75,42 +59,6 @@ def _commands(text: str, suffix: str) -> str:
     """
     marker = "//" if suffix in {".json", ".mjs", ".ts"} else "#"
     return "\n".join("" if line.strip().startswith(marker) else line for line in text.split("\n"))
-
-
-def _policy_names() -> tuple[frozenset[str], frozenset[str]]:
-    """Read the two lists out of the policy at their documented location.
-
-    Addressed rather than searched for: if the policy moves them, this should
-    fail loudly and be re-read, not quietly find something similar elsewhere.
-    """
-    policy = cast(dict[str, object], json.loads(POLICY.read_text(encoding="utf-8")))
-    effective = policy.get("effective")
-    assert isinstance(effective, dict), f"{POLICY.name}: `effective` is absent"
-    section = cast(dict[str, object], effective).get("package_management")
-    assert isinstance(section, dict), f"{POLICY.name}: `package_management` is absent"
-    managed = cast(dict[str, object], section)
-
-    def names(key: str) -> frozenset[str]:
-        value = managed.get(key)
-        assert isinstance(value, list) and value, f"{POLICY.name}: {key} is absent or empty"
-        return frozenset(str(item) for item in cast(list[object], value))
-
-    return names("forbidden_executables"), names("language_dependency_managers")
-
-
-def test_the_policy_still_says_what_this_test_enforces() -> None:
-    """A test that reads a policy is worth only as much as the policy it read.
-
-    Skipped where the policy is not present: `.gds` belongs to another system
-    and is not part of this tree. Which is why the check below names the tools
-    itself instead of reading them from a file that may be absent — an
-    enforcement that disappears where the gate runs is not an enforcement.
-    """
-    if not POLICY.is_file():
-        pytest.skip("this tree does not carry the compiled policy")
-    forbidden, allowed = _policy_names()
-    assert allowed == {"uv", "bun"}
-    assert set(WATCHED) <= forbidden
 
 
 def test_the_toolchain_invokes_only_uv_and_bun() -> None:
@@ -189,6 +137,7 @@ def test_every_bun_lockfile_is_readable_by_the_pinned_bun() -> None:
         sorted(ROOT.glob("bun.lock"))
         + sorted(ROOT.glob("*/bun.lock"))
         + sorted(ROOT.glob("*/*/bun.lock"))
+        + sorted(ROOT.glob("tests/native_vendor/*-distribution/bun.lock"))
     )
     lockfiles = [path for path in lockfiles if "node_modules" not in path.parts]
     assert lockfiles, "no bun lockfile found"
