@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 trap {
     [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
-    throw
+    throw $_
 }
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
     throw 'A disposable hosted Windows runner is required'
@@ -287,23 +287,13 @@ function Select-Context([System.Diagnostics.Process] $Process, [string] $Label, 
 
 function Select-Language([System.Diagnostics.Process] $Process, [string] $Previous, [string] $Next) {
     $selector = Wait-Element $Process (Text 'language.label' $Previous) ([System.Windows.Automation.ControlType]::ComboBox)
-    $name = [string] $languageConfiguration.languages[$Next].name
-    if ($Next -ceq 'kk') { $name += ' · ' + $languageConfiguration.languages[$Next].shortName }
-    $selection = $selector.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
-    if ($selection.Count -ne 1) { throw 'Native language selection is ambiguous' }
-    if ($selection[0].Current.Name -cne $name) {
-        $expand = $selector.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
-        $expand.Expand()
-        $option = Wait-Observation $Process 'packaged native language option' ({
-            $condition = [System.Windows.Automation.PropertyCondition]::new(
-                [System.Windows.Automation.AutomationElement]::NameProperty, $name
-            )
-            return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
-        }.GetNewClosure())
-        $option.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-        if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
-            $expand.Collapse()
-        }
+    if ($Previous -cne $Next) {
+        # The native select renders this same ordered packaged declaration.
+        $options = @($languageConfiguration.languages.Keys)
+        $index = [Array]::IndexOf($options, $Next)
+        if ($index -lt 0) { throw 'Unknown packaged native language' }
+        Focus-Control $Process $selector
+        [System.Windows.Forms.SendKeys]::SendWait('%{DOWN}{HOME}' + ('{DOWN}' * $index) + '{ENTER}')
     }
     $null = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
 }

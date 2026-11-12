@@ -174,10 +174,25 @@ func focus(_ process: Process, _ node: AXUIElement) throws {
         "Owned application could not become frontmost")
     try check(AXUIElementSetAttributeValue(node, kAXFocusedAttribute as CFString, kCFBooleanTrue) == .success,
         "Owned UI control could not receive keyboard focus")
-    _ = try wait("owned keyboard focus") {
-        try check(process.isRunning, "Installed Desktop exited before keyboard input")
-        return NSWorkspace.shared.frontmostApplication?.processIdentifier == process.processIdentifier &&
-            attribute(node, kAXFocusedAttribute) as? Bool == true ? true : nil
+    var observation = "not observed"
+    do {
+        _ = try wait("owned keyboard focus") {
+            try check(process.isRunning, "Installed Desktop exited before keyboard input")
+            let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == process.processIdentifier
+            let flag = attribute(node, kAXFocusedAttribute) as? Bool == true
+            var same = false
+            var role = "unavailable"
+            if let focused = attribute(application(process), kAXFocusedUIElementAttribute),
+                CFGetTypeID(focused) == AXUIElementGetTypeID() {
+                let element = focused as! AXUIElement
+                same = CFEqual(element, node)
+                role = attribute(element, kAXRoleAttribute) as? String ?? "unknown"
+            }
+            observation = "frontmost=\(frontmost), target_flag=\(flag), target_matches=\(same), focused_role=\(role)"
+            return frontmost && (flag || same) ? true : nil
+        }
+    } catch {
+        throw ProbeFailure("\(error); native focus observation: \(observation)")
     }
 }
 
