@@ -393,7 +393,7 @@ def test_python_analysis_preserves_product_and_tooling_coverage() -> None:
 def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     """Client tests see three operating systems; server tests run on Linux."""
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    three = {"ubuntu-26.04", "macos-latest", "windows-latest"}
+    three = {"ubuntu-26.04", "macos-26", "windows-latest"}
     jobs = workflow["jobs"]
     for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
@@ -412,7 +412,7 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
     assert native["strategy"]["fail-fast"] is False
     assert set(native["strategy"]["matrix"]["os"]) == {
         "ubuntu-26.04",
-        "macos-latest",
+        "macos-26",
         "windows-latest",
     }
     scripts = command_text(native)
