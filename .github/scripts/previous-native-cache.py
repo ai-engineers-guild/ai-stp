@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import platform
 import re
 import stat
 import sys
@@ -21,26 +22,53 @@ def check(root: Path, commit: str, tree: str, recipe: str, compiler: str, mode: 
         or len(compiler) > 8192
     ):
         raise ValueError("producer_identity_invalid")
+    targets = {
+        "linux": ("x86_64-unknown-linux-gnu", {"x86_64", "amd64"}, "ai-stp"),
+        "darwin": ("aarch64-apple-darwin", {"arm64", "aarch64"}, "ai-stp"),
+        "win32": ("x86_64-pc-windows-msvc", {"amd64", "x86_64"}, "ai-stp.exe"),
+    }
+    if sys.platform not in targets:
+        raise ValueError("cache_host_invalid")
+    target, machines, filename = targets[sys.platform]
+    if (
+        platform.machine().lower() not in machines
+        or compiler.splitlines().count(f"host: {target}") != 1
+    ):
+        raise ValueError("cache_compiler_host_invalid")
     if not stat.S_ISDIR(root.lstat().st_mode):
         raise ValueError("cache_directory_invalid")
-    expected_files = {"ai-stp"} if mode == "create" else {"ai-stp", "record.json"}
+    expected_files = {filename} if mode == "create" else {filename, "record.json"}
     if {item.name for item in root.iterdir()} != expected_files:
         raise ValueError("cache_files_invalid")
-    binary = root / "ai-stp"
+    binary = root / filename
     info = binary.lstat()
     if (
         not stat.S_ISREG(info.st_mode)
-        or stat.S_IMODE(info.st_mode) != 0o755
+        or (sys.platform != "win32" and stat.S_IMODE(info.st_mode) != 0o755)
         or not 4096 < info.st_size <= 512 * 1024 * 1024
     ):
         raise ValueError("cache_executable_invalid")
     with binary.open("rb") as stream:
-        if stream.read(4) != b"\x7fELF":
+        header = stream.read(4096)
+        if sys.platform == "linux":
+            valid = header[:6] == b"\x7fELF\x02\x01" and header[18:20] == b"\x3e\x00"
+        elif sys.platform == "darwin":
+            valid = header[:8] == b"\xcf\xfa\xed\xfe\x0c\x00\x00\x01"
+        else:
+            offset = int.from_bytes(header[60:64], "little")
+            valid = (
+                header[:2] == b"MZ"
+                and 64 <= offset <= len(header) - 6
+                and header[offset : offset + 6] == b"PE\x00\x00\x64\x86"
+            )
+        if not valid:
             raise ValueError("cache_executable_format_invalid")
         stream.seek(0)
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     expected = {
-        "format": "ai-stp-previous-native-binary/1",
+        "format": "ai-stp-previous-native-binary/2",
+        "target": target,
+        "binary": filename,
         "source_commit": commit,
         "source_tree": tree,
         "producer_recipe_sha256": recipe,

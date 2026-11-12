@@ -15,6 +15,10 @@ on:
         description: Build diagnostic packages without application acceptance or release permission
         type: boolean
         default: false
+      diagnostic_native_corporate:
+        description: Diagnose actual API/PostgreSQL native CLI journeys without GUI acceptance
+        type: boolean
+        default: false
       diagnostic_source_run_id:
         description: Reuse an exact successful current Dev qualification for native-owner diagnosis
         type: string
@@ -48,6 +52,7 @@ env:
 jobs:
   desktop:
     if: >-
+      !inputs.diagnostic_native_corporate &&
       inputs.diagnostic_source_run_id == '' && inputs.diagnostic_app_source == '' &&
       inputs.diagnostic_source_run_attempt == ''
     name: desktop-${{ matrix.os }}
@@ -338,7 +343,7 @@ jobs:
 
   native-diagnostic:
     if: >-
-      github.event_name == 'workflow_dispatch' &&
+      github.event_name == 'workflow_dispatch' && !inputs.diagnostic_native_corporate &&
       (inputs.diagnostic_source_run_id != '' || inputs.diagnostic_app_source != '' ||
       inputs.diagnostic_source_run_attempt != '')
     permissions:
@@ -404,3 +409,17 @@ jobs:
           path: ${{ runner.temp }}/installed-personal-desktop.json
           if-no-files-found: error
           retention-days: 7
+
+  native-corporate-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_native_corporate
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    uses: ./.github/workflows/native-corporate-checks.yml
+    with:
+      diagnostic_only: true
+      diagnostic_platform: ${{ inputs.diagnostic_platform }}
+      diagnostic_source_run_id: ${{ inputs.diagnostic_source_run_id }}
+      diagnostic_app_source: ${{ inputs.diagnostic_app_source }}
+      diagnostic_source_run_attempt: ${{ inputs.diagnostic_source_run_attempt || '1' }}

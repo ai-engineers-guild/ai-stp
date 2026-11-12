@@ -1,0 +1,166 @@
+name: native-corporate-checks
+
+on:
+  workflow_call:
+    inputs:
+      diagnostic_only:
+        description: Explicit manual diagnosis with an already qualified Dev archive
+        type: boolean
+        default: false
+      diagnostic_platform:
+        description: Diagnostic platform; normal qualification always owns both native platforms
+        type: string
+        default: all
+      diagnostic_source_run_id:
+        description: Exact diagnostic archive producer; empty requires this source run
+        type: string
+        default: ''
+      diagnostic_app_source:
+        description: Exact diagnostic engine source; empty requires this source SHA
+        type: string
+        default: ''
+      diagnostic_source_run_attempt:
+        description: Exact diagnostic archive producer attempt; empty requires this source attempt
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  journeys:
+    name: native-corporate-${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(
+          inputs.diagnostic_only && inputs.diagnostic_platform == 'Windows' &&
+          '[{"os":"windows-2025","target":"x86_64-pc-windows-msvc"}]' ||
+          inputs.diagnostic_only && inputs.diagnostic_platform == 'macOS' &&
+          '[{"os":"macos-15","target":"aarch64-apple-darwin"}]' ||
+          '[{"os":"macos-15","target":"aarch64-apple-darwin"},
+          {"os":"windows-2025","target":"x86_64-pc-windows-msvc"}]'
+          ) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Prepare the declared hosted SDK
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          python-version: '3.15.2'
+          uv-version: '0.13.7'
+      - uses: ./.github/actions/project-rust
+      - name: Admit the exact current Dev qualification
+        if: inputs.diagnostic_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_DESKTOP_DIAGNOSTIC_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_DESKTOP_DIAGNOSTIC_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
+        with:
+          recipe: ci-desktop-admit-native-diagnostic
+      - name: Read the exact qualified native CLI archive
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ai-stp-rust-${{ matrix.target }}-${{ inputs.diagnostic_app_source || github.sha }}
+          run-id: ${{ inputs.diagnostic_source_run_id || github.run_id }}
+          github-token: ${{ inputs.diagnostic_only && github.token || '' }}
+          path: ${{ runner.temp }}/qualified-native-cli
+      - name: Prepare the pinned official macOS PostgreSQL distribution
+        if: runner.os == 'macOS'
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          manifest: .github/postgresql-macOS.json
+          directory: ${{ runner.temp }}/postgresql-sdk
+      - name: Prepare the actual API fixture
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-native-corporate-prepare
+      - name: Admit native PostgreSQL startup and SCRAM authentication
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
+        with:
+          recipe: ci-native-corporate-postgresql-preflight
+      - name: Restore only exact native historical build records
+        id: previous-native-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
+          key: >-
+            previous-native-v3-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('apps/cli/rust-toolchain.toml',
+            '.github/scripts/build-previous-native-cli.sh',
+            '.github/scripts/previous-native-cache.py') }}
+      - name: Build the immutable previous schema58 native writer
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-build-the-immutable-previous-schema58-native-writer
+      - name: Build the qualified previous schema59 binding writer
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-build-the-qualified-previous-schema59-binding-writer
+      - name: Verify the immutable released schema60 native writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-verify-the-immutable-released-schema60-native-writer
+      - name: Verify the immutable released schema61 native writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-verify-the-immutable-released-schema61-native-writer
+      - name: Run native corporate journeys against actual API/PostgreSQL
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
+          AI_STP_REQUIRE_ENGINE: 'true'
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ runner.temp }}/qualified-native-cli
+          AI_STP_NATIVE_ENGINE_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_NATIVE_ENGINE_SOURCE_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_NATIVE_ENGINE_SOURCE_ATTEMPT: >-
+            ${{ inputs.diagnostic_source_run_attempt || github.run_attempt }}
+        with:
+          recipe: ci-native-corporate
+      - name: Save historical build records after native API acceptance
+        if: >-
+          success() && !inputs.diagnostic_only && github.event_name == 'push' &&
+          github.ref == 'refs/heads/dev' &&
+          steps.previous-native-cache.outputs.cache-hit != 'true' &&
+          steps.previous-native-cache.outputs.cache-primary-key != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
+          key: ${{ steps.previous-native-cache.outputs.cache-primary-key }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: >-
+            native-corporate-${{ inputs.diagnostic_only && 'diagnostic-' || '' }}${{ matrix.os }}
+          path: ${{ runner.temp }}/native-corporate-proof.json
+          if-no-files-found: error
+          retention-days: 7

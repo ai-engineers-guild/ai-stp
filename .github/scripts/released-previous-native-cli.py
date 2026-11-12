@@ -7,10 +7,13 @@ import hashlib
 import io
 import json
 import os
+import platform
 import stat
 import subprocess
+import sys
 import tarfile
-from dataclasses import dataclass
+import zipfile
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal, overload
 
@@ -29,6 +32,11 @@ class Release:
     binary_bytes: int
     binary_sha256: str
     environment: str
+    target: str = "x86_64-unknown-linux-gnu"
+
+    @property
+    def binary_name(self) -> str:
+        return "ai-stp.exe" if self.target == "x86_64-pc-windows-msvc" else "ai-stp"
 
     @property
     def tag(self) -> str:
@@ -36,7 +44,8 @@ class Release:
 
     @property
     def archive_name(self) -> str:
-        return f"ai-stp-cli-{self.version}-x86_64-unknown-linux-gnu.tar.gz"
+        extension = "zip" if self.binary_name.endswith(".exe") else "tar.gz"
+        return f"ai-stp-cli-{self.version}-{self.target}.{extension}"
 
 
 RELEASES = {
@@ -63,6 +72,44 @@ RELEASES = {
         34_590_008,
         "047f806ba78dce3cab36caaa109a9c0209af7678ba4a5abbe8a4ab7aff150491",
         "MISSING_CHECKOUT",
+    ),
+}
+NATIVE_RELEASES = {
+    (60, "aarch64-apple-darwin"): replace(
+        RELEASES[60],
+        target="aarch64-apple-darwin",
+        asset_id=686946828,
+        archive_bytes=11541738,
+        archive_sha256="5d43116b01081b77c0040003e5648049332f7e27a91a907fedf22efc52105d91",
+        binary_bytes=26423536,
+        binary_sha256="fe8a84c2fc384aef1b6d8125a74f837c41e38257a70dcf7720d4e61227713ca3",
+    ),
+    (60, "x86_64-pc-windows-msvc"): replace(
+        RELEASES[60],
+        target="x86_64-pc-windows-msvc",
+        asset_id=686946901,
+        archive_bytes=12524888,
+        archive_sha256="211a5cb322a685817f32754fa04d4c3439be2c2256afcaebf243448081933dca",
+        binary_bytes=32210944,
+        binary_sha256="135ac94b080da60570d73bc52e78a77453b0472efeca90e03050068730874261",
+    ),
+    (61, "aarch64-apple-darwin"): replace(
+        RELEASES[61],
+        target="aarch64-apple-darwin",
+        asset_id=691115491,
+        archive_bytes=11646087,
+        archive_sha256="455fef9718ba228135a3a1371916bb9d1677d70b573f250a101c6aa168bf14cd",
+        binary_bytes=26655856,
+        binary_sha256="cdde99bc09b501a1fe3f407ab0b89c543172b80e44568319cba9ef3bc40fb065",
+    ),
+    (61, "x86_64-pc-windows-msvc"): replace(
+        RELEASES[61],
+        target="x86_64-pc-windows-msvc",
+        asset_id=691115574,
+        archive_bytes=12641785,
+        archive_sha256="12490980f5619b957ef258419654378080a250377d974359c41417a27cb714f8",
+        binary_bytes=32554496,
+        binary_sha256="0848823a3b6c2e8772b8ff770470f2793e9d7c43cacd687e03998c96f5637dd9",
     ),
 }
 SBOM = "ai-stp-cli.cdx.json"
@@ -120,52 +167,71 @@ def archive(release: Release) -> bytes:
 
 
 def executable(data: bytes, release: Release) -> bytes:
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        members = archive.getmembers()
-        assert len(members) == 4 and {member.name for member in members} == {
-            "LICENSE",
-            "ai-stp",
-            "release.json",
-            SBOM,
-        }
-        assert all(
-            member.isfile() and 0 < member.size <= release.binary_bytes for member in members
-        )
-        files: dict[str, bytes] = {}
-        for member in members:
-            stream = archive.extractfile(member)
-            assert stream is not None
-            with stream:
-                files[member.name] = stream.read(member.size + 1)
-            assert len(files[member.name]) == member.size
-        binary = files["ai-stp"]
-        assert len(binary) == release.binary_bytes and binary.startswith(b"\x7fELF")
-        assert archive.getmember("ai-stp").mode & 0o7777 == 0o755
-        assert hashlib.sha256(binary).hexdigest() == release.binary_sha256
-        manifest = json.loads(files["release.json"])
-        assert manifest == {
-            "schema_version": 2,
-            "package": "ai-stp-cli",
-            "version": release.version,
-            "release_channel": "stable",
-            "source_commit": release.source,
-            "target": "x86_64-unknown-linux-gnu",
-            "binary": "ai-stp",
-            "binary_sha256": release.binary_sha256,
-            "license_sha256": hashlib.sha256(files["LICENSE"]).hexdigest(),
-            "sbom": SBOM,
-            "sbom_sha256": hashlib.sha256(files[SBOM]).hexdigest(),
-        }
-        return binary
+    expected = {"LICENSE", release.binary_name, "release.json", SBOM}
+    files: dict[str, bytes] = {}
+    if release.binary_name.endswith(".exe"):
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            members = archive.infolist()
+            assert len(members) == 4 and {item.filename for item in members} == expected
+            for item in members:
+                assert not item.is_dir() and 0 < item.file_size <= release.binary_bytes
+                assert stat.S_IFMT(item.external_attr >> 16) in {0, stat.S_IFREG}
+                files[item.filename] = archive.read(item)
+                assert len(files[item.filename]) == item.file_size
+    else:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+            members = archive.getmembers()
+            assert len(members) == 4 and {item.name for item in members} == expected
+            assert all(item.isfile() and 0 < item.size <= release.binary_bytes for item in members)
+            assert archive.getmember(release.binary_name).mode & 0o7777 == 0o755
+            for item in members:
+                stream = archive.extractfile(item)
+                assert stream is not None
+                with stream:
+                    files[item.name] = stream.read(item.size + 1)
+                assert len(files[item.name]) == item.size
+    binary = files[release.binary_name]
+    magic = {
+        "x86_64-unknown-linux-gnu": b"\x7fELF",
+        "aarch64-apple-darwin": b"\xcf\xfa\xed\xfe",
+        "x86_64-pc-windows-msvc": b"MZ",
+    }[release.target]
+    assert len(binary) == release.binary_bytes and binary.startswith(magic)
+    assert hashlib.sha256(binary).hexdigest() == release.binary_sha256
+    assert json.loads(files["release.json"]) == {
+        "schema_version": 2,
+        "package": "ai-stp-cli",
+        "version": release.version,
+        "release_channel": "stable",
+        "source_commit": release.source,
+        "target": release.target,
+        "binary": release.binary_name,
+        "binary_sha256": release.binary_sha256,
+        "license_sha256": hashlib.sha256(files["LICENSE"]).hexdigest(),
+        "sbom": SBOM,
+        "sbom_sha256": hashlib.sha256(files[SBOM]).hexdigest(),
+    }
+    return binary
+
+
+def host_release(schema: int) -> Release:
+    targets = {
+        "linux": ("x86_64-unknown-linux-gnu", {"x86_64", "amd64"}),
+        "darwin": ("aarch64-apple-darwin", {"arm64", "aarch64"}),
+        "win32": ("x86_64-pc-windows-msvc", {"amd64", "x86_64"}),
+    }
+    target, machines = targets[sys.platform]
+    assert platform.machine().lower() in machines
+    return RELEASES[schema] if sys.platform == "linux" else NATIVE_RELEASES[schema, target]
 
 
 def prepare(root: Path, schema: int) -> None:
-    release = RELEASES[schema]
+    release = host_release(schema)
     assert root.is_absolute() and root.parent.resolve() == Path(os.environ["RUNNER_TEMP"]).resolve()
     assert "\n" not in str(root) and "\r" not in str(root)
     binary = executable(archive(release), release)
     root.mkdir(mode=0o700)
-    path = root / "ai-stp"
+    path = root / release.binary_name
     with path.open("xb") as stream:
         stream.write(binary)
     path.chmod(0o755)
@@ -202,6 +268,7 @@ def prepare(root: Path, schema: int) -> None:
             {
                 "previous_released_writer": schema,
                 "release_tag": release.tag,
+                "target": release.target,
                 "source_commit": release.source,
                 "archive_sha256": release.archive_sha256,
                 "binary_sha256": release.binary_sha256,

@@ -3,8 +3,8 @@
 # also detects vulnerabilities after the containing code stopped changing.
 #
 # GitHub-hosted on purpose. CodeQL needs `security-events: write` and does not
-# need Docker; the fleet class that runs the gate must not carry this job
-# (`ADR-0105`, unpublished). Public repositories get this runner at no cost.
+# need Docker; the fleet class that runs the gate must not carry this job.
+# Public repositories get this runner at no cost.
 # Private ones do not get Code scanning on the free plan, so the job is
 # skipped there —
 # the file still lives in this tree so the public mirror stays a copy instead

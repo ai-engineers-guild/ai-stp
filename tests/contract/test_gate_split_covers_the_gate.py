@@ -14,6 +14,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -223,6 +224,8 @@ def _command_owners(entry: dict[str, Any]) -> list[str]:
         return []
     assert re.fullmatch(r".+@[0-9a-f]{40}", target), "shared execution must pin a full commit"
     values = cast(dict[str, Any], entry.get("with") or {})
+    if target.startswith(RECIPE_ACTION):
+        assert "prepare" not in values, "The recipe action needs a separate preparation step"
     recipes = [values[key] for key in ("prepare", "recipe") if values.get(key)]
     assert recipes, "a shared recipe call has no project owner"
     assert all(recipe in _dependencies() for recipe in recipes), "a recipe call has no declaration"
@@ -319,6 +322,16 @@ def test_source_checks_cannot_build_install_or_execute_test_suites() -> None:
         assert not forbidden.search(bodies[recipe]), f"{recipe} is not a source-only check"
     assert _expand(["pre-commit"]) == _expand(["check"])
     assert {"docs-test", "cli-static", "cli-test", "web-test", "desktop-test"} <= _expand(["test"])
+
+
+def test_recipe_action_rejects_unsupported_preparation() -> None:
+    with pytest.raises(AssertionError, match="separate preparation step"):
+        _command_owners(
+            {
+                "uses": RECIPE_ACTION + "1a409d4ee632eb594e58a6b291ce9e5a0ef51da2",
+                "with": {"recipe": "ci-native-corporate", "prepare": "ci-native-corporate-prepare"},
+            }
+        )
 
 
 def test_published_execution_uses_pinned_declared_command_owners() -> None:

@@ -30,6 +30,8 @@ from tests.native_contract import verify_checkout
 from tests.native_contract.verify_ownership import apply, native
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.catalog_seed import FIXTURE_SETUP_ID, load_fixture_seed
+from tests.support.native_credentials import lose_enrollment_key
+from tests.support.native_runner import cli_environment
 from tests.support.postgres import isolated_database
 
 from ai_stp_api.app import create_app
@@ -67,7 +69,7 @@ async def refused(binary: Path, home: Path, arguments: list[str]) -> ErrorEnvelo
         "--json",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env=dict(os.environ, HOME=str(home), XDG_DATA_HOME=str(home), XDG_CONFIG_HOME=str(home)),
+        env=cli_environment(home),
     )
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)
@@ -79,7 +81,15 @@ async def refused(binary: Path, home: Path, arguments: list[str]) -> ErrorEnvelo
     return ErrorEnvelope.model_validate_json(stdout)
 
 
-async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
+async def journeys(
+    binary: Path,
+    root: Path,
+    app: Any,
+    origin: str,
+    *,
+    credential_store: str = "file",
+    historical_consumers: bool = True,
+) -> None:
     home, state = root / "consumer", root / "state"
     home.mkdir()
     state.mkdir()
@@ -93,7 +103,9 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         assert await apply(binary, home, planned, list(prefix)) == result
         return result
 
-    initialization = await run("device", "initialize", "plan", "--credential-store", "file")
+    initialization = await run(
+        "device", "initialize", "plan", "--credential-store", credential_store
+    )
     await enact(initialization, "device", "initialize", "apply")
     original = await run("device", "show")
     offline = await run("context", "create", "plan", "--label", "Offline personal")
@@ -1085,9 +1097,8 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     # Losing a local key permits preparation, never proof of server revocation.
     # The real exchange must refuse while that previous server device is active.
     retained = await run("account", "status", "--connection", replacement)
-    missing_key = state / "ai-stp-v2-connections" / f"device-key.{child['device_id']}"
-    assert missing_key.is_file() and not missing_key.is_symlink()
-    missing_key.unlink()
+    assert retained["device_id"] == child["device_id"]
+    lose_enrollment_key(state, child["device_id"], credential_store)
     missing = await run(
         "account",
         "connections",
@@ -1203,10 +1214,18 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         git_executable=git_executable,
         old_recoveries=[recovery, missing],
         foreign_context=contexts[1],
+        historical_consumers=historical_consumers,
     )
 
 
-async def prove(binary: Path, database_url: str, root: Path) -> None:
+async def prove(
+    binary: Path,
+    database_url: str,
+    root: Path,
+    *,
+    credential_store: str = "file",
+    historical_consumers: bool = True,
+) -> None:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         origin = f"http://127.0.0.1:{listener.getsockname()[1]}"
@@ -1229,7 +1248,14 @@ async def prove(binary: Path, database_url: str, root: Path) -> None:
                             await serving
                             raise AssertionError("fixture API stopped before readiness")
                         await asyncio.sleep(0.01)
-                await journeys(binary, root, app, origin)
+                await journeys(
+                    binary,
+                    root,
+                    app,
+                    origin,
+                    credential_store=credential_store,
+                    historical_consumers=historical_consumers,
+                )
             finally:
                 server.should_exit = True
                 await asyncio.wait_for(serving, timeout=30)

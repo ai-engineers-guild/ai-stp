@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tests.native_contract.verify_ownership import apply
+from tests.support.native_files import file_protection
 
 from ai_stp_foundation.envelope import ErrorEnvelope
 from ai_stp_platform.models import Device
@@ -135,6 +136,7 @@ async def journey(
     canary = checkout / ".env"
     canary.write_bytes(b"PRIVATE=checkout-unowned-canary\n")
     canary.chmod(0o640)
+    original_protection = file_protection(canary)
     environment = dict(
         os.environ,
         HOME=str(home),
@@ -408,7 +410,7 @@ async def journey(
     else:
         assert (await run("device", "show"))["device_id"] != original_identity["device_id"]
     assert canary.read_bytes() == b"PRIVATE=checkout-unowned-canary\n"
-    assert canary.stat().st_mode & 0o777 == 0o640
+    assert file_protection(canary) == original_protection, "Unowned native file protection changed"
     async with app.state.sessionmaker() as db:
         assert (
             await db.scalar(select(func.count()).select_from(CorporateAssignmentDistribution)) == 0
@@ -448,6 +450,7 @@ async def qualify(
     git_executable: str,
     old_recoveries: list[dict[str, Any]],
     foreign_context: str,
+    historical_consumers: bool = True,
 ) -> None:
     async with app.state.sessionmaker() as db:
         membership = await db.scalar(
@@ -554,4 +557,5 @@ async def qualify(
         context=current_context,
         connection=retained_connection,
         foreign_context=foreign_context,
+        historical_consumers=historical_consumers,
     )

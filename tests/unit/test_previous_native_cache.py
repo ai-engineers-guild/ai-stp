@@ -12,8 +12,13 @@ import pytest
 
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux historical writer owner")
 SCRIPT = Path(__file__).resolve().parents[2] / ".github/scripts/previous-native-cache.py"
-IDENTITY = ("a" * 40, "b" * 40, "c" * 64, "synthetic pinned compiler")
-PAYLOAD = b"\x7fELF" + b"synthetic non-executable fixture\n" * 256
+IDENTITY = (
+    "a" * 40,
+    "b" * 40,
+    "c" * 64,
+    "synthetic pinned compiler\nhost: x86_64-unknown-linux-gnu",
+)
+PAYLOAD = b"\x7fELF\x02\x01" + bytes(12) + b"\x3e\x00" + b"synthetic non-executable fixture\n" * 256
 
 
 def load() -> ModuleType:
@@ -109,3 +114,41 @@ def test_optimized_python_cannot_skip_refusal_or_expose_fixture_paths(tmp_path: 
     assert refused.returncode == 1 and not refused.stdout
     assert refused.stderr == "Previous writer cache refused (ValueError).\n"
     assert str(tmp_path) not in refused.stderr
+
+
+@pytest.mark.parametrize(
+    ("host", "machine", "target", "filename", "header"),
+    [
+        ("darwin", "arm64", "aarch64-apple-darwin", "ai-stp", b"\xcf\xfa\xed\xfe\x0c\x00\x00\x01"),
+        (
+            "win32",
+            "AMD64",
+            "x86_64-pc-windows-msvc",
+            "ai-stp.exe",
+            b"MZ" + bytes(58) + (64).to_bytes(4, "little") + b"PE\x00\x00\x64\x86",
+        ),
+    ],
+)
+def test_cache_binds_native_format_and_compiler_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    host: str,
+    machine: str,
+    target: str,
+    filename: str,
+    header: bytes,
+) -> None:
+    module = load()
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    binary = cache / filename
+    binary.write_bytes(header + bytes(8192))
+    binary.chmod(0o755)
+    monkeypatch.setattr(module.sys, "platform", host)
+    monkeypatch.setattr(module.platform, "machine", lambda: machine)
+    identity = (*IDENTITY[:3], f"synthetic compiler\nhost: {target}")
+    module.check(cache, *identity, "create")
+    module.check(cache, *identity, "verify")
+    binary.write_bytes(PAYLOAD)
+    with pytest.raises(ValueError, match="cache_executable_format_invalid"):
+        module.check(cache, *identity, "verify")
