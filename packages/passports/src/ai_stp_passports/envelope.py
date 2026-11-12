@@ -1,4 +1,4 @@
-"""Passport envelope (docs/contracts/passport-envelope.md, ADR-0025, ADR-0036).
+"""Passport envelope.
 
 The envelope is the single machine-readable description of an object. Five
 kinds exist; developer, device and project passports are mutable through

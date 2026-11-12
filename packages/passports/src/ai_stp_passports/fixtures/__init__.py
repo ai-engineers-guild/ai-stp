@@ -1,1 +1,1 @@
-"""Cross-consumer safe-Markdown conformance corpus (SPEC-029)."""
+"""Cross-consumer safe-Markdown conformance corpus."""

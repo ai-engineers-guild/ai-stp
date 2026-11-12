@@ -216,7 +216,7 @@
   "$id": "urn:ai-stp:schema:v1:identity-device-revoke-response",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The device after revocation.\n\nRevocation is forward-acting and reported as such: the record survives, the\nsummary is marked revoked rather than deleted, and the device keeps its\nlocal data (SPEC-002 REQ-205, REQ-215).",
+  "description": "The device after revocation.\n\nRevocation is forward-acting and reported as such: the record survives, the\nsummary is marked revoked rather than deleted, and the device keeps its\nlocal data.",
   "properties": {
     "device": {
       "$ref": "#/$defs/DeviceRecord"

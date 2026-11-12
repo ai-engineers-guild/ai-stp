@@ -1,8 +1,8 @@
-"""Documents-profile Markdown validation and render (SPEC-031 REQ-3106).
+"""Documents-profile Markdown validation and render.
 
 Pure functions: no I/O. This is the operator-content renderer for public
 documents and SEO sections — it permits tables, which the strict passport
-profile (`ai_stp_passports.markdown`, SPEC-029) rejects.
+profile rejects.
 """
 
 from __future__ import annotations

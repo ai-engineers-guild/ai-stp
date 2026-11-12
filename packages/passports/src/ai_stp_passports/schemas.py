@@ -1,4 +1,4 @@
-"""Passport-layer schema exports (SPEC-015 REQ-1509).
+"""Passport-layer schema exports.
 
 This module declares which models of this layer are published to ``schemas/v1``
 and re-exports the layers below it, so the next package up can aggregate one

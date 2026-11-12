@@ -1,8 +1,6 @@
-"""Public SEO publication projection (SPEC-053, ADR-0131).
+"""Public SEO publication payloads.
 
-Field dictionaries live here. Behaviour belongs to SPEC-053; architecture
-belongs to ADR-0131. Response models tolerate additive fields; request models
-reject unknown keys.
+Response models allow additive fields; request models reject unknown keys.
 """
 
 from __future__ import annotations

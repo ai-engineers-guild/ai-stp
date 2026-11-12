@@ -1,8 +1,8 @@
-"""Runtime component-usage event, report, and export wire contracts (SPEC-088).
+"""Runtime component-usage event, report, and export wire contracts.
 
 Corporate runtime telemetry is a closed field set on the authenticated `/v1`
 channel under `slices/corporate/`. It shares nothing with the anonymous
-collector of `ADR-0112`: no `telemetry.url`, no `anon` identifier, and no
+collector: no `telemetry.url`, no `anon` identifier, and no
 payload content of any kind. An event carries identities and exact coordinates
 only - outcomes, never arguments, prompts, model output, paths, or secrets.
 """

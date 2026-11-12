@@ -1,4 +1,4 @@
-"""Wire conventions shared by every ``/v1`` route (docs/contracts/http-api.md).
+"""Wire conventions shared by every ``/v1`` route.
 
 One place owns the things every route repeats: the base path, the correlation
 and precondition headers, the opaque cursor, the page envelope and the mapping
@@ -7,7 +7,7 @@ they never restate a convention.
 
 The error body is deliberately the foundation ``ErrorEnvelope`` rather than a
 second shape: the CLI then parses cloud failures and local failures through one
-reader (docs/contracts/cli-json.md). HTTP status carries success, so a success
+reader. HTTP status carries success, so a success
 body is the resource itself and never a redundant ``ok``/``data`` wrapper.
 """
 
@@ -194,7 +194,7 @@ def strict_request_object(schema: JsonSchemaValue) -> None:
 
 
 class PageInfo(ContractModel):
-    """Cursor pagination state (docs/contracts/http-api.md).
+    """Cursor pagination state.
 
     No total is exposed. Reporting one would let a caller detect objects it is
     not allowed to read, so a hidden or deleted object leaks through neither a
@@ -206,7 +206,7 @@ class PageInfo(ContractModel):
     schema_version: Literal[1] = 1
 
     #: Always present. Catalog and object-list last pages use ``null``. Sync
-    #: pull returns a resumable cursor on every non-empty page (ADR-0091).
+    #: pull returns a resumable cursor on every non-empty page.
     #: There is no Python default: a dropped field on a non-final catalog page
     #: would otherwise read as "last page" and hide remaining objects.
     next_cursor: Cursor | None

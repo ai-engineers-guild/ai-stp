@@ -1,4 +1,4 @@
-"""Exact version references embedded in private sync payloads (ADR-0173)."""
+"""Exact version references embedded in private sync payloads."""
 
 from __future__ import annotations
 

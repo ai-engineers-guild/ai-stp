@@ -1,7 +1,7 @@
 """Technology metadata and detector handoff, separate from canonical relations.
 
-SPEC-081/082 and ADR-0182 own semantics. These contracts introduce no model call,
-repository execution, or second project identity.
+The contracts describe technology observations without model calls,
+repository execution or a second project identity.
 """
 
 from __future__ import annotations
@@ -567,7 +567,7 @@ class CategoryLifecycleRequest(TechnologyMutation):
 
 def _category_wire_object(schema: JsonSchemaValue) -> None:
     open_wire_object(schema)
-    # ADR-0184: older snapshots do not assert a category state.
+    # Older snapshots do not assert a category state.
     schema["required"] = [name for name in schema["required"] if name != "state"]
 
 

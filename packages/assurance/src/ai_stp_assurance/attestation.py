@@ -1,4 +1,4 @@
-"""Author attestation record (ADR-0026, docs/contracts/validation-policy.md).
+"""Author attestation record.
 
 The accepted evidence for a credential-dependent mandatory check: signed by
 the author's device key and bound to the exact object digest, object version,

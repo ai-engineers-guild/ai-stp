@@ -214,7 +214,7 @@
     },
     "PageInfo": {
       "additionalProperties": true,
-      "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+      "description": "Cursor pagination state.\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
       "properties": {
         "next_cursor": {
           "anyOf": [

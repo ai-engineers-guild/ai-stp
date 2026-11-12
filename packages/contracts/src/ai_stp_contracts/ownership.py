@@ -1,4 +1,4 @@
-"""Ownership transfer request and immutable revision contracts (SPEC-057)."""
+"""Ownership transfer request and immutable revision contracts."""
 
 from __future__ import annotations
 

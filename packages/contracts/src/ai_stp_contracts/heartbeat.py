@@ -1,7 +1,7 @@
 """Corporate installation heartbeat contracts (t-heartbeat, GitHub #215).
 
 The heartbeat is an authenticated, tenant-scoped channel - separate from the
-anonymous consented ping (ADR-0112). The closed field set is the whole
+anonymous consented ping. The closed field set is the whole
 payload: account and device references bound to the session, `cli_version`,
 `capabilities`, `last_sync_at`, the reported `health_state`, `checked_at`, and
 the optional signed policy version retained by a queued observation.
