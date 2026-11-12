@@ -6,6 +6,10 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+trap {
+    [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
+    throw
+}
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
     throw 'A disposable hosted Windows runner is required'
 }

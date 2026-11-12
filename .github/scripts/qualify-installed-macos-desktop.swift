@@ -282,7 +282,7 @@ func context(_ process: Process, _ catalogs: Catalogs, _ label: String) throws -
     let field = try visible(process, catalogs.text("profiles.contextLabel"), role: kAXTextFieldRole, enabled: true)
     try enter(process, field, label)
     try pressNamed(process, catalogs.text("profiles.reviewContextCreation"), role: kAXButtonRole)
-    try pressNamed(process, catalogs.text("profiles.exactPublicPlan"))
+    try pressNamed(process, catalogs.text("profiles.exactPublicPlan"), role: kAXDisclosureTriangleRole)
     let retained = try review(process, catalogs, "en")
     _ = try validate(retained, "create", label)
     return retained
@@ -303,7 +303,7 @@ func selected(_ cli: URL, _ identifier: String) throws {
 
 func selectContext(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ label: String, _ identifier: String) throws {
     try pressNamed(process, catalogs.text("profiles.reviewViewSelection"), role: kAXButtonRole)
-    try pressNamed(process, catalogs.text("profiles.exactPublicPlan"))
+    try pressNamed(process, catalogs.text("profiles.exactPublicPlan"), role: kAXDisclosureTriangleRole)
     _ = try validate(review(process, catalogs, "en"), "select", label, identifier)
     try confirm(process, catalogs)
     try selected(cli, identifier)
