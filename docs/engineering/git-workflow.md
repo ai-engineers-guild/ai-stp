@@ -81,7 +81,7 @@ Each reader verifies its platform inventory, checksum files and source-bound arc
 manifest before executing the extracted engine. Installed controls use only a
 disposable hosted OS user; HOME/XDG redirection does not isolate native custody.
 The public engine authors, plans, prepares, applies and removes a controlled setup
-while another context is selected. Codex, Pi and Claude verify refusal with an active reader,
+while another context is selected. Codex, Pi, Claude and OpenCode verify refusal with an active reader,
 then resume the original operation after reader exit. Grok verifies instruction
 metadata before and after removal. The nested proof kind is
 native_engine_vendor_configuration_read. Runtime invocation remains not_observed.
@@ -91,6 +91,13 @@ and exact engine source. Its proof separates fixture and engine identities and
 marks diagnostic_only; it has no delivery authority. Full source callers cannot
 select another producer. Windows refusals record read-only ACL/attribute summaries
 of the new synthetic fixture directories; they never repair existing permissions.
+
+The manual Desktop native diagnostic reuses installers only from the
+exact successful full-qualification attempt of current Dev. It runs the current
+native accessibility owners on those installed bytes without rebuilding the app.
+The retained proof separates application and fixture source, identifies the
+producer attempt and records `diagnostic_only`. These artifacts do not replace
+same-source installed acceptance or authorize delivery.
 
 The installed ABBA owner retains both end-to-end navigation and an independent
 WebView observation from the trusted navigation click through usable content,

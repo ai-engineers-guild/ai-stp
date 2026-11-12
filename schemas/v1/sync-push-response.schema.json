@@ -59,7 +59,7 @@
     },
     "SyncEventReceipt": {
       "additionalProperties": true,
-      "description": "Durable outcome of one event (SPEC-009 receipt states).",
+      "description": "Durable outcome of one event.",
       "properties": {
         "conflict": {
           "anyOf": [

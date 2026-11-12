@@ -99,7 +99,7 @@ def _artifact_inventory(value: list[str]) -> list[str]:
 
 
 class AuthorAttestation(ContractModel):
-    """Full closed author attestation on the /v1 wire (ADR-0092)."""
+    """Full closed author attestation on the /v1 wire."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 

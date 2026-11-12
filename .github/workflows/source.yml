@@ -388,6 +388,10 @@ jobs:
 
   desktop:
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
     uses: ./.github/workflows/desktop.yml
 
   analysis:

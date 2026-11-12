@@ -493,7 +493,7 @@ export type AuthProvidersResponse = {
 /**
  * AuthorAttestation
  *
- * Full closed author attestation on the /v1 wire (ADR-0092).
+ * Full closed author attestation on the /v1 wire.
  */
 export type AuthorAttestation = {
   /**
@@ -7080,7 +7080,7 @@ export type DescriptionExcerpt = string;
  * One harness observed on the device, with the version that was observed.
  *
  * Only the supported harnesses are itemised. An unknown harness stays a
- * local observation and never leaves the machine (SPEC-011 REQ-1109): it
+ * local observation and never leaves the machine: it
  * creates no managed object, so listing it here would put an environment fact
  * on the wire for something the platform cannot act on.
  */
@@ -14980,7 +14980,7 @@ export type SyncEntityKind = (typeof SyncEntityKind)[keyof typeof SyncEntityKind
  * One push event: a candidate revision and its idempotency key.
  *
  * ``device_id`` must match the session-bound active device; the server never
- * trusts a different device claim (REQ-2508). ``payload`` is the allowlisted
+ * trusts a different device claim. ``payload`` is the allowlisted
  * revision document body; tombstone may send an empty object.
  */
 export type SyncEvent = {
@@ -15014,7 +15014,7 @@ export type SyncEvent = {
 /**
  * SyncEventReceipt
  *
- * Durable outcome of one event (SPEC-009 receipt states).
+ * Durable outcome of one event.
  */
 export type SyncEventReceipt = {
   conflict: SyncConflictInfo | null;
