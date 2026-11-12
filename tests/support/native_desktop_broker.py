@@ -60,7 +60,10 @@ def _option_diagnostic(payload: bytes) -> dict[str, Any]:
         value = json.loads(payload)
     except (ValueError, UnicodeError):
         raise ValueError(refused) from None
-    if not isinstance(value, dict) or set(value) != {
+    if not isinstance(value, dict):
+        raise ValueError(refused)
+    result = cast(dict[str, Any], value)
+    if set(result) != {
         "hresult",
         "missing_pattern",
         "control_type",
@@ -71,7 +74,6 @@ def _option_diagnostic(payload: bytes) -> dict[str, Any]:
         "selected_after",
     }:
         raise ValueError(refused)
-    result = cast(dict[str, Any], value)
     if (
         not isinstance(result["hresult"], str)
         or re.fullmatch(r"[0-9A-F]{8}", result["hresult"]) is None
