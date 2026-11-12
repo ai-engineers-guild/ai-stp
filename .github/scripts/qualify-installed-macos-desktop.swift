@@ -74,6 +74,53 @@ func close(_ process: Process) throws {
     _ = try wait("Desktop termination", seconds: 15) { process.isRunning ? nil : true }
 }
 
+func normalWorkArea(_ process: Process) throws -> CGSize {
+    return try wait("normal native window within display work area") {
+        guard let windows = attribute(application(process), kAXWindowsAttribute) as? [AXUIElement],
+            windows.count == 1, let window = windows.first,
+            let position = attribute(window, kAXPositionAttribute),
+            let size = attribute(window, kAXSizeAttribute),
+            let primary = NSScreen.screens.first
+        else { return nil }
+        try check(CFGetTypeID(position) == AXValueGetTypeID() &&
+            CFGetTypeID(size) == AXValueGetTypeID(), "Native window geometry is unavailable")
+        var point = CGPoint.zero
+        var extent = CGSize.zero
+        try check(AXValueGetValue((position as! AXValue), .cgPoint, &point) &&
+            AXValueGetValue((size as! AXValue), .cgSize, &extent),
+            "Native window geometry could not be read")
+        let frame = CGRect(origin: point, size: extent)
+        guard frame.width > 0 && frame.height > 0 else { return nil }
+        for screen in NSScreen.screens {
+            let visible = screen.visibleFrame
+            // Accessibility uses the primary screen's top-left; AppKit uses its bottom-left.
+            let area = CGRect(x: visible.minX, y: primary.frame.maxY - visible.maxY,
+                width: visible.width, height: visible.height)
+            if area.contains(frame) {
+                return CGSize(width: area.width * screen.backingScaleFactor,
+                    height: area.height * screen.backingScaleFactor)
+            }
+        }
+        return nil
+    }
+}
+
+func oversizedNormalState(_ path: URL, _ workArea: CGSize) throws {
+    let properties = try path.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+    try check(properties.isRegularFile == true && properties.isSymbolicLink == false &&
+        (properties.fileSize ?? 65537) <= 65536, "Owned native window state is not a bounded regular file")
+    guard var saved = try JSONSerialization.jsonObject(with: Data(contentsOf: path)) as? [String: Any],
+        var main = saved["main"] as? [String: Any], main["width"] is NSNumber,
+        main["height"] is NSNumber, main["maximized"] is NSNumber
+    else { throw ProbeFailure("Native window state did not retain its geometry") }
+    // Simulate the saved normal size of a larger display; preserve every other preference.
+    main["width"] = Int(workArea.width * 2)
+    main["height"] = Int(workArea.height * 2)
+    main["maximized"] = false
+    saved["main"] = main
+    try JSONSerialization.data(withJSONObject: saved, options: [.sortedKeys]).write(to: path)
+}
+
 func launch(_ executable: URL) throws -> Process {
     let process = Process()
     process.executableURL = executable
@@ -673,9 +720,16 @@ func prove() throws {
         $0["name"] as? String == "local_identity" && $0["state"] as? String == "needs_user_action"
     }, "First-run macOS workspace is required")
 
+    let package = app.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    guard let identifier = Bundle(url: package)?.bundleIdentifier,
+        let configuration = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    else { throw ProbeFailure("Native application configuration identity is unavailable") }
+    let windowState = configuration.appendingPathComponent(identifier).appendingPathComponent(".window-state.json")
+    try check(!FileManager.default.fileExists(atPath: windowState.path), "First-run native window state is required")
     corporateStage("installed")
     var process = try launch(app)
     defer { if process.isRunning { process.terminate() } }
+    let initialWorkArea = try normalWorkArea(process)
     _ = try visible(process, "Engine \(cliVersion)")
     try settings(process)
     guard let fixture = ProcessInfo.processInfo.environment["XDG_DATA_HOME"] else {
@@ -703,7 +757,9 @@ func prove() throws {
     try check(combinations == catalogs.languages.count * 2, "Native appearance cases are incomplete")
     try close(process)
     fputs("Restarting the initialized workspace\n", stderr)
+    try oversizedNormalState(windowState, initialWorkArea)
     process = try launch(app)
+    _ = try normalWorkArea(process)
     _ = try visible(process, catalogs.text("language.label", "ar"), role: kAXPopUpButtonRole, enabled: true)
     _ = try visible(process, catalogs.text(dark ? "shell.light" : "shell.dark", "ar"), role: kAXButtonRole, enabled: true)
     try sidebar(process, catalogs, "ar")
@@ -755,6 +811,11 @@ func prove() throws {
     let result: [String: Any] = [
         "cli_version": cliVersion,
         "theme_locale_observations": combinations,
+        "normal_window_controls": [
+            "first_normal_window_within_work_area": true,
+            "oversized_normal_state_restored_within_work_area": true,
+            "context_and_preferences_survive_geometry_recovery": true,
+        ],
         "personal_controls": [
             "native_vault_initialization": true,
             "two_native_offline_contexts": true,

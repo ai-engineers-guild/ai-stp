@@ -103,6 +103,33 @@ function Show-Desktop([System.Diagnostics.Process] $Process) {
     }.GetNewClosure())
 }
 
+function Assert-NormalWorkArea([System.Diagnostics.Process] $Process) {
+    $null = Wait-Observation $Process 'normal native window within display work area' ({
+        if ($Process.MainWindowHandle -eq [IntPtr]::Zero) { return $null }
+        $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+        $pattern = Require-Pattern $window ([System.Windows.Automation.WindowPattern]::Pattern) 'application window'
+        if ($pattern.Current.WindowVisualState -eq [System.Windows.Automation.WindowVisualState]::Normal -and
+            [NativeDesktopInput]::WindowFitsWorkArea($Process.MainWindowHandle)) { return $true }
+        return $null
+    }.GetNewClosure())
+}
+
+function Set-OversizedNormalState([string] $Path, [int[]] $Area) {
+    $file = Get-Item -LiteralPath $Path
+    if ($file.PSIsContainer -or $file.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) -or
+        $file.Length -gt 65536) { throw 'Owned native window state is not a bounded regular file' }
+    $saved = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json -AsHashtable
+    if (!$saved.ContainsKey('main') -or !$saved.main.ContainsKey('width') -or
+        !$saved.main.ContainsKey('height') -or !$saved.main.ContainsKey('maximized')) {
+        throw 'Native window state did not retain its geometry'
+    }
+    # Simulate the saved normal size of a larger display; preserve every other preference.
+    $saved.main.width = [int](2 * ($Area[2] - $Area[0]))
+    $saved.main.height = [int](2 * ($Area[3] - $Area[1]))
+    $saved.main.maximized = $false
+    $saved | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
 function Open-Settings([System.Diagnostics.Process] $Process) {
     $link = Wait-Element $Process 'Settings' ([System.Windows.Automation.ControlType]::Hyperlink)
     $link.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
@@ -958,10 +985,17 @@ $doctor = Read-Native @('doctor')
 if (@($doctor.checks | Where-Object { $_.name -ceq 'local_identity' -and $_.state -ceq 'needs_user_action' }).Count -ne 1) {
     throw 'First-run Windows workspace is required'
 }
+$application = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '../../apps/desktop/src-tauri/tauri.conf.json') | ConvertFrom-Json
+$windowState = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)) (
+    Join-Path $application.identifier '.window-state.json'
+)
+if (Test-Path -LiteralPath $windowState) { throw 'First-run native window state is required' }
 $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
     Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
 ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
 try {
+    Assert-NormalWorkArea $process
+    $initialWorkArea = [NativeDesktopInput]::WorkArea($process.MainWindowHandle)
     Show-Desktop $process
     $null = Wait-Element $process "Engine $($version.cli_version)" $null
     Open-Settings $process
@@ -979,9 +1013,11 @@ try {
         throw 'Native appearance cases are incomplete'
     }
     Close-Desktop $process
+    Set-OversizedNormalState $windowState $initialWorkArea
     $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
     Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
 ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
+    Assert-NormalWorkArea $process
     Show-Desktop $process
     $null = Wait-Element $process (Text 'language.label' 'ar') ([System.Windows.Automation.ControlType]::ComboBox)
     $themeKey = if ($personal.Dark) { 'shell.light' } else { 'shell.dark' }
@@ -1081,6 +1117,11 @@ try {
         selected_context_survives_restart = $true
         theme_and_locale_survive_restart = $true
         device_identity_survives_restart = $true
+    }
+    normal_window_controls = [ordered]@{
+        first_normal_window_within_work_area = $true
+        oversized_normal_state_restored_within_work_area = $true
+        context_and_preferences_survive_geometry_recovery = $true
     }
     corporate_acceptance = $false
     release_authorized = $false

@@ -50,4 +50,5 @@ jq -n --arg source "${source}" --arg installer "${expected}" --argjson journey "
   '{schema_version:2,source_sha:$source,installer_sha256:$installer,app_sha256:$app,
     cli_sha256:$cli,cli_version:$journey.cli_version,installed_personal_workspace_restart:true,
     personal_controls:$journey.personal_controls,theme_locale_observations:$journey.theme_locale_observations,
+    normal_window_controls:$journey.normal_window_controls,
     corporate_acceptance:false,release_authorized:false}' > "${output}"
