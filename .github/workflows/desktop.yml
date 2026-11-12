@@ -412,6 +412,9 @@ jobs:
 
   native-corporate-diagnostic:
     if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_native_corporate
+    env:
+      UV_PROJECT_ENVIRONMENT: .venv
+      UV_PYTHON: '3.15.2'
     permissions:
       contents: read
       actions: read
@@ -464,13 +467,15 @@ jobs:
         with:
           manifest: .github/postgresql-macOS.json
           directory: ${{ runner.temp }}/postgresql-sdk
-      - name: Prepare the actual API fixture and run native corporate journeys
+      - name: Prepare the actual API fixture
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-native-corporate-prepare
+      - name: Run native corporate journeys against actual API/PostgreSQL
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         env:
-          UV_PYTHON: '3.15.2'
-          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/native-corporate-api
-          UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
           AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
           AI_STP_REQUIRE_ENGINE: 'true'
           AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ runner.temp }}/qualified-native-cli
@@ -478,7 +483,6 @@ jobs:
           AI_STP_NATIVE_ENGINE_SOURCE_RUN: ${{ inputs.diagnostic_source_run_id }}
           AI_STP_NATIVE_ENGINE_SOURCE_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
         with:
-          prepare: ci-native-corporate-prepare
           recipe: ci-native-corporate
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:

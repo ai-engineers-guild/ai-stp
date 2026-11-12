@@ -111,17 +111,18 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
     order = list(steps)
     admit = "Admit the exact current Dev qualification"
     archive = "Read the exact qualified native CLI archive"
-    consumer = "Prepare the actual API fixture and run native corporate journeys"
-    assert order.index(admit) < order.index(archive) < order.index(consumer)
+    preparation = "Prepare the actual API fixture"
+    consumer = "Run native corporate journeys against actual API/PostgreSQL"
+    assert (
+        order.index(admit) < order.index(archive) < order.index(preparation) < order.index(consumer)
+    )
     assert steps[admit]["with"]["recipe"] == "ci-desktop-admit-native-diagnostic"
     assert steps[archive]["with"]["run-id"] == "${{ inputs.diagnostic_source_run_id }}"
     assert "inputs.diagnostic_app_source" in steps[archive]["with"]["name"]
     assert steps[consumer]["env"]["AI_STP_REQUIRE_ENGINE"] == "true"
     assert not {"GH_TOKEN", "GITHUB_TOKEN"} & steps[consumer]["env"].keys()
-    assert steps[consumer]["with"] == {
-        "prepare": "ci-native-corporate-prepare",
-        "recipe": "ci-native-corporate",
-    }
+    assert steps[preparation]["with"] == {"recipe": "ci-native-corporate-prepare"}
+    assert steps[consumer]["with"] == {"recipe": "ci-native-corporate"}
 
 
 def test_native_corporate_consumer_refuses_before_provisioning_on_a_developer_host(
