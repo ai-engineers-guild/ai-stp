@@ -218,6 +218,66 @@ it("discards a previous account response even after returning to the same connec
   expect(screen.getByText("current-personal")).toBeTruthy();
 });
 
+it("waits for retained connection choices without replacing entered context text", async () => {
+  let complete!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
+    path === "account connections list"
+      ? new Promise((resolve) => {
+          complete = resolve;
+        })
+      : ok({ contexts: [] }),
+  );
+  mount(<ProfilesPage />);
+  const selector = screen.getByRole("combobox", { name: "Context connection" });
+  expect(selector).toHaveProperty("disabled", true);
+  fireEvent.change(screen.getByLabelText("Context label"), {
+    target: { value: "Waiting context" },
+  });
+  await act(async () =>
+    complete(
+      ok({
+        connections: [
+          {
+            connection_id: "connection_fixture",
+            label: "Fixture company",
+            origin: "https://company.example.test",
+            provider: "github",
+            state: "ready",
+          },
+        ],
+      }),
+    ),
+  );
+  expect(selector).toHaveProperty("disabled", false);
+  expect(
+    screen.getByRole("option", {
+      name: "Fixture company · https://company.example.test",
+    }),
+  ).toHaveProperty("value", "connection_fixture");
+  expect(screen.getByLabelText("Context label")).toHaveProperty(
+    "value",
+    "Waiting context",
+  );
+});
+
+it("keeps unknown connection choices unavailable after a failed local read", async () => {
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
+    path === "account connections list"
+      ? {
+          ...ok(),
+          ok: false,
+          error: "Fixture connection read unavailable",
+          error_code: "AI_STP_DEPENDENCY_UNAVAILABLE",
+        }
+      : ok({ contexts: [] }),
+  );
+  mount(<ProfilesPage />);
+  await screen.findByRole("alert");
+  expect(
+    screen.getByRole("combobox", { name: "Context connection" }),
+  ).toHaveProperty("disabled", true);
+});
+
 it("plans a context from the existing account without creating a new enrollment", async () => {
   const organization = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV";
   vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
