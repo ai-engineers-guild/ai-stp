@@ -62,7 +62,7 @@ _LEAF_TOKENS: dict[str, tuple[str, ...]] = {
         "docs_scripts/skill_projections.py --check",
     ),
     # Not the worker count. `-n` is a tuning decision the gate is allowed to
-    # make per leg — `ADR-0116` already sets eight on the server shards — and
+    # make per leg — server shards use eight — and
     # pinning it here made raising it on the CLI legs look like the gate had
     # stopped running the suite at all. What identifies the leaf is that pytest
     # is distributed and that the coverage report and tracing core are the same.
@@ -229,13 +229,26 @@ def _command_owners(entry: dict[str, Any]) -> list[str]:
     return recipes
 
 
+def _script_commands(body: str, seen: set[Path]) -> str:
+    """Follow only invoked literal project Bash owners, retaining cycle bounds."""
+    parts = [body]
+    for match in re.finditer(r"(?m)^\s*@?bash (\.github/scripts/[a-z0-9-]+\.sh)(?:\s|$)", body):
+        path = ROOT / match.group(1)
+        if path in seen:
+            continue
+        seen.add(path)
+        parts.append(_script_commands(path.read_text(encoding="utf-8"), seen))
+    return "\n".join(parts)
+
+
 def command_text(job: dict[str, Any]) -> str:
     entries = [job, *job.get("steps", [])]
     owners = [owner for entry in entries for owner in _command_owners(entry)]
-    return "\n".join(
+    body = "\n".join(
         [entry.get("run", "") for entry in entries]
         + [_bodies()[owner] for owner in _expand(owners)]
     )
+    return _script_commands(body, set())
 
 
 def workflow_text() -> str:
@@ -252,8 +265,8 @@ def test_every_recipe_leaf_of_full_verification_appears_in_the_gate() -> None:
 
     Splitting is worth having right up to the moment a check falls out of the
     union, and nothing fails when it does: the run stays green and the check
-    simply stops running. Since `ADR-0110` the split is across two trees as
-    well as across jobs, so the union is asserted over the whole published
+    simply stops running. The split is across multiple trees as well as
+    across jobs, so the union is asserted over the whole published
     workflow directory rather than one file.
     """
     required = _expand(["verify"])
@@ -365,7 +378,7 @@ def test_python_analysis_preserves_product_and_tooling_coverage() -> None:
 
 
 def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
-    """ADR-0116: client tests see three operating systems; the server does not."""
+    """Client tests see three operating systems; server tests run on Linux."""
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     three = {"ubuntu-26.04", "macos-latest", "windows-latest"}
     jobs = workflow["jobs"]
