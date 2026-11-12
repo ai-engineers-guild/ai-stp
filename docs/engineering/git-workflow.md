@@ -125,7 +125,10 @@ retains the original pending device confirmation across navigation, and checks
 personal coexistence and original identities after restart against actual
 API/PostgreSQL. The approval broker accepts one bounded synthetic device approval;
 private process output and authentication values are not published. Refusals
-retain only closed checkpoints and bounded controller source locations. The
+retain closed checkpoints and bounded controller source locations. Windows
+failure images are restricted to the owned personal window or the first
+pre-authentication selector, guarded by an empty saved-connection list.
+Authentication and pending-confirmation windows are never captured. The
 separate public corporate-profile proof identifies installed bytes and the
 source/run; it does not qualify live SSO or corporate checkout GUI. Native
 corporate CLI/history and installed Linux checkout evidence retain their own

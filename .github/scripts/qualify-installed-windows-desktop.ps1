@@ -607,6 +607,16 @@ function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $K
     try {
         $selector = Wait-Element $Process (Text $Key) ([System.Windows.Automation.ControlType]::ComboBox)
     } catch {
+        # Only this first selector precedes every account enrollment and login.
+        # A failed guard cannot publish an image or replace the original refusal.
+        if ($Key -ceq 'profiles.signInMethod') {
+            try {
+                $connections = Read-Native @('account', 'connections', 'list')
+                if (@($connections.connections).Count -eq 0) { Save-NativeFailureImage $Process }
+            } catch {
+                [Console]::Error.WriteLine('Pre-authentication image guard refused')
+            }
+        }
         # Publish only closed classifications; the UI tree and error text stay private.
         $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
         $details = $window.FindFirst(
