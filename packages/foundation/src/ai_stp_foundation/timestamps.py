@@ -1,4 +1,4 @@
-"""Canonical timestamps (SPEC-015 REQ-1505, docs/contracts/canonical-data.md).
+"""Canonical UTC millisecond timestamps.
 
 Time is recorded as RFC 3339 UTC with exactly millisecond precision and the
 ``Z`` suffix. The pattern is shared with generated schemas; full validation

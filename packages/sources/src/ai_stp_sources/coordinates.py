@@ -1,4 +1,4 @@
-"""Canonical source coordinates (SPEC-057 REQ-5701, REQ-5702)."""
+"""Canonical source coordinates."""
 
 from __future__ import annotations
 

@@ -2,8 +2,7 @@
 
 Owns nothing domain-specific: typed stable identifiers, canonical JSON bytes,
 domain-separated digests, two-integer versions, exact references and the
-machine output envelope. Normative sources: SPEC-015, docs/contracts/
-canonical-data.md and docs/contracts/cli-json.md.
+machine output envelope.
 """
 
 from ai_stp_foundation.adaptations import (
