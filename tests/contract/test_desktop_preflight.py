@@ -116,6 +116,7 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
     archive = "Read the exact qualified native CLI archive"
     preparation = "Prepare the actual API fixture"
     consumer = "Run native corporate journeys against actual API/PostgreSQL"
+    database = "Admit native PostgreSQL startup and SCRAM authentication"
     assert (
         order.index(admit) < order.index(archive) < order.index(preparation) < order.index(consumer)
     )
@@ -129,6 +130,8 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
     assert steps[consumer]["env"]["AI_STP_REQUIRE_ENGINE"] == "true"
     assert not {"GH_TOKEN", "GITHUB_TOKEN"} & steps[consumer]["env"].keys()
     assert steps[preparation]["with"] == {"recipe": "ci-native-corporate-prepare"}
+    assert order.index(preparation) < order.index(database)
+    assert steps[database]["with"] == {"recipe": "ci-native-corporate-postgresql-preflight"}
     assert steps[consumer]["with"] == {"recipe": "ci-native-corporate"}
 
     assert any(step.get("uses") == "./.github/actions/project-rust" for step in owner["steps"])
@@ -138,7 +141,7 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
         "Verify the immutable released schema60 native writer",
         "Verify the immutable released schema61 native writer",
     ]:
-        assert order.index(preparation) < order.index(name) < order.index(consumer)
+        assert order.index(database) < order.index(name) < order.index(consumer)
         assert "if" not in steps[name]
 
 

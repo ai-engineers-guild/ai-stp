@@ -30,13 +30,21 @@ print(child.pid, flush=True)
 """
 
 
-def test_command_does_not_wait_for_a_live_descendants_inherited_output() -> None:
+@pytest.mark.parametrize("input_data", [None, b"owned-private-input\n"])
+def test_command_does_not_wait_for_a_live_descendants_inherited_output(
+    input_data: bytes | None,
+) -> None:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)
         listener.settimeout(15)
         output = run_command(
-            Path(sys.executable), "-c", PARENT, CHILD, str(listener.getsockname()[1])
+            Path(sys.executable),
+            "-c",
+            PARENT,
+            CHILD,
+            str(listener.getsockname()[1]),
+            input_data=input_data,
         )
         assert output.strip().isdecimal()
         peer, _ = listener.accept()

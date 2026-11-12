@@ -89,6 +89,13 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-native-corporate-prepare
+      - name: Admit native PostgreSQL startup and SCRAM authentication
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
+        with:
+          recipe: ci-native-corporate-postgresql-preflight
       - name: Restore only exact native historical build records
         id: previous-native-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9

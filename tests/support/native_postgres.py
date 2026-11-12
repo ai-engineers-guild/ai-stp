@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -21,40 +22,43 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 from tests.support.native_runner import disposable_runner, report_stage
 
 
-def run_command(program: Path, *arguments: str, input_data: bytes | None = None) -> str:
-    # Daemon launchers use a file so descendants cannot hold pipe EOF open.
-    # Only foreground initdb uses private stdin and in-memory output; detaching
-    # its console makes PostgreSQL's non-echoing prompt read that owned pipe.
+def run_command(
+    program: Path,
+    *arguments: str,
+    input_data: bytes | None = None,
+    environment: dict[str, str] | None = None,
+) -> str:
+    # Completion follows the owned launcher, independent of descendant pipe EOF.
+    # The pinned non-echoing initdb prompt receives its input only through stdin;
+    # command output is temporary and private input must never be echoed or logged.
     private_input = input_data is not None
+    assert input_data is None or len(input_data) <= 4096
     with tempfile.TemporaryFile() as output:
         try:
             result = subprocess.run(
                 [str(program), *arguments],
                 stdin=None if private_input else subprocess.DEVNULL,
                 input=input_data,
-                stdout=subprocess.PIPE if private_input else output,
+                stdout=output,
                 stderr=subprocess.STDOUT,
                 start_new_session=private_input and os.name != "nt",
-                creationflags=subprocess.CREATE_NO_WINDOW
-                if private_input and os.name == "nt"
-                else 0,
+                env=environment,
                 timeout=90,
                 check=False,
             )
         except subprocess.TimeoutExpired:
             raise AssertionError("PostgreSQL command exceeded its time bound") from None
-        if private_input:
-            payload = result.stdout
-            assert input_data is not None
+        output.seek(0)
+        payload = output.read(64 * 1024 + 1)
+        if input_data is not None:
             assert not any(line and line in payload for line in input_data.splitlines()), (
                 "PostgreSQL command echoed private input"
             )
-        else:
-            output.seek(0)
-            payload = output.read(64 * 1024 + 1)
     assert len(payload) <= 64 * 1024, "PostgreSQL command output exceeded its bound"
     text = payload.decode("utf-8", errors="replace")
     assert result.returncode == 0, (
@@ -71,17 +75,31 @@ def _digest(path: Path) -> str:
 
 
 def _windows_sdk(root: Path, pin: dict[str, Any]) -> Path:
-    archive = root / pin["file"]
-    with urllib.request.urlopen(pin["url"], timeout=60) as response, archive.open("xb") as output:
-        assert response.url == pin["url"], "PostgreSQL archive changed origin"
-        size = 0
-        deadline = time.monotonic() + 180
-        while chunk := response.read(1024 * 1024):
-            assert time.monotonic() < deadline, "PostgreSQL download exceeded its time bound"
-            size += len(chunk)
-            assert size <= pin["size"]
-            output.write(chunk)
-    assert size == pin["size"] and _digest(archive) == pin["sha256"]
+    assets = Path(os.environ["AI_STP_POSTGRESQL_ASSETS"])
+    assert not assets.is_symlink()
+    assert assets.parent.resolve(strict=True) == Path(os.environ["RUNNER_TEMP"]).resolve(
+        strict=True
+    )
+    assert assets.name == "postgresql-sdk"
+    assets.mkdir(mode=0o700, exist_ok=True)
+    archive = assets / pin["file"]
+    assert archive.name == pin["file"]
+    assert {path.name for path in assets.iterdir()} <= {archive.name}
+    if not archive.exists() and not archive.is_symlink():
+        with (
+            urllib.request.urlopen(pin["url"], timeout=60) as response,
+            archive.open("xb") as output,
+        ):
+            assert response.url == pin["url"], "PostgreSQL archive changed origin"
+            size = 0
+            deadline = time.monotonic() + 180
+            while chunk := response.read(1024 * 1024):
+                assert time.monotonic() < deadline, "PostgreSQL download exceeded its time bound"
+                size += len(chunk)
+                assert size <= pin["size"]
+                output.write(chunk)
+    assert archive.is_file() and not archive.is_symlink()
+    assert archive.stat().st_size == pin["size"] and _digest(archive) == pin["sha256"]
     with zipfile.ZipFile(archive) as bundle:
         selected = [
             item
@@ -167,6 +185,12 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
         ), version
         password = secrets.token_hex(24)
         report_stage("postgresql-initialize")
+        initialization_environment = None
+        if native_os == "Windows":
+            # PostgreSQL's MSYS stdio mode bypasses CONIN$/CONOUT$ prompting.
+            # Keep its native restricted-token re-execution and inherited stdio.
+            # https://github.com/postgres/postgres/blob/REL_18_STABLE/src/common/sprompt.c
+            initialization_environment = dict(os.environ, OSTYPE="msys")
         run_command(
             initdb,
             "-D",
@@ -179,6 +203,7 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
             "--encoding=UTF8",
             "--locale=C",
             input_data=((password + "\n") * 2).encode("ascii"),
+            environment=initialization_environment,
         )
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
@@ -217,3 +242,23 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
         )
         assert not (root / "mounted").exists(), "Retain the SDK mount until native detach completes"
         shutil.rmtree(root)
+
+
+async def _connect(url: str) -> None:
+    engine = create_async_engine(url)
+    try:
+        async with engine.connect() as connection:
+            assert await connection.scalar(text("SELECT 1")) == 1
+    finally:
+        await engine.dispose()
+
+
+def preflight() -> None:
+    """Admit real SDK startup/authentication before expensive historical builds."""
+    with cluster() as (url, _identity):
+        asyncio.run(_connect(url))
+    report_stage("postgresql-preflight-passed")
+
+
+if __name__ == "__main__":
+    preflight()

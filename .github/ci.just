@@ -565,6 +565,12 @@ ci-native-vendor-opencode:
 ci-native-corporate-prepare:
     uv sync --locked --group dev
 
+# Admit actual native PostgreSQL startup/authentication before historical builds.
+[group('ci')]
+[private]
+ci-native-corporate-postgresql-preflight:
+    uv run --no-sync python -m tests.support.native_postgres
+
 # Exercise archived native CLI ownership and corporate journeys with PostgreSQL.
 [group('ci')]
 [private]
