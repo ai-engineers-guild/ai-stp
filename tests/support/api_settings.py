@@ -54,7 +54,7 @@ def make_settings(
             environment="test",
             log_dir=log_dir,
             # Tests that are not about the HTTP gate must not share the
-            # process-wide 100/min budget (`ADR-0128`). Explicit 0 disables
+            # process-wide 100/min budget. Explicit 0 disables
             # that dimension; the fail-closed defaults are proven elsewhere.
             rate_limit_overall_requests=0,
             rate_limit_ip_requests=0,

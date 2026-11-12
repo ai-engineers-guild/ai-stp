@@ -1,9 +1,7 @@
-"""Corporate runtime usage: ingest binding, scoped reports, drill-down, export.
+"""Corporate runtime usage through the production router and real PostgreSQL.
 
-The usage routers are mounted onto the test application; production wiring
-into the corporate router is the integration point outside this file.
-PostgreSQL fixtures mirror `tests/api/platform/conftest.py` so the root
-conftest's `pg` marker still applies through the shared fixture names.
+The shared migration fixture marks these tests for the PostgreSQL owner.
+Do not mount a second router here: route registration is part of acceptance.
 """
 
 from __future__ import annotations
@@ -23,7 +21,6 @@ from tests.support.postgres import migrated_database, migrated_template
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
-from ai_stp_api.slices.corporate import usage_events, usage_reports
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.models import Account, AuditEvent, Device
@@ -76,8 +73,6 @@ async def db_api_client(
 ) -> AsyncIterator[tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings]]:
     settings = make_settings(tmp_path, database_url=migrated_database_url)
     app = create_app(settings)
-    app.include_router(usage_events.router, prefix="/v1")
-    app.include_router(usage_reports.router, prefix="/v1")
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
