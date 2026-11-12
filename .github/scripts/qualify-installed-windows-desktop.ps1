@@ -165,6 +165,10 @@ function Focus-Control([System.Diagnostics.Process] $Process, $Element) {
 }
 
 function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) {
+    $value = $null
+    if (!$Element.Current.IsEnabled -or
+        !$Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $value) -or
+        $value.Current.IsReadOnly) { throw 'Native context edit is not observably editable' }
     if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
         ![System.Windows.Automation.Automation]::Compare(
             [System.Windows.Automation.AutomationElement]::FocusedElement, $Element
@@ -189,6 +193,7 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     if ($Label -cnotmatch '^[A-Za-z0-9 ]{1,120}$') { throw 'Unexpected keyboard fixture text' }
     $field = Wait-Element $Process (Text 'profiles.contextLabel') ([System.Windows.Automation.ControlType]::Edit)
     Focus-Control $Process $field
+    Assert-KeyboardTarget $Process $field
     $before = Read-EditValue $field
     if ($before.Length -gt 0) {
         $text = $null
@@ -205,6 +210,14 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
             return $null
         }.GetNewClosure())
         Assert-KeyboardTarget $Process $field
+        Write-Host ([ordered]@{
+            native_text_clear = 'before_keyboard'
+            initial_length = $before.Length
+            enabled = $field.Current.IsEnabled
+            read_only = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly
+            selection_ranges = @($text.GetSelection()).Count
+            foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+        } | ConvertTo-Json -Compress)
         [System.Windows.Forms.SendKeys]::SendWait('{BACKSPACE}')
         try {
             $null = Wait-Observation $Process 'cleared context label' ({
@@ -218,6 +231,8 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
                 native_text_clear = 'refused'
                 initial_length = $before.Length
                 observed_length = $observed.Length
+                enabled = $field.Current.IsEnabled
+                read_only = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly
                 unchanged = $observed -ceq $before
                 selection_ranges = $ranges.Count
                 foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
@@ -311,9 +326,19 @@ function Confirm-Review([System.Diagnostics.Process] $Process) {
         $condition = [System.Windows.Automation.PropertyCondition]::new(
             [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'profiles.reviewNativeProfilePlan')
         )
-        if ($null -eq $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)) { return $true }
+        $working = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            (Text 'profiles.workingThroughTheNativeEngine')
+        )
+        if ($null -eq $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition) -and
+            $null -eq $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $working)) {
+            return $true
+        }
         return $null
     }.GetNewClosure())
+    $null = Wait-Element $Process (Text 'profiles.reviewContextCreation') (
+        [System.Windows.Automation.ControlType]::Button
+    )
 }
 
 function New-ContextReview([System.Diagnostics.Process] $Process, [string] $Label) {
