@@ -195,6 +195,9 @@ pub(crate) fn verify(passport: &Value, payload: &[u8]) -> Result<BTreeMap<String
         }
         let files = artifact::verify(&scopes[0], &bytes)?;
         native_identity::verify_files(
+            scopes[0]["projection_format"]
+                .as_str()
+                .ok_or_else(invalid)?,
             record.passport["component_type"]
                 .as_str()
                 .ok_or_else(invalid)?,

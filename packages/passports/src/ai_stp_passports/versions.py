@@ -271,13 +271,26 @@ class ScopeAdaptation(BaseModel):
                         "required": ["technical_support_reason"],
                         "properties": {"technical_support_reason": {"type": "string"}},
                     },
-                }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "projection_format": {"const": "ai-stp-adaptation-projection/2"}
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "provider_component_kind": {"const": "skill"},
+                            "projection_kind": {"const": "native_files"},
+                        }
+                    },
+                },
             ]
         },
     )
 
     scope: TargetScope
-    projection_format: Literal["ai-stp-adaptation-projection/1"]
+    projection_format: Literal["ai-stp-adaptation-projection/1", "ai-stp-adaptation-projection/2"]
     projection_artifact: NonEmptyArtifactRef
     provider_component_kind: ComponentType
     projection_kind: ProjectionKind
@@ -301,6 +314,10 @@ class ScopeAdaptation(BaseModel):
 
     @model_validator(mode="after")
     def _paths_are_unique(self) -> "ScopeAdaptation":
+        if self.projection_format == "ai-stp-adaptation-projection/2" and (
+            self.provider_component_kind != "skill" or self.projection_kind != "native_files"
+        ):
+            raise ValueError("projection/2 requires the native skill surface")
         paths = [member.path for member in self.members]
         if len(paths) != len(set(paths)):
             raise ValueError("projected member paths must be unique within a scope")
@@ -353,7 +370,28 @@ class ComponentAdaptation(BaseModel):
                         "properties": {"transform": {"type": "object"}},
                     },
                     "else": {"properties": {"transform": {"type": "null"}}},
-                }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "scope_adaptations": {
+                                "contains": {
+                                    "properties": {
+                                        "projection_format": {
+                                            "const": "ai-stp-adaptation-projection/2"
+                                        }
+                                    },
+                                }
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "harness_id": {"const": "opencode"},
+                            "logical_component_type": {"const": "skill"},
+                        }
+                    },
+                },
             ]
         },
     )
@@ -375,6 +413,11 @@ class ComponentAdaptation(BaseModel):
             raise ValueError("a derived adaptation requires an exact transform")
         if self.implementation_mode == "native" and self.transform is not None:
             raise ValueError("a native adaptation has no transform")
+        if any(
+            item.projection_format == "ai-stp-adaptation-projection/2"
+            for item in self.scope_adaptations
+        ) and (self.harness_id != "opencode" or self.logical_component_type != "skill"):
+            raise ValueError("projection/2 requires OpenCode skill path identities")
         payload = cast(dict[str, JsonValue], self.model_dump(mode="json"))
         held = payload.pop("adaptation_id")
         if held != adaptation_id(payload):

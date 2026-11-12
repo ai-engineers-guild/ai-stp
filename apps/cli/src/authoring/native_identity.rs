@@ -8,6 +8,7 @@ mod cursor;
 mod grok;
 mod mcp;
 mod opencode;
+mod opencode_v2;
 mod pi;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -81,6 +82,7 @@ pub(crate) fn visible_entries<'a>(
         ("cursor", "agent") => cursor::visible_agents(files)?,
         ("grok-build", _) => grok::visible(kind, files)?,
         ("pi", _) => pi::visible(kind, files)?,
+        ("opencode", "skill") => opencode_v2::visible(files)?,
         _ => return Err(invalid()),
     };
     valid(&names)?;
@@ -227,10 +229,24 @@ pub(crate) fn verify_configuration_credentials(
 /// Markdown loaders own a complete tree (including ignore files and aliases),
 /// so their invocation set is shared by that projection's members, as in freezing.
 pub(super) fn projection_names(
+    format: &str,
     kind: &str,
     harness: &str,
     files: &[artifacts::Member],
 ) -> Result<BTreeMap<String, Vec<String>>> {
+    if format == crate::projection::artifact::PATH_IDENTITY_FORMAT {
+        if (harness, kind) != ("opencode", "skill") {
+            return Err(invalid());
+        }
+        return opencode_v2::skills(
+            files
+                .iter()
+                .map(|file| (file.path.as_str(), file.bytes.as_slice())),
+        );
+    }
+    if format != crate::projection::artifact::FORMAT {
+        return Err(invalid());
+    }
     let shared = if has_markdown_entries(harness, kind) {
         let names = markdown_entries(
             harness,
@@ -274,11 +290,35 @@ pub(super) fn projection_names(
 /// Retained or catalog projections get the same byte-derived check as new sources.
 /// Inputs come from freshly compiled files or an archive verified against its declarations.
 pub(crate) fn verify_files(
+    format: &str,
     kind: &str,
     harness: &str,
     declarations: &[Value],
     files: &[artifacts::Member],
 ) -> Result<()> {
+    if format == crate::projection::artifact::PATH_IDENTITY_FORMAT {
+        let expected = projection_names(format, kind, harness, files)?;
+        let mut seen = BTreeSet::new();
+        for declaration in declarations {
+            let path = declaration["path"].as_str().ok_or_else(invalid)?;
+            let names = expected.get(path).ok_or_else(invalid)?;
+            if declaration["ownership"] != "whole"
+                || !seen.insert(path)
+                || declared_names(&declaration["native_ids"])?
+                    != names.iter().map(String::as_str).collect()
+            {
+                return Err(invalid());
+            }
+        }
+        return if seen.len() == expected.len() {
+            Ok(())
+        } else {
+            Err(invalid())
+        };
+    }
+    if format != crate::projection::artifact::FORMAT {
+        return Err(invalid());
+    }
     if kind == "setting" {
         if files.is_empty() {
             return Err(invalid());
@@ -355,4 +395,40 @@ pub(crate) fn verify_files(
         matches(declared_names(&declaration["native_ids"])?, &names)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn path_identity_format_verifies_each_member_without_reinterpreting_legacy_sets()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let files = vec![
+            artifacts::Member {
+                path: "skills/review/SKILL.md".into(),
+                mode: 0o644,
+                bytes: b"---\nname: review\n---\nControlled fixture.\n".to_vec(),
+            },
+            artifacts::Member {
+                path: "skills/review/README.md".into(),
+                mode: 0o644,
+                bytes: b"Controlled sidecar.\n".to_vec(),
+            },
+        ];
+        let mut declarations = vec![
+            json!({"path":files[0].path,"ownership":"whole","native_ids":["review"]}),
+            json!({"path":files[1].path,"ownership":"whole","native_ids":[]}),
+        ];
+        let legacy = crate::projection::artifact::FORMAT;
+        let current = crate::projection::artifact::PATH_IDENTITY_FORMAT;
+        verify_files(current, "skill", "opencode", &declarations, &files)?;
+        declarations[0]["native_ids"] = json!([]);
+        declarations[1]["native_ids"] = json!(["review"]);
+        assert!(verify_files(current, "skill", "opencode", &declarations, &files).is_err());
+        verify_files(legacy, "skill", "opencode", &declarations, &files)?;
+        assert!(verify_files(current, "skill", "codex", &declarations, &files).is_err());
+        Ok(())
+    }
 }

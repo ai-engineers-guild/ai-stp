@@ -109,7 +109,10 @@ impl Info {
             Scope::Project => "project",
             Scope::UserRoot => "user_root",
         };
-        if !self.supports_target(scope) || adaptation["scope"] != name {
+        if adaptation["projection_format"] != crate::projection::artifact::FORMAT
+            || !self.supports_target(scope)
+            || adaptation["scope"] != name
+        {
             return false;
         }
         let Some(profile) = self.profile(scope) else {

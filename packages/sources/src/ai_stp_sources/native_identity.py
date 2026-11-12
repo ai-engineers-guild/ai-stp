@@ -10,6 +10,7 @@ from ai_stp_sources import (
     codex_identity,
     native_markdown,
     native_mcp,
+    opencode_identity,
     pi_identity,
 )
 from ai_stp_sources.native_frontmatter import invalid
@@ -34,8 +35,20 @@ def checked(result: dict[str, list[str]]) -> dict[str, list[str]]:
     return result
 
 
-def identities(harness: str, kind: str, files: Mapping[str, bytes]) -> dict[str, list[str]]:
-    """Observe supported native entry names without consulting display labels."""
+def identities(
+    harness: str,
+    kind: str,
+    files: Mapping[str, bytes],
+    *,
+    projection_format: str = "ai-stp-adaptation-projection/1",
+) -> dict[str, list[str]]:
+    """Observe the explicitly versioned native identities without display authority."""
+    if projection_format == opencode_identity.PROJECTION_FORMAT:
+        if (harness, kind) != ("opencode", "skill"):
+            raise invalid()
+        return checked(opencode_identity.skills(files))
+    if projection_format != "ai-stp-adaptation-projection/1":
+        raise invalid()
     if harness == "codex" and kind == "skill":
         return codex_identity.skill_identities(files)
     if harness == "antigravity" and kind in {"skill", "agent"}:
