@@ -285,9 +285,15 @@ function Read-EditValue($Element) {
     throw ('Native edit has no readable value/text pattern: ' + $patterns)
 }
 
-function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
-    if ($Label -cnotmatch '^[A-Za-z0-9 ]{1,120}$') { throw 'Unexpected keyboard fixture text' }
-    $field = Wait-Element $Process (Text 'profiles.contextLabel') ([System.Windows.Automation.ControlType]::Edit)
+function Enter-Context(
+    [System.Diagnostics.Process] $Process, [string] $Label,
+    [string] $FieldKey = 'profiles.contextLabel', [bool] $CountReplacement = $true
+) {
+    if ($Label -cnotmatch '^[\x20-\x7e]{1,120}$' -or
+        ($FieldKey -ceq 'profiles.contextLabel' -and $Label -cnotmatch '^[A-Za-z0-9 ]{1,120}$')) {
+        throw 'Unexpected keyboard fixture text'
+    }
+    $field = Wait-Element $Process (Text $FieldKey) ([System.Windows.Automation.ControlType]::Edit)
     Focus-Control $Process $field
     Click-NativeControl $Process $field
     Assert-KeyboardTarget $Process $field
@@ -344,7 +350,7 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
             } | ConvertTo-Json -Compress)
             throw
         }
-        $script:contextTextReplacements++
+        if ($CountReplacement) { $script:contextTextReplacements++ }
     }
     Assert-KeyboardTarget $Process $field
     $injected = [NativeDesktopInput]::TypeText($Label)
@@ -361,16 +367,16 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     }
 }
 
-function Read-Review([System.Diagnostics.Process] $Process, [string] $Locale = 'en') {
+function Read-ProfilePlan([System.Diagnostics.Process] $Process, [string] $Locale = 'en') {
     $region = Wait-Element $Process (Text 'profiles.reviewNativeProfilePlan' $Locale) $null $true
-    return Wait-Observation $Process 'exact public context plan' ({
+    return Wait-Observation $Process 'exact public profile plan' ({
         $nodes = $region.FindAll(
             [System.Windows.Automation.TreeScope]::Descendants,
             [System.Windows.Automation.Condition]::TrueCondition
         )
         if ($nodes.Count -gt 2500) { throw 'Native review tree exceeds its observation bound' }
         $raw = $null
-        $change = $null
+        $plan = $null
         $digest = $null
         foreach ($node in $nodes) {
             $values = [System.Collections.Generic.List[string]]::new()
@@ -386,18 +392,37 @@ function Read-Review([System.Diagnostics.Process] $Process, [string] $Locale = '
                 if ($null -eq $value -or $value.Length -gt 65536) { continue }
                 if ($value -cmatch '^sha256:[0-9a-f]{64}$') { $digest = $value }
                 try { $document = ConvertFrom-Json -InputObject $value -AsHashtable } catch { continue }
-                if ($document -is [System.Collections.IDictionary] -and $document.Contains('change') -and
-                    $document.change -is [System.Collections.IDictionary] -and $document.change.Contains('context')) {
-                    $change = $document.change
+                if ($document -is [System.Collections.IDictionary] -and (
+                    ($document.Contains('change') -and
+                        $document.change -is [System.Collections.IDictionary] -and
+                        $document.change.Contains('context')) -or
+                    ($document.Contains('connection_id') -and $document.Contains('origin') -and
+                        $document.Contains('label'))
+                )) {
+                    $plan = $document
                     $raw = $value
                 }
             }
         }
         if ($null -ne $raw -and $null -ne $digest) {
-            return [pscustomobject]@{ Raw = $raw; Digest = $digest; Context = $change.context; Action = $change.action }
+            return [pscustomobject]@{ Raw = $raw; Digest = $digest; Document = $plan }
         }
         return $null
     }.GetNewClosure())
+}
+
+function Read-Review([System.Diagnostics.Process] $Process, [string] $Locale = 'en') {
+    $public = Read-ProfilePlan $Process $Locale
+    if (!$public.Document.Contains('change') -or
+        !$public.Document.change.Contains('context')) {
+        throw 'Displayed profile review does not contain a context plan'
+    }
+    return [pscustomobject]@{
+        Raw = $public.Raw
+        Digest = $public.Digest
+        Context = $public.Document.change.context
+        Action = $public.Document.change.action
+    }
 }
 
 function Assert-Review($Review, [string] $Action, [string] $Label, [string] $Identifier = '') {
@@ -563,6 +588,187 @@ function Assert-Sidebar([System.Diagnostics.Process] $Process, [string] $Locale)
     }.GetNewClosure())
 }
 
+
+function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $Key, [string] $Name) {
+    $selector = Wait-Element $Process (Text $Key) ([System.Windows.Automation.ControlType]::ComboBox)
+    Focus-Control $Process $selector
+    $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'profile selector'
+    if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed) {
+        throw 'Native profile selector was not initially collapsed'
+    }
+    Click-NativeControl $Process $selector
+    $null = Wait-Observation $Process 'expanded native profile selector' ({
+        if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded -and
+            [NativeDesktopInput]::PointerButtonsReleased()) { return $true }
+        return $null
+    }.GetNewClosure())
+    $option = Wait-Observation $Process 'owned native profile option' ({
+        $condition = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty, $Name
+        )
+        return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+    }.GetNewClosure())
+    (Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'profile option').Select()
+    if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
+        $expand.Collapse()
+    }
+    $null = Wait-Observation $Process 'closed native profile selector' ({
+        if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
+            [NativeDesktopInput]::PointerButtonsReleased()) { return $true }
+        return $null
+    }.GetNewClosure())
+}
+
+function Read-CorporateFixture {
+    if (!$env:AI_STP_NATIVE_DESKTOP_FIXTURE) { return $null }
+    $path = [IO.Path]::GetFullPath($env:AI_STP_NATIVE_DESKTOP_FIXTURE)
+    $root = [IO.Path]::GetFullPath($env:RUNNER_TEMP) + [IO.Path]::DirectorySeparatorChar
+    $file = Get-Item -LiteralPath $path
+    if (!$path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -or
+        $file.PSIsContainer -or $file.LinkType -or $file.Length -gt 16384) {
+        throw 'Native corporate fixture file is not owned and bounded'
+    }
+    $value = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable
+    if ($value.Count -ne 8 -or $value.protocol -cne 'ai-stp-native-desktop-fixture/1' -or
+        $value.nonce -cnotmatch '^[0-9a-f]{64}$' -or $value.source_sha -cne $Source -or
+        $value.origin -cnotmatch '^http://127[.]0[.]0[.]1:[1-9][0-9]{0,4}$' -or
+        [IO.Path]::GetFullPath($value.result_path) -cne (Join-Path $file.DirectoryName 'native-corporate-journey.json')) {
+        throw 'Native corporate fixture contract differs'
+    }
+    foreach ($key in @('account_id', 'organization_id', 'project_id')) {
+        if ($value[$key] -isnot [string] -or $value[$key].Length -lt 1 -or $value[$key].Length -gt 128) {
+            throw 'Native corporate fixture identity is invalid'
+        }
+    }
+    if (Test-Path -LiteralPath $value.result_path) { throw 'Native corporate result already exists' }
+    return $value
+}
+
+function Assert-RemoteReview($Review, $Fixture, [string] $Action, [string] $Connection, [string] $Identifier = '') {
+    $authority = $Review.Context.authority
+    if ($Review.Action -cne $Action -or $Review.Context.label -cne 'Native corporate context' -or
+        $authority.kind -cne 'remote' -or $authority.organization.organization_id -cne $Fixture.organization_id -or
+        $authority.account.account_id -cne $Fixture.account_id -or
+        $authority.account.origin -cne $Fixture.origin -or
+        $authority.account.connection.connection_id -cne $Connection -or
+        $Review.Context.context_id -isnot [string] -or !$Review.Context.context_id) {
+        throw 'Displayed corporate plan changed intent or authority'
+    }
+    if ($Identifier -and $Review.Context.context_id -cne $Identifier) {
+        throw 'Displayed corporate plan changed context identity'
+    }
+    return $Review.Context.context_id
+}
+
+function Invoke-CorporateApproval($Fixture, [string] $Code) {
+    if (!$Code -or $Code.Length -gt 128) { throw 'Native approval code is invalid' }
+    $request = [ordered]@{
+        protocol = $Fixture.protocol; nonce = $Fixture.nonce; sequence = 1
+        action = 'approve_device'; user_code = $Code
+    }
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FIXTURE_V1 ' + ($request | ConvertTo-Json -Compress))
+    [Console]::Out.Flush()
+    $line = [Console]::In.ReadLine()
+    if ($null -eq $line -or $line.Length -gt 4096) { throw 'Native approval response exceeded its bound' }
+    $reply = ConvertFrom-Json -InputObject $line -AsHashtable
+    if ($reply.Count -ne 4 -or $reply.protocol -cne $Fixture.protocol -or
+        $reply.nonce -cne $Fixture.nonce -or $reply.sequence -ne 1 -or $reply.approved -ne $true) {
+        throw 'Native approval response differs'
+    }
+}
+
+function Assert-CorporateSession($Fixture, [string] $Connection) {
+    $status = Read-Native @('account', 'status', '--connection', $Connection)
+    if ($status.origin -cne $Fixture.origin -or $status.session.state -cne 'authorized' -or
+        $status.session.account_id -cne $Fixture.account_id) {
+        throw 'Original corporate account session changed'
+    }
+}
+
+function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, [string] $Identity) {
+    Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
+    Enter-Context $Process 'Native company connection' 'profiles.connectionLabel' $false
+    Enter-Context $Process $Fixture.origin 'profiles.serverOrigin' $false
+    Invoke-Control (Wait-Element $Process (Text 'profiles.checkServerSignInMethods') ([System.Windows.Automation.ControlType]::Button))
+    Select-ProfileOption $Process 'profiles.signInMethod' 'github'
+    Invoke-Control (Wait-Element $Process (Text 'profiles.reviewConnectionCreation') ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process (Text 'profiles.exactPublicPlan') $null $true)
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection')
+    $plan = Read-ProfilePlan $Process
+    if ($plan.Document.label -cne 'Native company connection' -or $plan.Document.origin -cne $Fixture.origin -or
+        $plan.Document.provider -cne 'github' -or $plan.Document.connection_id -isnot [string] -or
+        !$plan.Document.connection_id) { throw 'Displayed connection plan changed intent' }
+    $connection = $plan.Document.connection_id
+    Confirm-Review $Process
+    Invoke-Control (Wait-Element $Process (Text 'profiles.openThisAccountSession') ([System.Windows.Automation.ControlType]::Hyperlink))
+    Invoke-Control (Wait-Element $Process 'GitHub' ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process (Text 'auth.startSignIn') ([System.Windows.Automation.ControlType]::Button))
+    $null = Wait-Element $Process (Text 'auth.approveThisDeviceInYourBrowser') $null
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 pending')
+    $pending = (Read-Native @('account', 'status', '--connection', $connection)).session
+    if ($pending.state -cne 'pending' -or $pending.user_code -isnot [string]) { throw 'Native sign-in did not retain a pending confirmation' }
+    Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
+    Invoke-Control (Wait-Element $Process (Text 'profiles.openThisAccountSession') ([System.Windows.Automation.ControlType]::Hyperlink))
+    $null = Wait-Element $Process (Text 'auth.approveThisDeviceInYourBrowser') $null
+    $again = (Read-Native @('account', 'status', '--connection', $connection)).session
+    if ($again.state -cne 'pending' -or $again.user_code -cne $pending.user_code) {
+        throw 'Navigation replaced the original pending confirmation'
+    }
+    $null = Wait-Observation $Process 'original pending confirmation displayed' ({
+        $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+        $condition = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty, $pending.user_code
+        )
+        if ($null -ne $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)) { return $true }
+        return $null
+    }.GetNewClosure())
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 approval')
+    Invoke-CorporateApproval $Fixture $pending.user_code
+    Invoke-Control (Wait-Element $Process (Text 'auth.openBrowserAndConfirm') ([System.Windows.Automation.ControlType]::Button))
+    $null = Wait-Element $Process (Text 'auth.signedIn') $null
+    Assert-CorporateSession $Fixture $connection
+    Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
+    Enter-Context $Process 'Native corporate context' 'profiles.contextLabel' $false
+    Select-ProfileOption $Process 'profiles.contextConnection' ('Native company connection · ' + $Fixture.origin)
+    Invoke-Control (Wait-Element $Process (Text 'profiles.readAvailableOrganizations') ([System.Windows.Automation.ControlType]::Button))
+    Select-ProfileOption $Process 'profiles.organization' 'Installed fixture company · corporate'
+    Invoke-Control (Wait-Element $Process (Text 'profiles.reviewContextCreation') ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process (Text 'profiles.exactPublicPlan') $null $true)
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 context')
+    $review = Read-Review $Process
+    $context = Assert-RemoteReview $review $Fixture 'create' $connection
+    $device = $review.Context.authority.account.device_id
+    Confirm-Review $Process
+    $listed = Read-Native @('context', 'list')
+    if (@($listed.contexts).Count -ne 3 -or
+        @($listed.contexts | Where-Object { $_.context.authority.kind -ceq 'local' }).Count -ne 2) {
+        throw 'Personal and corporate contexts did not coexist'
+    }
+    $heading = Wait-Element $Process 'Native corporate context' $null
+    $ancestor = $heading
+    $button = $null
+    $condition = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'profiles.reviewViewSelection')
+    )
+    for ($depth = 0; $depth -lt 6 -and $null -ne $ancestor; $depth++) {
+        $button = $ancestor.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        if ($null -ne $button) { break }
+        $ancestor = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($ancestor)
+    }
+    if ($null -eq $button) { throw 'Owned corporate context selection was not found' }
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 selection')
+    Invoke-Control $button
+    Invoke-Control (Wait-Element $Process (Text 'profiles.exactPublicPlan') $null $true)
+    $null = Assert-RemoteReview (Read-Review $Process) $Fixture 'select' $connection $context
+    Confirm-Review $Process
+    Assert-SelectedContext $Process $context
+    if ($device -isnot [string] -or !$device) { throw 'Corporate context did not resolve its enrolled device' }
+    if ((Read-Native @('device', 'show') | ConvertTo-Json -Depth 10 -Compress) -cne $Identity) {
+        throw 'Corporate sign-in replaced the original native identity'
+    }
+    return [pscustomobject]@{ Context = $context; Connection = $connection; Device = $device }
+}
+
 function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
     Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
     $null = Wait-Element $Process (Text 'profiles.connectionsAndContexts') $null
@@ -624,6 +830,8 @@ function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
     return [pscustomobject]@{ Selected = $secondId; Dark = !$initialDark; Combinations = $combinations }
 }
 
+$corporateFixture = Read-CorporateFixture
+$corporateStarted = $false
 $version = Read-Native @('version')
 if ($version.runtime -cne 'rust' -or $version.wire_schema_version -ne 1) {
     throw 'Installed CLI version contract differs'
@@ -632,7 +840,9 @@ $doctor = Read-Native @('doctor')
 if (@($doctor.checks | Where-Object { $_.name -ceq 'local_identity' -and $_.state -ceq 'needs_user_action' }).Count -ne 1) {
     throw 'First-run Windows workspace is required'
 }
-$process = Start-Process -FilePath $app -PassThru
+$process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
+    Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
+) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
 try {
     $null = Wait-Element $process "Engine $($version.cli_version)" $null
     Open-Settings $process
@@ -644,12 +854,15 @@ try {
     $initialize.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     $null = Wait-Element $process 'Initialized' $null
     $identity = (Read-Native @('device', 'show') | ConvertTo-Json -Depth 10 -Compress)
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 personal')
     $personal = Test-PersonalJourney $process
     if ($personal.Combinations -ne $languageConfiguration.languages.Count * 2) {
         throw 'Native appearance cases are incomplete'
     }
     Close-Desktop $process
-    $process = Start-Process -FilePath $app -PassThru
+    $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
+    Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
+) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
     $null = Wait-Element $process (Text 'language.label' 'ar') ([System.Windows.Automation.ControlType]::ComboBox)
     $themeKey = if ($personal.Dark) { 'shell.light' } else { 'shell.dark' }
     $null = Wait-Element $process (Text $themeKey 'ar') ([System.Windows.Automation.ControlType]::Button)
@@ -676,14 +889,54 @@ try {
     if ((Read-Native @('device', 'show') | ConvertTo-Json -Depth 10 -Compress) -cne $identity) {
         throw 'Installed device identity changed after restart'
     }
+    if ($null -ne $corporateFixture) {
+        $corporateStarted = $true
+        $corporate = Test-CorporateJourney $process $corporateFixture $identity
+        Close-Desktop $process
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 restart')
+        $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
+            Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
+        ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
+        $null = Wait-Element $process (Text 'language.label') ([System.Windows.Automation.ControlType]::ComboBox)
+        Assert-SelectedContext $process $corporate.Context
+        Invoke-Control (Wait-Element $process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
+        $null = Wait-Element $process ('Native corporate context' + (Text 'profiles.selectedView')) $null
+        if (@((Read-Native @('context', 'list')).contexts).Count -ne 3) {
+            throw 'Restart lost coexisting personal and corporate contexts'
+        }
+        Assert-CorporateSession $corporateFixture $corporate.Connection
+        if ((Read-Native @('device', 'show') | ConvertTo-Json -Depth 10 -Compress) -cne $identity) {
+            throw 'Corporate restart changed the original device identity'
+        }
+    }
     Close-Desktop $process
+    if ($null -ne $corporateFixture) {
+        $controls = [ordered]@{}
+        foreach ($key in @(
+            'installed_personal_journey_retained', 'connection_exact_plan_and_confirmation',
+            'original_pending_confirmation_after_navigation', 'device_bound_account_session',
+            'corporate_context_exact_plan_and_confirmation', 'personal_and_corporate_contexts_coexist',
+            'context_view_selection_explicit', 'corporate_context_survives_restart',
+            'original_device_survives_restart', 'original_account_and_origin_preserved'
+        )) { $controls[$key] = $true }
+        $result = [ordered]@{
+            schema_version = 1; source_sha = $Source; controls = $controls
+            enrolled_device_id = $corporate.Device; desktop_process_stopped = $process.HasExited
+        } | ConvertTo-Json -Depth 5
+        $stream = [IO.File]::Open($corporateFixture.result_path, [IO.FileMode]::CreateNew)
+        try {
+            $bytes = [Text.Encoding]::UTF8.GetBytes($result)
+            $stream.Write($bytes, 0, $bytes.Length)
+        } finally { $stream.Dispose() }
+    }
 } catch {
-    Save-NativeFailureImage $process
+    if (!$corporateStarted) { Save-NativeFailureImage $process }
     throw
 } finally {
     if (!$process.HasExited) { Stop-Process -Id $process.Id }
 }
 
+[Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 complete')
 [ordered]@{
     schema_version = 2
     source_sha = $Source

@@ -25,9 +25,10 @@ if case=="action":request["action"]="execute"
 if case=="extra":request["command"]="unused"
 if case=="oversize":request["user_code"]="X"*5000
 print("private fixture diagnostic",flush=True)
+print("AI_STP_NATIVE_DESKTOP_STAGE_V1 approval",flush=True)
 print("AI_STP_NATIVE_DESKTOP_FIXTURE_V1 "+json.dumps(request),flush=True)
 response=sys.stdin.readline()
-if case=="valid":
+if case in {"valid","exit"}:
  result=json.loads(response)
  expected={
   "protocol":request["protocol"],"nonce":request["nonce"],
@@ -37,6 +38,7 @@ if case=="valid":
 else:
  assert response==""
 pathlib.Path(sys.argv[3]).write_text("completed")
+if case=="exit":sys.exit(3)
 """
 
 
@@ -71,3 +73,21 @@ def test_native_owner_refuses_bad_request_and_closes_owned_input(case: str, tmp_
         )
     assert codes == []
     assert marker.read_text() == "completed"
+
+
+def test_native_owner_failure_reports_only_approved_checkpoint(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    codes: list[str] = []
+    marker = tmp_path / "completed"
+    with pytest.raises(ValueError, match="did not complete its approval journey at approval"):
+        run_owner(
+            [sys.executable, "-u", "-c", CHILD, "a" * 64, "exit", str(marker)],
+            environment=dict(os.environ),
+            errors=tmp_path / "errors",
+            nonce="a" * 64,
+            approve=codes.append,
+        )
+    assert codes == ["SYNTHETIC-CODE"]
+    assert marker.read_text() == "completed"
+    assert capsys.readouterr().out == ""

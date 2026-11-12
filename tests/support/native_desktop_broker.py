@@ -14,6 +14,19 @@ from typing import Any, cast
 from tests.support.native_pipe import Pipe
 
 PREFIX = b"AI_STP_NATIVE_DESKTOP_FIXTURE_V1 "
+STAGE_PREFIX = b"AI_STP_NATIVE_DESKTOP_STAGE_V1 "
+STAGES = frozenset(
+    {
+        b"personal",
+        b"connection",
+        b"pending",
+        b"approval",
+        b"context",
+        b"selection",
+        b"restart",
+        b"complete",
+    }
+)
 PROTOCOL = "ai-stp-native-desktop-fixture/1"
 MAX_REQUEST_BYTES = 4096
 MAX_OUTPUT_BYTES = 2 * 1024 * 1024
@@ -55,6 +68,7 @@ def run_owner(
     assert re.fullmatch(r"[a-f0-9]{64}", nonce)
     approved = 0
     output_bytes = 0
+    stage = "startup"
     with errors.open("xb") as error_stream:
         process = subprocess.Popen(
             arguments,
@@ -83,6 +97,12 @@ def run_owner(
                 output_bytes += len(record)
                 if output_bytes > MAX_OUTPUT_BYTES:
                     raise ValueError("Native Desktop fixture output exceeded its bound")
+                if record.startswith(STAGE_PREFIX):
+                    name = record.removeprefix(STAGE_PREFIX).strip()
+                    if name not in STAGES:
+                        raise ValueError("Native fixture checkpoint refused")
+                    stage = name.decode("ascii")
+                    continue
                 if not record.startswith(PREFIX):
                     continue
                 if approved:
@@ -103,7 +123,9 @@ def run_owner(
                 approved += 1
             result = process.wait(timeout=15)
             if result != 0 or approved != 1:
-                raise ValueError("Native Desktop owner did not complete its approval journey")
+                raise ValueError(
+                    f"Native Desktop owner did not complete its approval journey at {stage}"
+                )
             return approved
         finally:
             pipe.close()

@@ -98,6 +98,12 @@ func native(_ cli: URL, _ arguments: [String]) throws -> [String: Any] {
 }
 
 
+struct ProfilePlan {
+    let raw: String
+    let digest: String
+    let document: [String: Any]
+}
+
 struct Review {
     let raw: String
     let digest: String
@@ -244,7 +250,7 @@ func enter(_ process: Process, _ field: AXUIElement, _ value: String) throws {
     }
 }
 
-func review(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -> Review {
+func profilePlan(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -> ProfilePlan {
     let region = try visible(process, catalogs.text("profiles.reviewNativeProfilePlan", locale))
     var observation = "not observed"
     do {
@@ -265,8 +271,9 @@ func review(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -
                     if let bytes = value.data(using: .utf8),
                         let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] {
                         jsonValues += 1
-                        if let change = object["change"] as? [String: Any], change["context"] is [String: Any] {
-                            document = change
+                        if (object["change"] as? [String: Any])?["context"] is [String: Any] ||
+                            (object["connection_id"] is String && object["origin"] is String && object["label"] is String) {
+                            document = object
                             raw = value
                         }
                     }
@@ -275,14 +282,20 @@ func review(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -
             }
             let roleSummary = roles.keys.sorted().map { "\($0)=\(roles[$0]!)" }.joined(separator: ",")
             observation = "nodes=\(nodes), strings=\(strings), JSON=\(jsonValues), plan=\(raw != nil), digest=\(digest != nil), roles=[\(roleSummary)]"
-            guard let change = document, let raw = raw, let digest = digest,
-                let context = change["context"] as? [String: Any], let action = change["action"] as? String
-            else { return nil }
-            return Review(raw: raw, digest: digest, context: context, action: action)
+            guard let document = document, let raw = raw, let digest = digest else { return nil }
+            return ProfilePlan(raw: raw, digest: digest, document: document)
         }
     } catch {
         throw ProbeFailure("\(error); native review observation: \(observation)")
     }
+}
+
+func review(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -> Review {
+    let publicPlan = try profilePlan(process, catalogs, locale)
+    guard let change = publicPlan.document["change"] as? [String: Any],
+        let context = change["context"] as? [String: Any], let action = change["action"] as? String
+    else { throw ProbeFailure("Displayed profile review does not contain a context plan") }
+    return Review(raw: publicPlan.raw, digest: publicPlan.digest, context: context, action: action)
 }
 
 func validate(_ review: Review, _ action: String, _ label: String, _ identifier: String? = nil) throws -> String {
@@ -446,6 +459,184 @@ func personal(_ process: Process, _ cli: URL, _ catalogs: Catalogs) throws -> (S
     return (secondID, !initialDark, combinations)
 }
 
+
+func corporateStage(_ name: String) {
+    FileHandle.standardOutput.write(Data(("AI_STP_NATIVE_DESKTOP_STAGE_V1 " + name + "\n").utf8))
+}
+
+struct CorporateFixture {
+    let nonce: String
+    let source: String
+    let origin: String
+    let account: String
+    let organization: String
+    let result: URL
+
+    init(_ path: String, _ environment: [String: String]) throws {
+        let url = URL(fileURLWithPath: path).standardizedFileURL
+        guard let temporary = environment["RUNNER_TEMP"], let source = environment["GITHUB_SHA"] else {
+            throw ProbeFailure("Native corporate runner ownership is unavailable")
+        }
+        let root = URL(fileURLWithPath: temporary).standardizedFileURL.path + "/"
+        let properties = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        try check(url.path.hasPrefix(root) && properties.isRegularFile == true &&
+            properties.isSymbolicLink == false && (properties.fileSize ?? 16385) <= 16384,
+            "Native corporate fixture file is not owned and bounded")
+        guard let value = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String],
+            value.count == 8, value["protocol"] == "ai-stp-native-desktop-fixture/1",
+            value["source_sha"] == source, let nonce = value["nonce"],
+            nonce.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil,
+            let origin = value["origin"],
+            origin.range(of: "^http://127[.]0[.]0[.]1:[1-9][0-9]{0,4}$", options: .regularExpression) != nil,
+            let account = value["account_id"], !account.isEmpty, account.utf8.count <= 128,
+            let organization = value["organization_id"], !organization.isEmpty, organization.utf8.count <= 128,
+            let project = value["project_id"], !project.isEmpty, project.utf8.count <= 128,
+            let result = value["result_path"],
+            result == url.deletingLastPathComponent().appendingPathComponent("native-corporate-journey.json").path
+        else { throw ProbeFailure("Native corporate fixture contract differs") }
+        try check(!FileManager.default.fileExists(atPath: result), "Native corporate result already exists")
+        self.nonce = nonce
+        self.source = source
+        self.origin = origin
+        self.account = account
+        self.organization = organization
+        self.result = URL(fileURLWithPath: result)
+    }
+}
+
+func profileOption(_ process: Process, _ catalogs: Catalogs, _ key: String, _ name: String) throws {
+    let selector = try visible(process, catalogs.text(key), role: kAXPopUpButtonRole, enabled: true)
+    if attribute(selector, kAXValueAttribute) as? String != name {
+        try press(selector)
+        let option = try wait("owned native profile option") {
+            match(application(process), label: name, role: kAXMenuItemRole, enabled: true)
+        }
+        try press(option)
+    }
+    _ = try wait("selected native profile option") {
+        attribute(selector, kAXValueAttribute) as? String == name ? true : nil
+    }
+}
+
+func remoteReview(_ review: Review, _ fixture: CorporateFixture, _ action: String,
+    _ connection: String, _ identifier: String? = nil) throws -> String {
+    guard review.action == action, review.context["label"] as? String == "Native corporate context",
+        let authority = review.context["authority"] as? [String: Any], authority["kind"] as? String == "remote",
+        let organization = authority["organization"] as? [String: Any],
+        organization["organization_id"] as? String == fixture.organization,
+        let account = authority["account"] as? [String: Any], account["account_id"] as? String == fixture.account,
+        account["origin"] as? String == fixture.origin,
+        let enrollment = account["connection"] as? [String: Any], enrollment["connection_id"] as? String == connection,
+        let id = review.context["context_id"] as? String, !id.isEmpty, id.utf8.count <= 512
+    else { throw ProbeFailure("Displayed corporate plan changed intent or authority") }
+    if let expected = identifier { try check(id == expected, "Displayed corporate plan changed context identity") }
+    return id
+}
+
+func corporateApproval(_ fixture: CorporateFixture, _ code: String) throws {
+    try check(!code.isEmpty && code.utf8.count <= 128, "Native approval code is invalid")
+    let request: [String: Any] = [
+        "protocol": "ai-stp-native-desktop-fixture/1", "nonce": fixture.nonce,
+        "sequence": 1, "action": "approve_device", "user_code": code,
+    ]
+    let bytes = try JSONSerialization.data(withJSONObject: request, options: [.sortedKeys])
+    FileHandle.standardOutput.write(Data("AI_STP_NATIVE_DESKTOP_FIXTURE_V1 ".utf8) + bytes + Data([10]))
+    guard let line = readLine(), line.utf8.count <= 4096, let data = line.data(using: .utf8),
+        let reply = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        reply.count == 4, reply["protocol"] as? String == "ai-stp-native-desktop-fixture/1",
+        reply["nonce"] as? String == fixture.nonce, reply["sequence"] as? Int == 1,
+        reply["approved"] as? Bool == true
+    else { throw ProbeFailure("Native approval response differs") }
+}
+
+func corporateSession(_ cli: URL, _ fixture: CorporateFixture, _ connection: String) throws {
+    let status = try native(cli, ["account", "status", "--connection", connection])
+    guard status["origin"] as? String == fixture.origin, let session = status["session"] as? [String: Any],
+        session["state"] as? String == "authorized", session["account_id"] as? String == fixture.account
+    else { throw ProbeFailure("Original corporate account session changed") }
+}
+
+func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: CorporateFixture,
+    _ identity: Data) throws -> (String, String, String) {
+    try pressNamed(process, catalogs.text("shell.connections"), role: "AXLink")
+    try enter(process, visible(process, catalogs.text("profiles.connectionLabel"), role: kAXTextFieldRole, enabled: true),
+        "Native company connection")
+    try enter(process, visible(process, catalogs.text("profiles.serverOrigin"), role: kAXTextFieldRole, enabled: true), fixture.origin)
+    try pressNamed(process, catalogs.text("profiles.checkServerSignInMethods"), role: kAXButtonRole)
+    try profileOption(process, catalogs, "profiles.signInMethod", "github")
+    try pressNamed(process, catalogs.text("profiles.reviewConnectionCreation"), role: kAXButtonRole)
+    try openPublicPlan(process, catalogs)
+    corporateStage("connection")
+    let plan = try profilePlan(process, catalogs, "en").document
+    guard plan["label"] as? String == "Native company connection", plan["origin"] as? String == fixture.origin,
+        plan["provider"] as? String == "github", let connection = plan["connection_id"] as? String, !connection.isEmpty
+    else { throw ProbeFailure("Displayed connection plan changed intent") }
+    try confirm(process, catalogs)
+    try pressNamed(process, catalogs.text("profiles.openThisAccountSession"), role: "AXLink")
+    try pressNamed(process, "GitHub", role: kAXButtonRole)
+    try pressNamed(process, catalogs.text("auth.startSignIn"), role: kAXButtonRole)
+    _ = try visible(process, catalogs.text("auth.approveThisDeviceInYourBrowser"))
+    corporateStage("pending")
+    let pending = try native(cli, ["account", "status", "--connection", connection])["session"] as? [String: Any]
+    guard pending?["state"] as? String == "pending", let code = pending?["user_code"] as? String else {
+        throw ProbeFailure("Native sign-in did not retain a pending confirmation")
+    }
+    try pressNamed(process, catalogs.text("shell.connections"), role: "AXLink")
+    try pressNamed(process, catalogs.text("profiles.openThisAccountSession"), role: "AXLink")
+    _ = try visible(process, catalogs.text("auth.approveThisDeviceInYourBrowser"))
+    let again = try native(cli, ["account", "status", "--connection", connection])["session"] as? [String: Any]
+    try check(again?["state"] as? String == "pending" && again?["user_code"] as? String == code,
+        "Navigation replaced the original pending confirmation")
+    _ = try wait("original pending confirmation displayed") {
+        match(application(process), label: code, role: nil, enabled: false) == nil ? nil : true
+    }
+    corporateStage("approval")
+    try corporateApproval(fixture, code)
+    try pressNamed(process, catalogs.text("auth.openBrowserAndConfirm"), role: kAXButtonRole)
+    _ = try visible(process, catalogs.text("auth.signedIn"))
+    try corporateSession(cli, fixture, connection)
+    try pressNamed(process, catalogs.text("shell.connections"), role: "AXLink")
+    try enter(process, visible(process, catalogs.text("profiles.contextLabel"), role: kAXTextFieldRole, enabled: true),
+        "Native corporate context")
+    try profileOption(process, catalogs, "profiles.contextConnection", "Native company connection · " + fixture.origin)
+    try pressNamed(process, catalogs.text("profiles.readAvailableOrganizations"), role: kAXButtonRole)
+    try profileOption(process, catalogs, "profiles.organization", "Installed fixture company · corporate")
+    try pressNamed(process, catalogs.text("profiles.reviewContextCreation"), role: kAXButtonRole)
+    try openPublicPlan(process, catalogs)
+    corporateStage("context")
+    let retained = try review(process, catalogs, "en")
+    let context = try remoteReview(retained, fixture, "create", connection)
+    try confirm(process, catalogs)
+    let listed = try savedContexts(cli)["contexts"] as? [[String: Any]] ?? []
+    let local = listed.filter { (($0["context"] as? [String: Any])?["authority"] as? [String: Any])?["kind"] as? String == "local" }
+    try check(listed.count == 3 && local.count == 2, "Personal and corporate contexts did not coexist")
+    var ancestor: AXUIElement? = try visible(process, "Native corporate context")
+    var button: AXUIElement?
+    for _ in 0..<6 {
+        guard let node = ancestor else { break }
+        button = match(node, label: try catalogs.text("profiles.reviewViewSelection"), role: kAXButtonRole, enabled: true)
+        if button != nil { break }
+        if let parent = attribute(node, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() {
+            ancestor = (parent as! AXUIElement)
+        } else { ancestor = nil }
+    }
+    guard let selection = button else { throw ProbeFailure("Owned corporate context selection was not found") }
+    corporateStage("selection")
+    try press(selection)
+    try openPublicPlan(process, catalogs)
+    _ = try remoteReview(review(process, catalogs, "en"), fixture, "select", connection, context)
+    try confirm(process, catalogs)
+    try selected(cli, context)
+    guard let authority = retained.context["authority"] as? [String: Any],
+        let account = authority["account"] as? [String: Any],
+        let device = account["device_id"] as? String, !device.isEmpty else {
+        throw ProbeFailure("Corporate context did not resolve its enrolled device")
+    }
+    let observed = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
+    try check(observed == identity, "Corporate sign-in replaced the original native identity")
+    return (context, connection, device)
+}
+
 func prove() throws {
     let environment = ProcessInfo.processInfo.environment
     try check(environment["GITHUB_ACTIONS"] == "true" && environment["RUNNER_ENVIRONMENT"] == "github-hosted" && environment["RUNNER_OS"] == "macOS",
@@ -453,7 +644,8 @@ func prove() throws {
     try check(AXIsProcessTrusted(), "Hosted macOS accessibility client lacks authorization")
     try check(CGPreflightPostEventAccess(), "Hosted macOS keyboard client lacks authorization")
     let arguments = CommandLine.arguments
-    try check(arguments.count == 4, "Installed executable, CLI and message catalog paths are required")
+    try check(arguments.count == 5, "Installed executable, CLI, message catalog and result paths are required")
+    let corporateFixture = try environment["AI_STP_NATIVE_DESKTOP_FIXTURE"].map { try CorporateFixture($0, environment) }
     let app = URL(fileURLWithPath: arguments[1])
     let cli = URL(fileURLWithPath: arguments[2])
     let catalogs = try Catalogs(URL(fileURLWithPath: arguments[3]))
@@ -491,6 +683,7 @@ func prove() throws {
         throw error
     }
     let identity = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
+    corporateStage("personal")
     let (selectedID, dark, combinations) = try personal(process, cli, catalogs)
     try check(combinations == catalogs.languages.count * 2, "Native appearance cases are incomplete")
     try close(process)
@@ -512,7 +705,38 @@ func prove() throws {
     _ = try visible(process, "Initialized")
     let restarted = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
     try check(identity == restarted, "Installed device identity changed after restart")
-    try close(process)
+    if let fixture = corporateFixture {
+        let (context, connection, device) = try corporate(process, cli, catalogs, fixture, identity)
+        try close(process)
+        corporateStage("restart")
+        process = try launch(app)
+        _ = try visible(process, catalogs.text("language.label"), role: kAXPopUpButtonRole, enabled: true)
+        try selected(cli, context)
+        try pressNamed(process, catalogs.text("shell.connections"), role: "AXLink")
+        _ = try visible(process, "Native corporate context" + catalogs.text("profiles.selectedView"))
+        try check((try savedContexts(cli)["contexts"] as? [[String: Any]])?.count == 3,
+            "Restart lost coexisting personal and corporate contexts")
+        try corporateSession(cli, fixture, connection)
+        let observed = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
+        try check(observed == identity, "Corporate restart changed the original device identity")
+        try close(process)
+        let keys = [
+            "installed_personal_journey_retained", "connection_exact_plan_and_confirmation",
+            "original_pending_confirmation_after_navigation", "device_bound_account_session",
+            "corporate_context_exact_plan_and_confirmation", "personal_and_corporate_contexts_coexist",
+            "context_view_selection_explicit", "corporate_context_survives_restart",
+            "original_device_survives_restart", "original_account_and_origin_preserved",
+        ]
+        let retained: [String: Any] = [
+            "schema_version": 1, "source_sha": fixture.source,
+            "controls": Dictionary(uniqueKeysWithValues: keys.map { ($0, true) }),
+            "enrolled_device_id": device, "desktop_process_stopped": !process.isRunning,
+        ]
+        try JSONSerialization.data(withJSONObject: retained, options: [.sortedKeys]).write(to: fixture.result, options: [.withoutOverwriting])
+    } else {
+        try close(process)
+    }
+    corporateStage("complete")
     let result: [String: Any] = [
         "cli_version": cliVersion,
         "theme_locale_observations": combinations,
@@ -530,7 +754,7 @@ func prove() throws {
         ],
     ]
     let output = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
-    print(String(decoding: output, as: UTF8.self))
+    try output.write(to: URL(fileURLWithPath: arguments[4]), options: [.withoutOverwriting])
 }
 
 do {

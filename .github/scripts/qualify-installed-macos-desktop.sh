@@ -21,7 +21,11 @@ test "$(shasum -a 256 "${installer}" | cut -d ' ' -f 1)" = "${expected}"
 fixture=$(mktemp -d "${RUNNER_TEMP}/ai-stp-installed-macos.XXXXXX")
 cleanup() {
   if test -f "${fixture}/mounted"; then hdiutil detach "${fixture}/mount" >/dev/null; fi
-  rm -rf "${fixture}"
+  if test -f "${fixture}/personal-journey.json"; then
+    rm -rf "${fixture}"
+  else
+    echo "Retained refused native fixture until disposable runner teardown" >&2
+  fi
 }
 trap cleanup EXIT
 mkdir -m 700 "${fixture}/mount" "${fixture}/data" "${fixture}/config" "${fixture}/cache"
@@ -37,7 +41,8 @@ test -x "${app}" && test -x "${cli}"
 export XDG_DATA_HOME="${fixture}/data"
 export XDG_CONFIG_HOME="${fixture}/config"
 export XDG_CACHE_HOME="${fixture}/cache"
-journey=$(swift .github/scripts/qualify-installed-macos-desktop.swift "${app}" "${cli}" apps/desktop/src/locales)
+swift .github/scripts/qualify-installed-macos-desktop.swift "${app}" "${cli}" apps/desktop/src/locales "${fixture}/personal-journey.json"
+journey=$(cat "${fixture}/personal-journey.json")
 jq -e '.cli_version | test("^[0-9]+[.][0-9]+[.][0-9]+$")' <<<"${journey}" >/dev/null
 jq -n --arg source "${source}" --arg installer "${expected}" --argjson journey "${journey}" \
   --arg app "$(shasum -a 256 "${app}" | cut -d ' ' -f 1)" \
