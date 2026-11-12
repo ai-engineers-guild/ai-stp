@@ -138,32 +138,8 @@ ci-integration-web-documentation-markdown-syntax:
 # Integration native native formatting all target analysis and library units.
 [group('ci')]
 [private]
-[script('bash')]
 ci-integration-native-native-formatting-all-target-analysis-and-library-units:
-    set -euo pipefail
-    case "${RUNNER_OS}" in
-      macOS)
-        swiftc -typecheck .github/scripts/qualify-installed-macos-desktop.swift
-        ;;
-      Windows)
-        pwsh -NoProfile -NonInteractive -File .github/scripts/check-native-powershell.ps1
-        ;;
-    esac
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- resources --check
-    cargo fmt --manifest-path apps/cli/Cargo.toml --check
-    cargo fmt --manifest-path apps/cli/xtask/Cargo.toml --check
-    cargo clippy --locked --manifest-path apps/cli/xtask/Cargo.toml \
-      --all-targets -- -D warnings
-    cargo nextest run --locked --manifest-path apps/cli/xtask/Cargo.toml
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
-      cargo clippy --locked --all-targets -- -D warnings
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
-      cargo nextest run --locked --lib
-    cargo fmt --manifest-path apps/desktop/core/Cargo.toml --check
-    cargo clippy --locked --manifest-path apps/desktop/core/Cargo.toml \
-      --all-targets -- -D warnings
-    cargo nextest run --locked --manifest-path apps/desktop/core/Cargo.toml
-    cargo test --locked --manifest-path apps/desktop/core/Cargo.toml --doc
+    bash .github/scripts/check-native-integration.sh
 
 # Integration native existing native vault and independent cli processes.
 [group('ci')]
@@ -211,15 +187,8 @@ ci-cli-native-boundary-checks:
 # Cli existing consumers and real sqlite backup.
 [group('ci')]
 [private]
-[script('bash')]
 ci-cli-existing-consumers-and-real-sqlite-backup:
-    set -euo pipefail
-    binary="$(
-      cd apps/cli &&
-        cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
-    )"
-    printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
-    uv run --no-sync python tests/native_contract/verify.py "$binary"
+    bash .github/scripts/qualify-native-consumers.sh
 
 # Cli build the immutable previous schema58 native writer.
 [group('ci')]
@@ -414,12 +383,8 @@ ci-desktop-tauri-build:
 # Desktop verify the macos disk image.
 [group('ci')]
 [private]
-[script('bash')]
 ci-desktop-verify-the-macos-disk-image:
-    set -euo pipefail
-    images=(apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg)
-    test "${#images[@]}" -eq 1 && test -f "${images[0]}"
-    /usr/bin/hdiutil verify "${images[0]}"
+    bash .github/scripts/verify-desktop-dmg.sh
 
 # Desktop probe the packaged cli resource tree.
 [group('ci')]
@@ -432,33 +397,8 @@ ci-desktop-probe-the-packaged-cli-resource-tree:
 # Installed desktop personal workspace on the two native GUI owners.
 [group('ci')]
 [private]
-[script('bash')]
 ci-desktop-installed-personal-workspace:
-    set -euo pipefail
-    bundle="apps/desktop/src-tauri/target/release/bundle"
-    source="${GITHUB_SHA}"
-    output="${RUNNER_TEMP}/installed-personal-desktop.json"
-    if test -n "${AI_STP_DESKTOP_DIAGNOSTIC_SOURCE:-}"; then
-      test "${GITHUB_EVENT_NAME}" = workflow_dispatch
-      test "${GITHUB_WORKFLOW}" = desktop
-      bundle="${RUNNER_TEMP}/qualified-desktop"
-      source="${AI_STP_DESKTOP_DIAGNOSTIC_SOURCE}"
-    fi
-    case "${RUNNER_OS}" in
-      macOS)
-        bash .github/scripts/qualify-installed-macos-desktop.sh \
-          "${bundle}" "${source}" "${output}"
-        ;;
-      Windows)
-        pwsh -STA -NoProfile -NonInteractive -File \
-          .github/scripts/qualify-installed-windows-desktop.ps1 \
-          -Bundle "$(cygpath -aw "${bundle}")" -Source "${source}" \
-          -Output "$(cygpath -aw "${output}")"
-        ;;
-      *)
-        exit 2
-        ;;
-    esac
+    bash .github/scripts/qualify-installed-native-desktop.sh
 
 # Current Dev admission and distinct evidence for manual native-owner diagnosis.
 [group('ci')]
