@@ -164,6 +164,13 @@ function Focus-Control([System.Diagnostics.Process] $Process, $Element) {
     }.GetNewClosure())
 }
 
+function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) {
+    if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
+        ![System.Windows.Automation.Automation]::Compare(
+            [System.Windows.Automation.AutomationElement]::FocusedElement, $Element
+        )) { throw 'Native edit lost its owned keyboard target' }
+}
+
 function Read-EditValue($Element) {
     $pattern = $null
     if ($Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $pattern)) {
@@ -184,16 +191,42 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     Focus-Control $Process $field
     $before = Read-EditValue $field
     if ($before.Length -gt 0) {
-        [System.Windows.Forms.SendKeys]::SendWait('^a{BACKSPACE}')
-        $null = Wait-Observation $Process 'cleared context label' ({
-            if ((Read-EditValue $field) -ceq '') { return $true }
+        $text = $null
+        if (!$field.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref] $text) -or
+            $text.SupportedTextSelection -eq [System.Windows.Automation.SupportedTextSelection]::None) {
+            throw 'Native context edit cannot expose its text selection'
+        }
+        $text.DocumentRange.Select()
+        $null = Wait-Observation $Process 'complete context text selection' ({
+            $ranges = @($text.GetSelection())
+            if ($ranges.Count -eq 1 -and $null -ne $ranges[0] -and
+                $ranges[0].GetText(65537).TrimEnd([char[]] "`r`n") -ceq $before -and
+                (Read-EditValue $field) -ceq $before) { return $true }
             return $null
         }.GetNewClosure())
+        Assert-KeyboardTarget $Process $field
+        [System.Windows.Forms.SendKeys]::SendWait('{BACKSPACE}')
+        try {
+            $null = Wait-Observation $Process 'cleared context label' ({
+                if ((Read-EditValue $field) -ceq '') { return $true }
+                return $null
+            }.GetNewClosure())
+        } catch {
+            $observed = Read-EditValue $field
+            $ranges = @($text.GetSelection())
+            Write-Host ([ordered]@{
+                native_text_clear = 'refused'
+                initial_length = $before.Length
+                observed_length = $observed.Length
+                unchanged = $observed -ceq $before
+                selection_ranges = $ranges.Count
+                foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+            } | ConvertTo-Json -Compress)
+            throw
+        }
+        $script:contextTextReplacements++
     }
-    if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
-        ![System.Windows.Automation.Automation]::Compare(
-            [System.Windows.Automation.AutomationElement]::FocusedElement, $field
-        )) { throw 'Native edit lost its owned keyboard target' }
+    Assert-KeyboardTarget $Process $field
     [System.Windows.Forms.SendKeys]::SendWait($Label)
     try {
         $null = Wait-Observation $Process 'entered context label' ({
@@ -390,6 +423,7 @@ function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
         [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'shell.light')
     )
     $initialDark = $null -ne $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+    $script:contextTextReplacements = 0
     $first = New-ContextReview $Process 'Native personal one'
     $firstId = Assert-Review $first 'create' 'Native personal one'
     $locale = 'en'
@@ -431,6 +465,9 @@ function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
     $ids = @($listed.contexts | ForEach-Object { $_.context.context_id })
     if ($ids.Count -ne 2 -or $firstId -cnotin $ids -or $secondId -cnotin $ids) {
         throw 'Dismissed context review changed native records'
+    }
+    if ($script:contextTextReplacements -ne 2) {
+        throw 'Native context text replacement coverage differs'
     }
     Select-Context $Process 'Native personal one' $firstId
     Select-Context $Process 'Native personal two' $secondId
@@ -498,6 +535,7 @@ try {
     cli_version = $version.cli_version
     installed_personal_workspace_restart = $true
     theme_locale_observations = $personal.Combinations
+    native_text_selection_replacements = $script:contextTextReplacements
     personal_controls = [ordered]@{
         native_vault_initialization = $true
         two_native_offline_contexts = $true
