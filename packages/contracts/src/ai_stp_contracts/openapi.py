@@ -1,10 +1,10 @@
-"""Deterministic OpenAPI 3.1 document for `/v1` (issue #71, SPEC-010 REQ-1010).
+"""Deterministic OpenAPI 3.1 document for `/v1`.
 
 The document is **generated from the same Pydantic models** that generate
 `schemas/v1`, by the same command, in the same run. That is what makes the two
 published halves incapable of drifting: there is one source, and `check-schemas`
 compares both outputs byte for byte. A hand-written OpenAPI beside generated
-schemas would be a second source of truth, which `SPEC-015` REQ-1508 forbids.
+schemas would duplicate the source of truth.
 
 Every payload schema is emitted once into `components.schemas` through a single
 `models_json_schema` call, so a type shared by two operations is one definition
@@ -4534,7 +4534,7 @@ def build_document() -> dict[str, object]:
                     "scheme": "bearer",
                     "description": (
                         "Short-lived token from the device-code exchange. Per-request "
-                        "Ed25519 signing is reserved for attestation (SPEC-002)."
+                        "Ed25519 signing is reserved for attestation."
                     ),
                 }
             },

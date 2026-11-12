@@ -1,4 +1,4 @@
-"""Sign-in payloads (issue #71, SPEC-002, SPEC-011 REQ-1108).
+"""Sign-in payloads.
 
 The CLI signs in through a **device-code flow brokered by our own platform**,
 not a loopback redirect: the agent commonly runs over SSH and inside containers,
@@ -8,7 +8,7 @@ verification URI and polls.
 
 Two consequences are load-bearing:
 
-- The CLI never sees a password or a provider token (SPEC-011 REQ-1108). It
+- The CLI never sees a password or a provider token. It
   receives our own credentials, and only after a human approved the request in
   a browser.
 - The device's Ed25519 public key binds at **exchange**, not at start. Before a
@@ -17,7 +17,7 @@ Two consequences are load-bearing:
 
 Token fields carry `repr=False`. They are secrets: they belong in the OS
 credential store and must never reach a log, a `--json` envelope, a fixture or
-an agent's context (SPEC-002 security section). Excluding them from `repr` stops
+an agent's context. Excluding them from `repr` stops
 the most common accident — an object interpolated into a log line.
 """
 
@@ -34,12 +34,12 @@ from ai_stp_contracts.http import (
 from ai_stp_contracts.model import ContractModel
 from ai_stp_foundation.ids import stable_id_pattern
 
-#: The identity providers of the deployment (SPEC-002 REQ-1002). Google and
+#: The identity providers of the deployment. Google and
 #: GitHub are the public MVP pair; ``authentik`` and ``keycloak`` are generic
-#: OIDC corporate providers configured by issuer URL (ADR-0218), ``gitlab``
-#: is an OIDC provider pointed at a self-managed GitLab instance (ADR-0223),
+#: OIDC corporate providers configured by issuer URL, ``gitlab``
+#: is an OIDC provider pointed at a self-managed GitLab instance,
 #: and ``saml`` is a SAML 2.0 identity provider for corporate deployments
-#: whose IdP cannot speak OIDC (ADR-0226). A new provider is a new enum
+#: whose IdP cannot speak OIDC. A new provider is a new enum
 #: value and therefore a schema change, not a configuration flag.
 type OAuthProvider = Literal["google", "github", "authentik", "keycloak", "gitlab", "saml"]
 
@@ -226,9 +226,8 @@ def device_refresh_message(request: DeviceRefreshRequest) -> bytes:
 class OAuthCallbackResult(ContractModel):
     """The outcome of the browser half, as the web surface reads it.
 
-    `conflict` is a first-class outcome rather than an error: SPEC-002 REQ-202
-    forbids silently merging two populated accounts, so the user has to be told
-    and asked rather than have a merge happen behind them.
+    `conflict` is an explicit outcome for two populated accounts. Sign-in
+    never merges them implicitly.
     """
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

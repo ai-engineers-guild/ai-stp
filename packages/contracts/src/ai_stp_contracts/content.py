@@ -1,8 +1,6 @@
-"""Public content hub publication (SPEC-054, ADR-0132).
+"""Public content hub publication payloads.
 
-Field dictionaries live here. Behaviour belongs to SPEC-054; architecture
-belongs to ADR-0132. Response models tolerate additive fields; request models
-reject unknown keys.
+Response models allow additive fields; request models reject unknown keys.
 """
 
 from __future__ import annotations

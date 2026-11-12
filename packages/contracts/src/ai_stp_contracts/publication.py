@@ -1,4 +1,4 @@
-"""Publication plan and validation wire payloads (SPEC-026, SPEC-007)."""
+"""Publication plan and validation wire payloads."""
 
 from __future__ import annotations
 

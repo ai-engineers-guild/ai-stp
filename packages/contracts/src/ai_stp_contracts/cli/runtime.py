@@ -82,7 +82,7 @@ class ConfigReport(ContractModel):
     values: Annotated[list[ConfigValue], Field(min_length=1)]
 
     #: Absent until a file exists. Its absence is not an error: defaults are a
-    #: complete configuration (`docs/contracts/cli-config.md`).
+    #: complete configuration.
     config_path: str | None
 
 

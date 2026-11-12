@@ -1,4 +1,4 @@
-"""Owner and staff workspace read models (SPEC-027, ADR-0068)."""
+"""Owner and staff workspace read models."""
 
 from __future__ import annotations
 
@@ -158,7 +158,7 @@ class OwnerObjectCapabilities(ContractModel):
     ] = []
 
 
-# SPEC-035 component media upload bounds (author gallery, not profile avatar).
+# Component media upload bounds for the author gallery.
 COMPONENT_MEDIA_MAX_BYTES: Final = 25 * 1024 * 1024
 COMPONENT_MEDIA_ALLOWED_MIME: Final = frozenset(
     {
@@ -176,7 +176,7 @@ COMPONENT_MEDIA_PUBLIC_PREFIX: Final = "/v1/media/component/"
 def validate_component_media_upload(
     *, content_type: str, size_bytes: int, payload: bytes | None = None
 ) -> Literal["image", "video"]:
-    """Accept allowlisted image/video payloads within the 25 MiB bound (REQ-3506)."""
+    """Accept allowlisted image/video payloads within the 25 MiB bound."""
     if content_type not in COMPONENT_MEDIA_ALLOWED_MIME:
         raise ValueError("unsupported component media mime type")
     if size_bytes <= 0 or size_bytes > COMPONENT_MEDIA_MAX_BYTES:
@@ -395,26 +395,16 @@ class StaffReportDetail(ContractModel):
 
 #: What an owner may do to the lifecycle of their own published version.
 #:
-#: Not `block`, `hide` or `restore-from-hidden`: those are moderation, they are
-#: named by `SPEC-026` `REQ-2617` as staff actions with a reason and an audit
-#: event, and an author moderating their own object would be a different
-#: decision with a different authority behind it.
+#: Staff moderation actions require a reason and an audit event. Authors
+#: cannot moderate their own objects.
 type OwnerLifecycleAction = Literal["deprecate", "undeprecate"]
 
 
 class OwnerLifecycleRequest(ContractModel):
-    """POST a lifecycle transition on an exact owned version (`SPEC-007`).
+    """Lifecycle transition on an exact owned version.
 
-    `deprecated` was declared in the state vocabulary, listed in three models
-    and offered by a CLI hint, and written by nothing: the staff route accepts
-    only `block`, `hide` and `restore`, and every owner version route was a
-    read. Two successive plans carried "deprecate the old corpus" as pending
-    work against a verb that did not exist.
-
-    The author holds this one because deprecation is a statement about the
-    object's own future rather than about its acceptability, and because the
-    evidence that motivates it — `SPEC-044` archive observation — already
-    reaches the author as a proposal.
+    Owners deprecate or undo deprecation of their versions. Staff moderation
+    uses separate actions with an explicit reason and audit event.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)

@@ -1,4 +1,4 @@
-"""Liveness and readiness payloads (SPEC-010 REQ-1001, states section).
+"""Liveness and readiness payloads.
 
 Liveness says only that the process answers. Readiness is the stricter claim
 and stays ``not_ready`` until migrations are applied and every required
@@ -56,7 +56,7 @@ class ReadinessResponse(ContractModel):
     def _status_follows_the_checks(self) -> "ReadinessResponse":
         """`ready` may not coexist with a failing check.
 
-        SPEC-010 states readiness is not successful until migrations are applied
+        Readiness is not successful until migrations are applied
         and every required dependency answers. Without this, a handler computing
         `status` from a stale value advertises a half-migrated deployment as
         serving, and every probe that reads only `status` — the field named for

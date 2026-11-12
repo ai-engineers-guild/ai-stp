@@ -1,7 +1,7 @@
-"""Stable machine error codes (docs/contracts/cli-json.md, issue #63).
+"""Stable machine error codes.
 
-A closed immutable registry: every code maps to its exit class from the
-cli-json contract and a short description. Producers must emit registered
+A closed immutable registry: every code maps to its process exit class and
+a short description. Producers must emit registered
 codes; consumers stay pattern-tolerant so a newer producer's additive code
 never breaks an older reader. The registry also exports as a JSON Schema
 enum for non-Python consumers.
@@ -15,7 +15,7 @@ ERROR_CODE_PATTERN: Final[str] = r"^AI_STP_[A-Z0-9]+(_[A-Z0-9]+)*$"
 
 type ExitClass = Literal[2, 3, 4, 5, 6, 70]
 
-# Exit classes per docs/contracts/cli-json.md.
+# Stable CLI process exit classes.
 EXIT_INVALID_INPUT: Final[ExitClass] = 2
 EXIT_AUTH: Final[ExitClass] = 3
 EXIT_CONFLICT_OR_DECISION: Final[ExitClass] = 4

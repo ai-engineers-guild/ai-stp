@@ -1,4 +1,4 @@
-"""Frozen initial registry manifest (SPEC-081 REQ-8202).
+"""Frozen initial registry manifest.
 
 Identifiers are manifest identity, not derived from mutable display names.
 Never reorder or replace existing entries; a changed manifest needs a new version.

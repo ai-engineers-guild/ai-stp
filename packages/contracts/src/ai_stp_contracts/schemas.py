@@ -1,4 +1,4 @@
-"""Repository-wide schema generation entrypoint (SPEC-015 REQ-1509).
+"""Repository-wide schema generation entrypoint.
 
 The wire contract is the outermost boundary of the system — every other layer
 is something that eventually crosses it — so ``contracts`` now sits at the top

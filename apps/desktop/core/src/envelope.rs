@@ -1,4 +1,4 @@
-//! ai-stp CLI machine envelope (`docs/contracts/cli-json.md`).
+//! ai-stp CLI machine envelope.
 //!
 //! Invariants enforced here:
 //! - stdout must be exactly one JSON object (plus optional trailing newline);
