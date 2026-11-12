@@ -115,7 +115,7 @@ class _HarnessSource(ContractModel):
     setup_id: str
     setup_version: str = "1.0"
     #: The published axis: `minimal`, `baseline`, `full-auto`, `nddev-builder`,
-    #: read from `setup.json`'s own `"id"` by the builder. `ADR-0130`.
+    #: read from `setup.json`'s own `"id"` by the builder.
     posture: str
     repository: str
     commit: str
@@ -232,7 +232,7 @@ def _component_name(slug: str, harness_id: str, posture: str) -> str:
     `Agents.Md for pi` and `Nddev Setup.Md for pi`. A slug is a **filename in
     somebody else's tree**, not a phrase: `AGENTS.md` is what that ecosystem
     calls the file, and title-casing it invents a name that exists in no source
-    — the same defect as `ADR-0130`'s invented role, one size smaller.
+    — it would invent an unsourced label.
 
     The posture is here because the same slug now appears in up to four setups
     of one harness as four separate objects, and a catalogue of four identically
@@ -469,7 +469,7 @@ def _setup(source: _HarnessSource, components: tuple[FirstPartyVersion, ...]) ->
                 # publish roles — by decision, not omission. This field held
                 # `ai-harness-engineer`, a string that appears in no file of
                 # theirs and rendered on every card as a claim about their
-                # artifact. `ADR-0130`.
+                # artifact.
                 "target_role": None,
                 "posture": source.posture,
                 "supported_tasks": ["development", "validation", "release"],
@@ -521,7 +521,7 @@ def versions() -> tuple[FirstPartyVersion, ...]:
 def family(harness_id: str, posture: str) -> tuple[FirstPartyVersion, ...]:
     """One published setup and exactly its own members.
 
-    A setup is a `(harness_id, posture)` since `ADR-0130`, so selecting on the
+    A setup is identified by `(harness_id, posture)`, so selecting on the
     harness alone returns four setups and all four postures' components. Every
     caller that wanted "the grok-build setup and its parts" wanted this, and got
     the right answer only while one posture of four was imported.

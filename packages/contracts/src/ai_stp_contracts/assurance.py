@@ -1,4 +1,4 @@
-"""Target-bound assurance and exact projection contracts (SPEC-064)."""
+"""Target-bound assurance and exact projection contracts."""
 
 from __future__ import annotations
 

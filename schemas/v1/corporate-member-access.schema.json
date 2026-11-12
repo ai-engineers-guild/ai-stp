@@ -175,7 +175,7 @@
     },
     "CorporateMemberPrivateGrant": {
       "additionalProperties": true,
-      "description": "Read-only projection of a private major-line AccessGrant (SPEC-002) for\nthe employee-access view — never a source of corporate permissions.",
+      "description": "Read-only projection of a private major-line AccessGrant for\nthe employee-access view — never a source of corporate permissions.",
       "properties": {
         "grant_id": {
           "title": "Grant Id",

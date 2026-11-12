@@ -1,4 +1,4 @@
-"""Public profile wire shapes and pure validation (SPEC-028, docs/contracts/public-profile.md)."""
+"""Public profile wire shapes and pure validation."""
 
 from __future__ import annotations
 

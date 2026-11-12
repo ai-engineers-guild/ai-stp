@@ -1,4 +1,4 @@
-"""Shared deterministic context estimator (SPEC-043, SPEC-049)."""
+"""Shared deterministic context estimator."""
 
 from __future__ import annotations
 

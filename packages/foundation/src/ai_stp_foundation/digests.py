@@ -1,4 +1,4 @@
-"""Domain-separated SHA-256 digests (docs/contracts/canonical-data.md).
+"""Domain-separated SHA-256 digests.
 
 Every object class hashes in its own domain so equal bytes never produce an
 interchangeable identifier across classes: ``sha256(domain || 0x00 || bytes)``.

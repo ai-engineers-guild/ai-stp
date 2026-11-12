@@ -111,7 +111,7 @@ export type AccountPrivacyUpdate = {
  *
  * The current account, as the caller who holds it sees it.
  *
- * Separate from `PublicProfile` (ADR-0023, ADR-0010), which is an authored
+ * Separate from `PublicProfile`, which is an authored
  * public object and is not derived from this one.
  */
 export type AccountProfile = {
@@ -4625,7 +4625,7 @@ export type CorporateMemberList = {
 /**
  * CorporateMemberPrivateGrant
  *
- * Read-only projection of a private major-line AccessGrant (SPEC-002) for
+ * Read-only projection of a private major-line AccessGrant for
  * the employee-access view — never a source of corporate permissions.
  */
 export type CorporateMemberPrivateGrant = {
@@ -7352,7 +7352,7 @@ export type DeviceRevokeRequest = {
  *
  * Revocation is forward-acting and reported as such: the record survives, the
  * summary is marked revoked rather than deleted, and the device keeps its
- * local data (SPEC-002 REQ-205, REQ-215).
+ * local data.
  */
 export type DeviceRevokeResponse = {
   device: DeviceRecord;
@@ -9932,7 +9932,7 @@ export type LikedCatalogItem = {
  *
  * No address: an identity is named by its provider and when it was linked. The
  * address belongs to the provider and adding it here would put personal data
- * on a route that does not need it (SPEC-013). Optional avatar_url is a
+ * on a route that does not need it. Optional avatar_url is a
  * provider-hosted HTTPS image URL, not an email or long-lived token.
  */
 export type LinkedIdentity = {
@@ -9987,9 +9987,8 @@ export type NonEmptyArtifactRef = {
  *
  * The outcome of the browser half, as the web surface reads it.
  *
- * `conflict` is a first-class outcome rather than an error: SPEC-002 REQ-202
- * forbids silently merging two populated accounts, so the user has to be told
- * and asked rather than have a merge happen behind them.
+ * `conflict` is an explicit outcome for two populated accounts. Sign-in
+ * never merges them implicitly.
  */
 export type OAuthCallbackResult = {
   account_id: AccountId | null;
@@ -10102,18 +10101,10 @@ export type OwnerLifecycleAction = (typeof OwnerLifecycleAction)[keyof typeof Ow
 /**
  * OwnerLifecycleRequest
  *
- * POST a lifecycle transition on an exact owned version (`SPEC-007`).
+ * Lifecycle transition on an exact owned version.
  *
- * `deprecated` was declared in the state vocabulary, listed in three models
- * and offered by a CLI hint, and written by nothing: the staff route accepts
- * only `block`, `hide` and `restore`, and every owner version route was a
- * read. Two successive plans carried "deprecate the old corpus" as pending
- * work against a verb that did not exist.
- *
- * The author holds this one because deprecation is a statement about the
- * object's own future rather than about its acceptability, and because the
- * evidence that motivates it — `SPEC-044` archive observation — already
- * reaches the author as a proposal.
+ * Owners deprecate or undo deprecation of their versions. Staff moderation
+ * uses separate actions with an explicit reason and audit event.
  */
 export type OwnerLifecycleRequest = {
   action: OwnerLifecycleAction;
@@ -10730,7 +10721,7 @@ export type OwnershipRevisionView = {
 /**
  * PageInfo
  *
- * Cursor pagination state (docs/contracts/http-api.md).
+ * Cursor pagination state.
  *
  * No total is exposed. Reporting one would let a caller detect objects it is
  * not allowed to read, so a hidden or deleted object leaks through neither a

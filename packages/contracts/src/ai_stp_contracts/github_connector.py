@@ -1,4 +1,4 @@
-"""Authenticated GitHub Connector wire models (SPEC-072)."""
+"""Authenticated GitHub Connector wire models."""
 
 from typing import Annotated, Literal
 

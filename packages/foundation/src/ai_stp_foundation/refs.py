@@ -1,4 +1,4 @@
-"""Exact references (docs/contracts/canonical-data.md).
+"""Exact references.
 
 A stored reference is structured and exact: stable ID, version and passport
 digest. Only a component reference may carry an optional native realization;

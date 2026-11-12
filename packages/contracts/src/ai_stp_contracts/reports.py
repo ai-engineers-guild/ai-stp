@@ -1,4 +1,4 @@
-"""Report case and staff moderation wire payloads (SPEC-026, SPEC-016)."""
+"""Report case and staff moderation wire payloads."""
 
 from __future__ import annotations
 

@@ -47,7 +47,7 @@ AUTHORING_TYPE_LANGUAGE_MATRIX: Final[dict[ComponentType, tuple[AuthoringLanguag
     "plugin": AUTHORING_LANGUAGES[1:],
     "setting": ("none",),
     # A cli is a shared process, not a slash command. Portable only: seven
-    # harness copies of the same binary are not an adaptation (ADR-0155).
+    # harness copies of the same binary are not an adaptation.
     "cli": AUTHORING_LANGUAGES[1:],
 }
 

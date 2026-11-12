@@ -197,7 +197,7 @@ class CorporatePermissionMatrix(ContractModel):
 
 
 class CorporateMemberPrivateGrant(ContractModel):
-    """Read-only projection of a private major-line AccessGrant (SPEC-002) for
+    """Read-only projection of a private major-line AccessGrant for
     the employee-access view — never a source of corporate permissions."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)

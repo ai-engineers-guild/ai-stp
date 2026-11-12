@@ -1,4 +1,4 @@
-"""Immutable estate release record (`docs/contracts/estate-release.md`)."""
+"""Immutable estate release record."""
 
 from __future__ import annotations
 

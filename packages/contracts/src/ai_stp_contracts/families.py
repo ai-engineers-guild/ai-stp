@@ -1,4 +1,4 @@
-"""Setup family public and owner contracts (SPEC-065, ADR-0165)."""
+"""Setup family public and owner contracts."""
 
 from __future__ import annotations
 

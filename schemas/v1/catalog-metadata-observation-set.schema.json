@@ -2,7 +2,7 @@
   "$defs": {
     "CatalogMetadataObservation": {
       "additionalProperties": false,
-      "description": "Closed allowlist for one catalog metadata adapter observation (SPEC-050).",
+      "description": "Closed allowlist for one catalog metadata adapter observation.",
       "properties": {
         "attribution": {
           "maxLength": 256,

@@ -1,4 +1,4 @@
-"""Access grant and invitation wire payloads (SPEC-026, SPEC-002, ADR-0020/0030)."""
+"""Access grant and invitation wire payloads."""
 
 from __future__ import annotations
 

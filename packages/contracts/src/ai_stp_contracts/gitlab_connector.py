@@ -1,4 +1,4 @@
-"""Authenticated, read-only GitLab Connector wire models (ADR-0224)."""
+"""Authenticated, read-only GitLab Connector wire models."""
 
 from typing import Annotated, Literal
 
