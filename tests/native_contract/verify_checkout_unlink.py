@@ -17,6 +17,7 @@ from unittest.mock import patch
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.native_contract.verify_ownership import native, native_result
+from tests.support.native_files import FileProtection, file_protection
 
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.context import service as context_service
@@ -57,6 +58,7 @@ async def qualify(
     registry = state / "ai-stp-v2-state" / "registry.sqlite3"
     active_context = context
     paths: list[Path] = []
+    protections: dict[Path, FileProtection] = {}
 
     def local() -> tuple[int, list[tuple[Any, ...]], list[tuple[Any, ...]]]:
         with closing(sqlite3.connect(f"file:{registry}?mode=ro", uri=True)) as db:
@@ -177,6 +179,7 @@ async def qualify(
     async def bind(label: str) -> tuple[Path, dict[str, Any], dict[str, Any]]:
         path = await checkout("unlink-" + label)
         paths.append(path)
+        protections[path] = file_protection(path / ".env")
         request = await run(
             "corporate",
             "project",
@@ -462,11 +465,12 @@ async def qualify(
         pending_path.mkdir()
         replacement_canary.write_bytes(b"PRIVATE=replacement-checkout-canary\n")
         replacement_canary.chmod(0o640)
+        replacement_protection = file_protection(replacement_canary)
         await reject(displaced_review)
         assert native_rows() == physical_rows and faults.network_requests == physical_network
         assert local() == pending_before
         assert replacement_canary.read_bytes() == b"PRIVATE=replacement-checkout-canary\n"
-        assert replacement_canary.stat().st_mode & 0o777 == 0o640
+        assert file_protection(replacement_canary) == replacement_protection
     finally:
         # Only these two fixture-created entries can be removed.
         if pending_path.exists():
@@ -784,7 +788,7 @@ async def qualify(
     assert (await run("context", "list"))["selected"] == selected
     for path in paths:
         assert (path / ".env").read_bytes() == b"PRIVATE=retirement-unowned-canary\n"
-        assert (path / ".env").stat().st_mode & 0o777 == 0o640
+        assert file_protection(path / ".env") == protections[path]
     print(
         json.dumps(
             {

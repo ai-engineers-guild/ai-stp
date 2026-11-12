@@ -124,6 +124,16 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
     assert steps[preparation]["with"] == {"recipe": "ci-native-corporate-prepare"}
     assert steps[consumer]["with"] == {"recipe": "ci-native-corporate"}
 
+    assert any(step.get("uses") == "./.github/actions/project-rust" for step in corporate["steps"])
+    for name in [
+        "Build the immutable previous schema58 native writer",
+        "Build the qualified previous schema59 binding writer",
+        "Verify the immutable released schema60 native writer",
+        "Verify the immutable released schema61 native writer",
+    ]:
+        assert order.index(preparation) < order.index(name) < order.index(consumer)
+        assert "if" not in steps[name]
+
 
 def test_native_corporate_consumer_refuses_before_provisioning_on_a_developer_host(
     monkeypatch: pytest.MonkeyPatch,

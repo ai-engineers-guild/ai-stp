@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from tests.support.native_files import FileProtection, file_protection
 
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.context import service as context_service
@@ -48,6 +49,7 @@ async def qualify(
     connection: str,
     foreign_context: str,
 ) -> None:
+    protections: dict[Path, FileProtection] = {}
     registry = state / "ai-stp-v2-state" / "registry.sqlite3"
 
     def reservations() -> list[tuple[Any, ...]]:
@@ -90,6 +92,7 @@ async def qualify(
         path.mkdir()
         (path / ".env").write_bytes(b"PRIVATE=retirement-unowned-canary\n")
         (path / ".env").chmod(0o640)
+        protections[path] = file_protection(path / ".env")
         for arguments in (
             ["init", "--initial-branch=main"],
             ["commit", "--allow-empty", "-m", "native retirement fixture"],
@@ -356,7 +359,7 @@ async def qualify(
     assert (await run("account", "connections", "recovery", "list"))["recoveries"] == old_recoveries
     for path in (unknown, expiring):
         assert (path / ".env").read_bytes() == b"PRIVATE=retirement-unowned-canary\n"
-        assert (path / ".env").stat().st_mode & 0o777 == 0o640
+        assert file_protection(path / ".env") == protections[path]
     assert await counts() == (before_counts[0] + 3, before_counts[1] + 1)
     assert len(faults.writes) == before_writes + 5
 

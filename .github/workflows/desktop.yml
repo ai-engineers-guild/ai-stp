@@ -417,7 +417,7 @@ jobs:
       actions: read
       security-events: read
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -440,6 +440,7 @@ jobs:
         with:
           python-version: '3.15.2'
           uv-version: '0.13.7'
+      - uses: ./.github/actions/project-rust
       - name: Admit the exact current Dev qualification
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
@@ -469,6 +470,30 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-native-corporate-prepare
+      - name: Build the immutable previous schema58 native writer
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-build-the-immutable-previous-schema58-native-writer
+      - name: Build the qualified previous schema59 binding writer
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-build-the-qualified-previous-schema59-binding-writer
+      - name: Verify the immutable released schema60 native writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-verify-the-immutable-released-schema60-native-writer
+      - name: Verify the immutable released schema61 native writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-cli-verify-the-immutable-released-schema61-native-writer
       - name: Run native corporate journeys against actual API/PostgreSQL
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2

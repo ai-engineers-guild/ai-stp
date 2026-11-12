@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+import stat
 from pathlib import Path
 
 import pytest
 from tests.support.api_settings import close_api_log_files
 from tests.support.native_credentials import lose_enrollment_key
+from tests.support.native_files import file_protection
 
 DEVICE = "device_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
@@ -49,3 +51,16 @@ def test_api_log_cleanup_closes_only_files_inside_the_owned_directory(tmp_path: 
         root.removeHandler(other)
         own.close()
         other.close()
+
+
+def test_file_protection_observes_a_native_read_only_change(tmp_path: Path) -> None:
+    path = tmp_path / "unowned"
+    path.write_bytes(b"preserved")
+    before = file_protection(path)
+    try:
+        path.chmod(stat.S_IREAD)
+        assert file_protection(path) != before
+        assert path.read_bytes() == b"preserved"
+    finally:
+        path.chmod(before.mode)
+    assert file_protection(path) == before
