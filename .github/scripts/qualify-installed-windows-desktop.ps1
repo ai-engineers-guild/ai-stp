@@ -812,6 +812,9 @@ function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $K
             [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty, $Name
             ),
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::IsEnabledProperty, $true
+            ),
             [System.Windows.Automation.OrCondition]::new(
                 [System.Windows.Automation.PropertyCondition]::new(
                     [System.Windows.Automation.AutomationElement]::IsSelectionItemPatternAvailableProperty, $true
