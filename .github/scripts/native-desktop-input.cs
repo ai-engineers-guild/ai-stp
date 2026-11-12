@@ -133,14 +133,25 @@ public static class NativeDesktopInput
         return pressed;
     }
 
-    public static bool KeyboardFocusOwned(IntPtr window)
+    private static GuiThreadInfo KeyboardInfo(IntPtr window)
     {
         uint process;
         uint thread = GetWindowThreadProcessId(window, out process);
         var info = new GuiThreadInfo { Size = (uint)Marshal.SizeOf(typeof(GuiThreadInfo)) };
         if (thread == 0 || !GetGUIThreadInfo(thread, ref info))
             throw new InvalidOperationException("Native keyboard focus could not be observed");
-        return info.Focus != IntPtr.Zero && (info.Focus == window || IsChild(window, info.Focus));
+        return info;
+    }
+
+    public static bool KeyboardFocusOwned(IntPtr window)
+    {
+        IntPtr focus = KeyboardInfo(window).Focus;
+        return focus != IntPtr.Zero && (focus == window || IsChild(window, focus));
+    }
+
+    public static bool KeyboardFocusIsRoot(IntPtr window)
+    {
+        return KeyboardInfo(window).Focus == window;
     }
 
     private static Input Key(ushort virtualKey, ushort scan, uint flags)
@@ -183,6 +194,14 @@ public static class NativeDesktopInput
     public static uint Enter()
     {
         return Send(new[] { Physical(0x0d, false), Physical(0x0d, true) });
+    }
+
+    public static uint PreviousTab()
+    {
+        return Send(new[] {
+            Physical(0x10, false), Physical(0x09, false),
+            Physical(0x09, true), Physical(0x10, true)
+        });
     }
 
     public static uint SelectAll()

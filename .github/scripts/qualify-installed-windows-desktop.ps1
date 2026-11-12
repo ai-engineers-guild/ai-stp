@@ -229,6 +229,41 @@ function Assert-KeyboardFocus([System.Diagnostics.Process] $Process, $Element) {
     }
 }
 
+function Focus-KeyboardLink([System.Diagnostics.Process] $Process, $Target) {
+    $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+    $previous = [System.Windows.Automation.AutomationElement]::FocusedElement
+    $seen = [System.Collections.Generic.HashSet[string]]::new()
+    for ($step = 1; $step -le 32; $step++) {
+        if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
+            ![NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle) -or
+            [NativeDesktopInput]::PressedModifiers() -ne 0) {
+            throw 'Native navigation has no owned keyboard target'
+        }
+        $injected = [NativeDesktopInput]::PreviousTab()
+        Write-Host ('Native focus traversal keyboard events accepted: ' + $injected)
+        $next = Wait-Observation $Process 'actual keyboard focus transition' ({
+            $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+            if ($null -eq $focused -or [NativeDesktopInput]::PressedModifiers() -ne 0 -or
+                ($null -ne $previous -and [System.Windows.Automation.Automation]::Compare($focused, $previous))) {
+                return $null
+            }
+            $ancestor = $focused
+            for ($depth = 0; $depth -lt 64 -and $null -ne $ancestor; $depth++) {
+                if ([System.Windows.Automation.Automation]::Compare($ancestor, $window)) {
+                    return $focused
+                }
+                $ancestor = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($ancestor)
+            }
+            throw 'Native keyboard focus left the owned application'
+        }.GetNewClosure())
+        if ([System.Windows.Automation.Automation]::Compare($next, $Target)) { return $step }
+        $identifier = $next.GetRuntimeId() -join ','
+        if (!$seen.Add($identifier)) { throw 'Native keyboard navigation completed a cycle without its link' }
+        $previous = $next
+    }
+    throw 'Native keyboard navigation exceeded its bounded control count'
+}
+
 function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) {
     Assert-KeyboardFocus $Process $Element
     $value = $null
@@ -622,8 +657,13 @@ try {
     Assert-SelectedContext $process $personal.Selected
     Select-Language $process 'ar' 'en'
     $link = Wait-Element $process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink)
-    Focus-Control $process $link
+    $tabSteps = Focus-KeyboardLink $process $link
     Assert-KeyboardFocus $process $link
+    Write-Host ([ordered]@{
+        native_navigation_focus = 'observed_by_keyboard'
+        traversal_steps = $tabSteps
+        native_focus_is_root = [NativeDesktopInput]::KeyboardFocusIsRoot($process.MainWindowHandle)
+    } | ConvertTo-Json -Compress)
     $injected = [NativeDesktopInput]::Enter()
     Write-Host ('Native navigation keyboard events accepted: ' + $injected)
     $null = Wait-Element $process (Text 'profiles.connectionsAndContexts') $null
