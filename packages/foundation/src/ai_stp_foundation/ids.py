@@ -1,10 +1,10 @@
-"""Typed stable identifiers (SPEC-015 REQ-1501).
+"""Typed stable identifiers.
 
 A stable ID is opaque, path-independent and never reused. The wire form is
 ``<prefix>_<ULID>`` where the prefix comes from a closed immutable registry
 and the suffix is a canonical uppercase 26-character Crockford ULID. Unknown
 prefixes and out-of-range suffixes fail closed. Revision IDs are not stable
-IDs: they are content-addressed (ADR-0036) and live in ``revisions.py``.
+IDs: they are content-addressed and live in ``revisions.py``.
 """
 
 import re
@@ -19,7 +19,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "account": "platform account",
         "acceptance": "legal policy acceptance",
         "area": "technology landscape area",
-        # A reference to bytes the provider holds (`REQ-814`). Typed and
+        # A reference to bytes the provider holds. Typed and
         # never reused like the rest, and deliberately not part of any
         # setup's identity: deleting a backup must not delete a setup.
         "backup": "provider backup reference",
@@ -47,7 +47,7 @@ ID_PREFIXES: Final[Mapping[str, str]] = MappingProxyType(
         "unlink_plan": "server-authored project unlink plan",
         "report": "private report case",
         "relation": "canonical organization relationship",
-        # Valid only inside one recommendation session (`ADR-0027`). Typed and
+        # Valid only inside one recommendation session. Typed and
         # never reused like the rest, but naming no durable object: a proposal
         # has no entity, no revision and no head, and confirming it is what
         # creates something the registry holds.

@@ -815,7 +815,7 @@ jobs:
           # One job per tree. PostgreSQL is on every shard so a missing
           # service cannot skip the rows that need it. Eight processes on
           # a 4-vCPU runner is deliberate: the suite waits on the database
-          # and on subprocesses, not on cores (ADR-0116).
+          # and on subprocesses, not on cores.
           - shard: api
             arguments:
               - "tests/api"
@@ -895,9 +895,9 @@ jobs:
           restore-keys: ${{ runner.os }}-uv-
       # Without a database the platform tests skip, so the URL is part of
       # the check rather than an optional extra. `-n 8 --dist=load`
-      # oversubscribes the 4-vCPU runner on purpose (ADR-0116). Coverage
+      # oversubscribes the 4-vCPU runner on purpose. Coverage
       # is combined after the shards and printed; it does not fail the
-      # job on a percentage (ADR-0147).
+      # job on a percentage.
       - name: Run a shard of the test suite
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:5432/ai_stp
@@ -963,7 +963,7 @@ jobs:
           recipe: ci-coverage-combine-shard-coverage-and-report
   # Lint, types, production build, audit and Storybook are Linux-only: they
   # do not read the host OS the way the test suites do. Unit, e2e and feature
-  # profiles run on three operating systems (ADR-0116). Browser jobs pay for
+  # profiles run on three operating systems. Browser jobs pay for
   # Playwright; e2e stays one spec-set per OS because mock auth/profile/catalog
   # state is process-local (`fullyParallel: false`, playwright#30253).
   web-static:
