@@ -14,11 +14,16 @@ from typing import Any, cast
 from tests.support.native_pipe import Pipe
 
 PREFIX = b"AI_STP_NATIVE_DESKTOP_FIXTURE_V1 "
+FAILURE_PREFIX = b"AI_STP_NATIVE_DESKTOP_FAILURE_V1 "
 STAGE_PREFIX = b"AI_STP_NATIVE_DESKTOP_STAGE_V1 "
 STAGES = frozenset(
     {
+        b"owner",
+        b"installed",
         b"personal",
         b"connection",
+        b"connection_reviewed",
+        b"connection_saved",
         b"pending",
         b"approval",
         b"context",
@@ -69,6 +74,7 @@ def run_owner(
     approved = 0
     output_bytes = 0
     stage = "startup"
+    failure_line: int | None = None
     with errors.open("xb") as error_stream:
         process = subprocess.Popen(
             arguments,
@@ -93,10 +99,18 @@ def run_owner(
                 if isinstance(record, EOFError):
                     break
                 if isinstance(record, Exception):
-                    raise ValueError("Native Desktop fixture output refused") from None
+                    raise ValueError(f"Native Desktop fixture output refused at {stage}") from None
                 output_bytes += len(record)
                 if output_bytes > MAX_OUTPUT_BYTES:
                     raise ValueError("Native Desktop fixture output exceeded its bound")
+                if record.startswith(FAILURE_PREFIX):
+                    location = record.removeprefix(FAILURE_PREFIX).strip()
+                    if failure_line is not None or re.fullmatch(rb"[0-9]{1,5}", location) is None:
+                        raise ValueError("Native fixture failure location refused")
+                    failure_line = int(location)
+                    if failure_line > 10000:
+                        raise ValueError("Native fixture failure location exceeded its bound")
+                    continue
                 if record.startswith(STAGE_PREFIX):
                     name = record.removeprefix(STAGE_PREFIX).strip()
                     if name not in STAGES:
@@ -122,9 +136,10 @@ def run_owner(
                 pipe.input.flush()
                 approved += 1
             result = process.wait(timeout=15)
-            if result != 0 or approved != 1:
+            if result != 0 or approved != 1 or failure_line is not None:
                 raise ValueError(
-                    f"Native Desktop owner did not complete its approval journey at {stage}"
+                    f"Native Desktop owner did not complete its approval journey at {stage}; "
+                    f"controller line {failure_line}"
                 )
             return approved
         finally:

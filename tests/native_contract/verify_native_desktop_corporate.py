@@ -113,9 +113,28 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                     environment.pop(name, None)
                 environment["AI_STP_NATIVE_DESKTOP_FIXTURE"] = str(fixture)
                 report_stage("native-installed-personal-and-corporate-gui")
+                if os.environ["RUNNER_OS"] == "Windows":
+                    arguments = [
+                        "pwsh",
+                        "-STA",
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-File",
+                        str(
+                            Path(".github/scripts/qualify-installed-windows-desktop.ps1").resolve()
+                        ),
+                        "-Bundle",
+                        str(Path("apps/desktop/src-tauri/target/release/bundle").resolve()),
+                        "-Source",
+                        source,
+                        "-Output",
+                        str(personal_result),
+                    ]
+                else:
+                    arguments = ["/bin/bash", ".github/scripts/qualify-installed-native-desktop.sh"]
                 approvals = await asyncio.to_thread(
                     run_owner,
-                    ["bash", ".github/scripts/qualify-installed-native-desktop.sh"],
+                    arguments,
                     environment=environment,
                     errors=root / "native-owner-private.log",
                     nonce=nonce,

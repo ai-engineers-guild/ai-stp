@@ -38,7 +38,9 @@ if case in {"valid","exit"}:
 else:
  assert response==""
 pathlib.Path(sys.argv[3]).write_text("completed")
-if case=="exit":sys.exit(3)
+if case=="exit":
+ print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 123",flush=True)
+ sys.exit(3)
 """
 
 
@@ -80,7 +82,9 @@ def test_native_owner_failure_reports_only_approved_checkpoint(
 ) -> None:
     codes: list[str] = []
     marker = tmp_path / "completed"
-    with pytest.raises(ValueError, match="did not complete its approval journey at approval"):
+    with pytest.raises(
+        ValueError, match="did not complete its approval journey at approval; controller line 123"
+    ):
         run_owner(
             [sys.executable, "-u", "-c", CHILD, "a" * 64, "exit", str(marker)],
             environment=dict(os.environ),

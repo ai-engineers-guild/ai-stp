@@ -7,6 +7,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 trap {
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FAILURE_V1 ' + $_.InvocationInfo.ScriptLineNumber)
     [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
     throw $_
 }
@@ -14,6 +15,7 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
     throw 'A disposable hosted Windows runner is required'
 }
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'PowerShell 7 is required' }
+[Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 owner')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $Bundle 'qualified-desktop-Windows.json') | ConvertFrom-Json
@@ -35,6 +37,8 @@ $cli = Join-Path $installRoot 'cli\ai-stp-desktop-cli.exe'
 if (!(Test-Path -LiteralPath $app -PathType Leaf) -or !(Test-Path -LiteralPath $cli -PathType Leaf)) {
     throw 'Installed Desktop or bundled CLI was not found'
 }
+
+[Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 installed')
 
 function Read-Native([string[]] $Command) {
     $result = & $cli @Command --json | ConvertFrom-Json
@@ -699,7 +703,9 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
         $plan.Document.provider -cne 'github' -or $plan.Document.connection_id -isnot [string] -or
         !$plan.Document.connection_id) { throw 'Displayed connection plan changed intent' }
     $connection = $plan.Document.connection_id
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection_reviewed')
     Confirm-Review $Process
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection_saved')
     Invoke-Control (Wait-Element $Process (Text 'profiles.openThisAccountSession') ([System.Windows.Automation.ControlType]::Hyperlink))
     Invoke-Control (Wait-Element $Process 'GitHub' ([System.Windows.Automation.ControlType]::Button))
     Invoke-Control (Wait-Element $Process (Text 'auth.startSignIn') ([System.Windows.Automation.ControlType]::Button))

@@ -4,20 +4,24 @@ import Foundation
 
 struct ProbeFailure: Error, CustomStringConvertible {
     let description: String
-    init(_ description: String) { self.description = description }
+    let sourceLine: Int
+    init(_ description: String, line: Int = #line) {
+        self.description = description
+        self.sourceLine = line
+    }
 }
 
-func check(_ condition: Bool, _ message: String) throws {
-    if !condition { throw ProbeFailure(message) }
+func check(_ condition: Bool, _ message: String, line: Int = #line) throws {
+    if !condition { throw ProbeFailure(message, line: line) }
 }
 
-func wait<T>(_ label: String, seconds: Double = 45, _ observe: () throws -> T?) throws -> T {
+func wait<T>(_ label: String, seconds: Double = 45, line: Int = #line, _ observe: () throws -> T?) throws -> T {
     let deadline = ProcessInfo.processInfo.systemUptime + seconds
     while ProcessInfo.processInfo.systemUptime < deadline {
         if let result = try observe() { return result }
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
     }
-    throw ProbeFailure("Timed out waiting for \(label)")
+    throw ProbeFailure("Timed out waiting for \(label)", line: line)
 }
 
 func attribute(_ node: AXUIElement, _ name: String) -> CFTypeRef? {
@@ -36,11 +40,11 @@ func match(_ root: AXUIElement, label: String, role: String?, enabled: Bool) -> 
 }
 
 func visible(
-    _ process: Process, _ label: String, role: String? = nil, enabled: Bool = false
+    _ process: Process, _ label: String, role: String? = nil, enabled: Bool = false, line: Int = #line
 ) throws -> AXUIElement {
     let application = AXUIElementCreateApplication(process.processIdentifier)
     AXUIElementSetMessagingTimeout(application, 2)
-    return try wait(label) {
+    return try wait(label, line: line) {
         try check(process.isRunning, "Installed Desktop exited before UI readiness")
         guard let windows = attribute(application, kAXWindowsAttribute) as? [AXUIElement] else {
             return nil
@@ -52,10 +56,10 @@ func visible(
     }
 }
 
-func press(_ node: AXUIElement) throws {
+func press(_ node: AXUIElement, line: Int = #line) throws {
     try check(
         AXUIElementPerformAction(node, kAXPressAction as CFString) == .success,
-        "Installed UI did not accept the accessibility action"
+        "Installed UI did not accept the accessibility action", line: line
     )
 }
 
@@ -159,20 +163,20 @@ func application(_ process: Process) -> AXUIElement {
     return application
 }
 
-func pressNamed(_ process: Process, _ label: String, role: String? = nil) throws {
-    var node = try visible(process, label, role: role, enabled: role != nil)
+func pressNamed(_ process: Process, _ label: String, role: String? = nil, line: Int = #line) throws {
+    var node = try visible(process, label, role: role, enabled: role != nil, line: line)
     for _ in 0..<4 {
         var actions: CFArray?
         if AXUIElementCopyActionNames(node, &actions) == .success,
             let names = actions as? [String], names.contains(kAXPressAction) {
-            try press(node)
+            try press(node, line: line)
             return
         }
         guard let parent = attribute(node, kAXParentAttribute) else { break }
         try check(CFGetTypeID(parent) == AXUIElementGetTypeID(), "Unsupported accessibility parent")
         node = (parent as! AXUIElement)
     }
-    throw ProbeFailure("Named UI control does not expose a press action")
+    throw ProbeFailure("Named UI control does not expose a press action", line: line)
 }
 
 func ownsKeyboard(_ process: Process) -> Bool {
@@ -571,7 +575,9 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     guard plan["label"] as? String == "Native company connection", plan["origin"] as? String == fixture.origin,
         plan["provider"] as? String == "github", let connection = plan["connection_id"] as? String, !connection.isEmpty
     else { throw ProbeFailure("Displayed connection plan changed intent") }
+    corporateStage("connection_reviewed")
     try confirm(process, catalogs)
+    corporateStage("connection_saved")
     try pressNamed(process, catalogs.text("profiles.openThisAccountSession"), role: "AXLink")
     try pressNamed(process, "GitHub", role: kAXButtonRole)
     try pressNamed(process, catalogs.text("auth.startSignIn"), role: kAXButtonRole)
@@ -646,6 +652,7 @@ func prove() throws {
     let arguments = CommandLine.arguments
     try check(arguments.count == 5, "Installed executable, CLI, message catalog and result paths are required")
     let corporateFixture = try environment["AI_STP_NATIVE_DESKTOP_FIXTURE"].map { try CorporateFixture($0, environment) }
+    corporateStage("owner")
     let app = URL(fileURLWithPath: arguments[1])
     let cli = URL(fileURLWithPath: arguments[2])
     let catalogs = try Catalogs(URL(fileURLWithPath: arguments[3]))
@@ -659,6 +666,7 @@ func prove() throws {
         $0["name"] as? String == "local_identity" && $0["state"] as? String == "needs_user_action"
     }, "First-run macOS workspace is required")
 
+    corporateStage("installed")
     var process = try launch(app)
     defer { if process.isRunning { process.terminate() } }
     _ = try visible(process, "Engine \(cliVersion)")
@@ -760,6 +768,8 @@ func prove() throws {
 do {
     try prove()
 } catch {
+    let line = (error as? ProbeFailure)?.sourceLine ?? 0
+    FileHandle.standardOutput.write(Data(("AI_STP_NATIVE_DESKTOP_FAILURE_V1 " + String(line) + "\n").utf8))
     fputs("\(error)\n", stderr)
     exit(1)
 }
