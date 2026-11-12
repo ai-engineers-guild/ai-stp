@@ -508,16 +508,16 @@ struct CorporateFixture {
     }
 }
 
-func profileOption(_ process: Process, _ catalogs: Catalogs, _ key: String, _ name: String) throws {
-    let selector = try visible(process, catalogs.text(key), role: kAXPopUpButtonRole, enabled: true)
+func profileOption(_ process: Process, _ catalogs: Catalogs, _ key: String, _ name: String, line: Int = #line) throws {
+    let selector = try visible(process, catalogs.text(key), role: kAXPopUpButtonRole, enabled: true, line: line)
     if attribute(selector, kAXValueAttribute) as? String != name {
-        try press(selector)
-        let option = try wait("owned native profile option") {
+        try press(selector, line: line)
+        let option = try wait("owned native profile option", line: line) {
             match(application(process), label: name, role: kAXMenuItemRole, enabled: true)
         }
-        try press(option)
+        try press(option, line: line)
     }
-    _ = try wait("selected native profile option") {
+    _ = try wait("selected native profile option", line: line) {
         attribute(selector, kAXValueAttribute) as? String == name ? true : nil
     }
 }
@@ -577,6 +577,12 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     else { throw ProbeFailure("Displayed connection plan changed intent") }
     corporateStage("connection_reviewed")
     try confirm(process, catalogs)
+    let connections = try native(cli, ["account", "connections", "list"])["connections"] as? [[String: Any]] ?? []
+    let stored = connections.filter { $0["connection_id"] as? String == connection }
+    try check(stored.count == 1 && stored[0]["state"] as? String == "ready" &&
+        stored[0]["label"] as? String == "Native company connection" &&
+        stored[0]["origin"] as? String == fixture.origin && stored[0]["provider"] as? String == "github",
+        "Stored connection changed the reviewed intent")
     corporateStage("connection_saved")
     try pressNamed(process, catalogs.text("profiles.openThisAccountSession"), role: "AXLink")
     let provider = try visible(process, "GitHub", role: kAXCheckBoxRole, enabled: true)

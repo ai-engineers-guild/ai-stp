@@ -442,7 +442,7 @@ export default function ProfilesPage() {
             className="input"
             aria-label={msg("profiles.contextConnection")}
             value={connection}
-            disabled={busy}
+            disabled={busy || !connections?.ok}
             onChange={(e) => {
               setConnection(e.target.value);
               setOrganizations(null);

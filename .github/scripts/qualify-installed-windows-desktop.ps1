@@ -498,9 +498,6 @@ function Confirm-Review([System.Diagnostics.Process] $Process) {
         }
         return $null
     }.GetNewClosure())
-    $null = Wait-Element $Process (Text 'profiles.reviewContextCreation') (
-        [System.Windows.Automation.ControlType]::Button
-    )
 }
 
 function New-ContextReview([System.Diagnostics.Process] $Process, [string] $Label) {
@@ -621,6 +618,7 @@ function Assert-Sidebar([System.Diagnostics.Process] $Process, [string] $Locale)
 
 
 function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $Key, [string] $Name) {
+    $selectorCallerLine = @(Get-PSCallStack)[1].ScriptLineNumber
     try {
         # Reveal the form's following action before resolving the native selector.
         # Its existing eligibility also proves sign-in discovery has completed.
@@ -640,6 +638,7 @@ function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $K
         }
         $selector = Wait-Element $Process (Text $Key) ([System.Windows.Automation.ControlType]::ComboBox)
     } catch {
+        $_.Exception.Data['native_controller_source_line'] = $selectorCallerLine
         # Only this first selector precedes every account enrollment and login.
         # A failed guard cannot publish an image or replace the original refusal.
         if ($Key -ceq 'profiles.signInMethod') {
@@ -805,6 +804,13 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
     $connection = $plan.Document.connection_id
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection_reviewed')
     Confirm-Review $Process
+    $stored = @((Read-Native @('account', 'connections', 'list')).connections |
+        Where-Object { $_.connection_id -ceq $connection })
+    if ($stored.Count -ne 1 -or $stored[0].state -cne 'ready' -or
+        $stored[0].label -cne 'Native company connection' -or
+        $stored[0].origin -cne $Fixture.origin -or $stored[0].provider -cne 'github') {
+        throw 'Stored connection changed the reviewed intent'
+    }
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection_saved')
     Invoke-Control (Wait-Element $Process (Text 'profiles.openThisAccountSession') ([System.Windows.Automation.ControlType]::Hyperlink))
     $provider = Wait-Element $Process 'GitHub' ([System.Windows.Automation.ControlType]::Button)
