@@ -215,10 +215,9 @@ export default function ProfilesPage() {
           <p>{msg("profiles.noRetainedConnectionsYet")}</p>
         )}
         {retained.map((item) => (
-          <div
-            className="space-y-2 rounded-lg border border-border p-4"
+          <fieldset
+            className="min-w-0 space-y-2 rounded-lg border border-border p-4"
             key={String(item.connection_id)}
-            role="group"
             aria-label={String(item.label)}
           >
             <h3 className="font-medium">{String(item.label)}</h3>
@@ -253,7 +252,7 @@ export default function ProfilesPage() {
                 {msg("profiles.reviewInterruptedCreation")}
               </button>
             )}
-          </div>
+          </fieldset>
         ))}
       </section>
       <section className="card space-y-4 p-6">
@@ -366,10 +365,9 @@ export default function ProfilesPage() {
             authority = object(context.authority),
             org = object(authority.organization);
           return (
-            <div
-              className="space-y-2 rounded-lg border border-border p-4"
+            <fieldset
+              className="min-w-0 space-y-2 rounded-lg border border-border p-4"
               key={String(context.context_id)}
-              role="group"
               aria-label={String(context.label)}
             >
               <h3 className="font-medium">
@@ -422,7 +420,7 @@ export default function ProfilesPage() {
                   {msg("profiles.checkCurrentAccess")}
                 </button>
               )}
-            </div>
+            </fieldset>
           );
         })}
         <label className="field-label">
