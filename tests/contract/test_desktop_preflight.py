@@ -88,3 +88,47 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
         '"application_acceptance":false'
         in steps["Record that diagnostic packages have no application acceptance"]["run"]
     )
+
+
+def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() -> None:
+    desktop = workflow("desktop")
+    events = cast(dict[str, Any], desktop.get("on", desktop.get(True)))
+    selected = "diagnostic_native_corporate"
+    assert events["workflow_dispatch"]["inputs"][selected]["default"] is False
+    reusable = cast(dict[str, Any], events["workflow_call"] or {})
+    assert selected not in reusable.get("inputs", {})
+    jobs = desktop["jobs"]
+    for owner in ["desktop", "native-diagnostic"]:
+        assert f"!inputs.{selected}" in jobs[owner]["if"]
+    corporate = jobs["native-corporate-diagnostic"]
+    assert corporate["if"] == f"github.event_name == 'workflow_dispatch' && inputs.{selected}"
+    assert corporate["permissions"] == {
+        "contents": "read",
+        "actions": "read",
+        "security-events": "read",
+    }
+    steps = {step.get("name"): step for step in corporate["steps"]}
+    order = list(steps)
+    admit = "Admit the exact current Dev qualification"
+    archive = "Read the exact qualified native CLI archive"
+    consumer = "Prepare the actual API fixture and run native corporate journeys"
+    assert order.index(admit) < order.index(archive) < order.index(consumer)
+    assert steps[admit]["with"]["recipe"] == "ci-desktop-admit-native-diagnostic"
+    assert steps[archive]["with"]["run-id"] == "${{ inputs.diagnostic_source_run_id }}"
+    assert "inputs.diagnostic_app_source" in steps[archive]["with"]["name"]
+    assert steps[consumer]["env"]["AI_STP_REQUIRE_ENGINE"] == "true"
+    assert not {"GH_TOKEN", "GITHUB_TOKEN"} & steps[consumer]["env"].keys()
+    assert steps[consumer]["with"] == {
+        "prepare": "ci-native-corporate-prepare",
+        "recipe": "ci-native-corporate",
+    }
+
+
+def test_native_corporate_consumer_refuses_before_provisioning_on_a_developer_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.native_contract.verify_native_corporate import main
+
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    with pytest.raises(AssertionError, match="Native fixtures require hosted CI"):
+        main()

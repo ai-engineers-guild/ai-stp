@@ -15,6 +15,10 @@ on:
         description: Build diagnostic packages without application acceptance or release permission
         type: boolean
         default: false
+      diagnostic_native_corporate:
+        description: Diagnose actual API/PostgreSQL native CLI journeys without GUI acceptance
+        type: boolean
+        default: false
       diagnostic_source_run_id:
         description: Reuse an exact successful current Dev qualification for native-owner diagnosis
         type: string
@@ -48,6 +52,7 @@ env:
 jobs:
   desktop:
     if: >-
+      !inputs.diagnostic_native_corporate &&
       inputs.diagnostic_source_run_id == '' && inputs.diagnostic_app_source == '' &&
       inputs.diagnostic_source_run_attempt == ''
     name: desktop-${{ matrix.os }}
@@ -338,7 +343,7 @@ jobs:
 
   native-diagnostic:
     if: >-
-      github.event_name == 'workflow_dispatch' &&
+      github.event_name == 'workflow_dispatch' && !inputs.diagnostic_native_corporate &&
       (inputs.diagnostic_source_run_id != '' || inputs.diagnostic_app_source != '' ||
       inputs.diagnostic_source_run_attempt != '')
     permissions:
@@ -402,5 +407,82 @@ jobs:
         with:
           name: desktop-native-diagnostic-${{ matrix.os }}
           path: ${{ runner.temp }}/installed-personal-desktop.json
+          if-no-files-found: error
+          retention-days: 7
+
+  native-corporate-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_native_corporate
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(
+          inputs.diagnostic_platform == 'Windows' &&
+          '[{"os":"windows-2025","target":"x86_64-pc-windows-msvc"}]' ||
+          inputs.diagnostic_platform == 'macOS' &&
+          '[{"os":"macos-15","target":"aarch64-apple-darwin"}]' ||
+          '[{"os":"macos-15","target":"aarch64-apple-darwin"},
+          {"os":"windows-2025","target":"x86_64-pc-windows-msvc"}]'
+          ) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Prepare the declared hosted SDK
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          python-version: '3.15.2'
+          uv-version: '0.13.7'
+      - name: Admit the exact current Dev qualification
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_DESKTOP_DIAGNOSTIC_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_DESKTOP_DIAGNOSTIC_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
+        with:
+          recipe: ci-desktop-admit-native-diagnostic
+      - name: Read the exact qualified native CLI archive
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ai-stp-rust-${{ matrix.target }}-${{ inputs.diagnostic_app_source }}
+          run-id: ${{ inputs.diagnostic_source_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/qualified-native-cli
+      - name: Prepare the pinned official macOS PostgreSQL distribution
+        if: runner.os == 'macOS'
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          manifest: .github/postgresql-macOS.json
+          directory: ${{ runner.temp }}/postgresql-sdk
+      - name: Prepare the actual API fixture and run native corporate journeys
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          UV_PYTHON: '3.15.2'
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/native-corporate-api
+          UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
+          AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
+          AI_STP_REQUIRE_ENGINE: 'true'
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ runner.temp }}/qualified-native-cli
+          AI_STP_NATIVE_ENGINE_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_NATIVE_ENGINE_SOURCE_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_NATIVE_ENGINE_SOURCE_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
+        with:
+          prepare: ci-native-corporate-prepare
+          recipe: ci-native-corporate
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-corporate-diagnostic-${{ matrix.os }}
+          path: ${{ runner.temp }}/native-corporate-proof.json
           if-no-files-found: error
           retention-days: 7

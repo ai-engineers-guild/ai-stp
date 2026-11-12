@@ -118,7 +118,9 @@ async def apply(
     )
 
 
-async def prove(binary: Path, database_url: str, root: Path) -> None:
+async def prove(
+    binary: Path, database_url: str, root: Path, *, credential_store: str = "file"
+) -> None:
     settings = make_settings(root / "api", database_url=database_url)
     app = create_app(settings)
     async with app.router.lifespan_context(app):
@@ -287,7 +289,7 @@ async def prove(binary: Path, database_url: str, root: Path) -> None:
                             "--state-dir",
                             str(state),
                             "--credential-store",
-                            "file",
+                            credential_store,
                         ],
                     )
                     await apply(binary, home, identity, ["device", "initialize", "apply"])

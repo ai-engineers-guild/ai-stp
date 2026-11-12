@@ -99,6 +99,12 @@ The retained proof separates application and fixture source, identifies the
 producer attempt and records `diagnostic_only`. These artifacts do not replace
 same-source installed acceptance or authorize delivery.
 
+The `diagnostic_native_corporate` mode exercises archived CLI ownership and
+corporate journeys against the actual API, a pinned native PostgreSQL distribution
+and an ephemeral loopback cluster on macOS/Windows. It uses the native OS vault and
+retains separate CLI evidence; GUI acceptance and live SSO stay with their own
+consumers. The ordinary source and release workflows cannot select this mode.
+
 The installed ABBA owner retains both end-to-end navigation and an independent
 WebView observation from the trusted navigation click through usable content,
 loaded fonts and two paint frames. The nonnegative residual includes automation

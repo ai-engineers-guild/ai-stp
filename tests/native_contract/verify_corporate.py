@@ -79,7 +79,9 @@ async def refused(binary: Path, home: Path, arguments: list[str]) -> ErrorEnvelo
     return ErrorEnvelope.model_validate_json(stdout)
 
 
-async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
+async def journeys(
+    binary: Path, root: Path, app: Any, origin: str, *, credential_store: str = "file"
+) -> None:
     home, state = root / "consumer", root / "state"
     home.mkdir()
     state.mkdir()
@@ -93,7 +95,9 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
         assert await apply(binary, home, planned, list(prefix)) == result
         return result
 
-    initialization = await run("device", "initialize", "plan", "--credential-store", "file")
+    initialization = await run(
+        "device", "initialize", "plan", "--credential-store", credential_store
+    )
     await enact(initialization, "device", "initialize", "apply")
     original = await run("device", "show")
     offline = await run("context", "create", "plan", "--label", "Offline personal")
@@ -1206,7 +1210,9 @@ async def journeys(binary: Path, root: Path, app: Any, origin: str) -> None:
     )
 
 
-async def prove(binary: Path, database_url: str, root: Path) -> None:
+async def prove(
+    binary: Path, database_url: str, root: Path, *, credential_store: str = "file"
+) -> None:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         origin = f"http://127.0.0.1:{listener.getsockname()[1]}"
@@ -1229,7 +1235,7 @@ async def prove(binary: Path, database_url: str, root: Path) -> None:
                             await serving
                             raise AssertionError("fixture API stopped before readiness")
                         await asyncio.sleep(0.01)
-                await journeys(binary, root, app, origin)
+                await journeys(binary, root, app, origin, credential_store=credential_store)
             finally:
                 server.should_exit = True
                 await asyncio.wait_for(serving, timeout=30)

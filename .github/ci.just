@@ -618,3 +618,15 @@ ci-native-vendor-claude:
 [script('bash')]
 ci-native-vendor-opencode:
     python -m tests.native_vendor.opencode --distribution tests/native_vendor/opencode-distribution --proof "${AI_STP_OPENCODE_PROOF}"
+
+# Prepare actual API dependencies for the disposable native corporate consumer.
+[group('ci')]
+[private]
+ci-native-corporate-prepare:
+    uv sync --locked --group dev
+
+# Exercise archived native CLI ownership and corporate journeys with PostgreSQL.
+[group('ci')]
+[private]
+ci-native-corporate:
+    uv run --no-sync python -m tests.native_contract.verify_native_corporate

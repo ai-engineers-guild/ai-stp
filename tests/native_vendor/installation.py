@@ -17,22 +17,9 @@ from pathlib import Path
 from typing import Any, cast
 
 from release_scripts.cli_artifacts import check_checksum_files, digest, names
+from tests.support.native_runner import disposable_runner
 
 from .common import environment
-
-
-def disposable_runner() -> None:
-    assert os.environ.get("GITHUB_ACTIONS") == "true", "Installation fixtures require hosted CI"
-    assert os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted"
-    assert (
-        os.environ.get("RUNNER_OS")
-        == {
-            "Linux": "Linux",
-            "Darwin": "macOS",
-            "Windows": "Windows",
-        }[platform.system()]
-    )
-    assert os.environ.get("RUNNER_TEMP")
 
 
 def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
