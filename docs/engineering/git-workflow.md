@@ -1,4 +1,5 @@
 ---
+
 description: "Branch integration, exact-source qualification and artifact publication."
 last_verified: "2026-11-11"
 ---
@@ -115,6 +116,20 @@ An independent file-store journey runs all historical schema controls. The proof
 identifies both stores; historical cross-executable Keychain access is not qualified.
 Windows retains the complete OS-vault journey. No fixture changes Keychain access
 or rewrites historical executable bytes.
+
+The ordinary macOS/Windows Desktop owner uses one installed application for
+personal initialization, keyboard/appearance/context restart controls and the
+corporate profile journey. It creates a connection and corporate context through
+native accessibility controls, checks exact public plans before confirmation,
+retains the original pending device confirmation across navigation, and checks
+personal coexistence and original identities after restart against actual
+API/PostgreSQL. The approval broker accepts one bounded synthetic device approval;
+private process output and authentication values are not published. Refusals
+retain only closed checkpoints and bounded controller source locations. The
+separate public corporate-profile proof identifies installed bytes and the
+source/run; it does not qualify live SSO or corporate checkout GUI. Native
+corporate CLI/history and installed Linux checkout evidence retain their own
+owners and scope.
 
 The installed ABBA owner retains both end-to-end navigation and an independent
 WebView observation from the trusted navigation click through usable content,

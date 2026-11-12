@@ -7,7 +7,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 trap {
-    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FAILURE_V1 ' + $_.InvocationInfo.ScriptLineNumber)
+    $location = $_.InvocationInfo.ScriptLineNumber
+    if ($_.Exception.Data.Contains('native_controller_source_line')) {
+        $location = [int] $_.Exception.Data['native_controller_source_line']
+    }
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FAILURE_V1 ' + $location)
     [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
     throw $_
 }
@@ -47,6 +51,7 @@ function Read-Native([string[]] $Command) {
 }
 
 function Wait-Element([System.Diagnostics.Process] $Process, [string] $Name, $ControlType, [bool] $AllowDisabled = $false) {
+    $callerLine = @(Get-PSCallStack)[1].ScriptLineNumber
     $nameCondition = [System.Windows.Automation.PropertyCondition]::new(
         [System.Windows.Automation.AutomationElement]::NameProperty, $Name
     )
@@ -76,7 +81,9 @@ function Wait-Element([System.Diagnostics.Process] $Process, [string] $Name, $Co
         }
         Start-Sleep -Milliseconds 250
     }
-    throw "Installed UI element unavailable: $Name"
+    $failure = [InvalidOperationException]::new("Installed UI element unavailable: $Name")
+    $failure.Data['native_controller_source_line'] = $callerLine
+    throw $failure
 }
 
 function Open-Settings([System.Diagnostics.Process] $Process) {
@@ -141,6 +148,7 @@ function Text([string] $Key, [string] $Locale = 'en') {
 }
 
 function Wait-Observation([System.Diagnostics.Process] $Process, [string] $Label, [scriptblock] $Observe) {
+    $callerLine = @(Get-PSCallStack)[1].ScriptLineNumber
     $deadline = [Diagnostics.Stopwatch]::StartNew()
     while ($deadline.Elapsed.TotalSeconds -lt 45) {
         $Process.Refresh()
@@ -149,7 +157,9 @@ function Wait-Observation([System.Diagnostics.Process] $Process, [string] $Label
         if ($null -ne $value -and $value -ne $false) { return $value }
         Start-Sleep -Milliseconds 200
     }
-    throw "Timed out waiting for $Label"
+    $failure = [InvalidOperationException]::new("Timed out waiting for $Label")
+    $failure.Data['native_controller_source_line'] = $callerLine
+    throw $failure
 }
 
 function Invoke-Control($Element) {
@@ -707,7 +717,16 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
     Confirm-Review $Process
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection_saved')
     Invoke-Control (Wait-Element $Process (Text 'profiles.openThisAccountSession') ([System.Windows.Automation.ControlType]::Hyperlink))
-    Invoke-Control (Wait-Element $Process 'GitHub' ([System.Windows.Automation.ControlType]::Button))
+    $provider = Wait-Element $Process 'GitHub' ([System.Windows.Automation.ControlType]::Button)
+    $toggle = Require-Pattern $provider ([System.Windows.Automation.TogglePattern]::Pattern) 'sign-in provider'
+    if ($toggle.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::Indeterminate) {
+        throw 'Native sign-in provider has an invalid toggle state'
+    }
+    if ($toggle.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::Off) { $toggle.Toggle() }
+    $null = Wait-Observation $Process 'selected native sign-in provider' ({
+        if ($toggle.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On) { return $true }
+        return $null
+    }.GetNewClosure())
     Invoke-Control (Wait-Element $Process (Text 'auth.startSignIn') ([System.Windows.Automation.ControlType]::Button))
     $null = Wait-Element $Process (Text 'auth.approveThisDeviceInYourBrowser') $null
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 pending')

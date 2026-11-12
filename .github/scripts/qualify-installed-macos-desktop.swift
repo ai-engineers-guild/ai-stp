@@ -579,7 +579,15 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     try confirm(process, catalogs)
     corporateStage("connection_saved")
     try pressNamed(process, catalogs.text("profiles.openThisAccountSession"), role: "AXLink")
-    try pressNamed(process, "GitHub", role: kAXButtonRole)
+    let provider = try visible(process, "GitHub", role: kAXCheckBoxRole, enabled: true)
+    try check(attribute(provider, kAXSubroleAttribute) as? String == "AXToggle",
+        "Native sign-in provider does not expose its toggle role")
+    let state = (attribute(provider, kAXValueAttribute) as? NSNumber)?.intValue
+    try check(state == 0 || state == 1, "Native sign-in provider has an invalid toggle state")
+    if state == 0 { try press(provider) }
+    _ = try wait("selected native sign-in provider") {
+        (attribute(provider, kAXValueAttribute) as? NSNumber)?.intValue == 1 ? true : nil
+    }
     try pressNamed(process, catalogs.text("auth.startSignIn"), role: kAXButtonRole)
     _ = try visible(process, catalogs.text("auth.approveThisDeviceInYourBrowser"))
     corporateStage("pending")

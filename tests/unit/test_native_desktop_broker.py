@@ -95,3 +95,41 @@ def test_native_owner_failure_reports_only_approved_checkpoint(
     assert codes == ["SYNTHETIC-CODE"]
     assert marker.read_text() == "completed"
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("location", "repeat"),
+    [("-1", False), ("10001", False), ("PRIVATE-CANARY", False), ("12", True)],
+)
+def test_native_owner_refuses_content_or_repeated_failure_locations(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], location: str, repeat: bool
+) -> None:
+    child = """
+import pathlib,sys
+print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 "+sys.argv[1],flush=True)
+if sys.argv[2]=="repeat":
+ print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 13",flush=True)
+assert sys.stdin.readline()==""
+pathlib.Path(sys.argv[3]).write_text("completed")
+"""
+    codes: list[str] = []
+    marker = tmp_path / "completed"
+    with pytest.raises(ValueError, match="Native fixture failure location") as refused:
+        run_owner(
+            [
+                sys.executable,
+                "-u",
+                "-c",
+                child,
+                location,
+                "repeat" if repeat else "once",
+                str(marker),
+            ],
+            environment=dict(os.environ),
+            errors=tmp_path / "errors",
+            nonce="a" * 64,
+            approve=codes.append,
+        )
+    assert codes == [] and marker.read_text() == "completed"
+    assert "PRIVATE-CANARY" not in str(refused.value)
+    assert capsys.readouterr().out == ""
