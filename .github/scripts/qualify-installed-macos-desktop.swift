@@ -169,6 +169,17 @@ func pressNamed(_ process: Process, _ label: String, role: String? = nil) throws
     throw ProbeFailure("Named UI control does not expose a press action")
 }
 
+func ownsKeyboard(_ process: Process) -> Bool {
+    let system = AXUIElementCreateSystemWide()
+    AXUIElementSetMessagingTimeout(system, 2)
+    guard let focused = attribute(system, kAXFocusedApplicationAttribute),
+        CFGetTypeID(focused) == AXUIElementGetTypeID()
+    else { return false }
+    var identifier: pid_t = 0
+    return AXUIElementGetPid(focused as! AXUIElement, &identifier) == .success &&
+        identifier == process.processIdentifier
+}
+
 func focus(_ process: Process, _ node: AXUIElement) throws {
     try check(AXUIElementSetAttributeValue(application(process), kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success,
         "Owned application could not become frontmost")
@@ -178,7 +189,7 @@ func focus(_ process: Process, _ node: AXUIElement) throws {
     do {
         _ = try wait("owned keyboard focus") {
             try check(process.isRunning, "Installed Desktop exited before keyboard input")
-            let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == process.processIdentifier
+            let frontmost = ownsKeyboard(process)
             let flag = attribute(node, kAXFocusedAttribute) as? Bool == true
             var same = false
             var role = "unavailable"
@@ -197,7 +208,7 @@ func focus(_ process: Process, _ node: AXUIElement) throws {
 }
 
 func key(_ process: Process, _ code: CGKeyCode, flags: CGEventFlags = []) throws {
-    try check(process.isRunning && NSWorkspace.shared.frontmostApplication?.processIdentifier == process.processIdentifier,
+    try check(process.isRunning && ownsKeyboard(process),
         "Keyboard input lost its owned application")
     guard let down = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: true),
         let up = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: false)
@@ -212,7 +223,7 @@ func enter(_ process: Process, _ field: AXUIElement, _ value: String) throws {
     try focus(process, field)
     try key(process, 0, flags: .maskCommand)
     for scalar in value.unicodeScalars {
-        try check(process.isRunning && NSWorkspace.shared.frontmostApplication?.processIdentifier == process.processIdentifier,
+        try check(process.isRunning && ownsKeyboard(process),
             "Keyboard input lost its owned application")
         var characters = Array(String(scalar).utf16)
         guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),

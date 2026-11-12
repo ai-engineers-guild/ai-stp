@@ -54,6 +54,13 @@ function Wait-Element([System.Diagnostics.Process] $Process, [string] $Name, $Co
             )
         )
     }
+    if (!$AllowDisabled) {
+        $condition = [System.Windows.Automation.AndCondition]::new(
+            $condition, [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::IsEnabledProperty, $true
+            )
+        )
+    }
     $deadline = [Diagnostics.Stopwatch]::StartNew()
     while ($deadline.Elapsed.TotalSeconds -lt 45) {
         $Process.Refresh()
