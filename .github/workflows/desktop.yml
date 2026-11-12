@@ -23,6 +23,11 @@ on:
         description: Exact qualified application SHA for native-owner diagnosis
         type: string
         default: ''
+      diagnostic_platform:
+        description: Native diagnostic platform; ordinary qualification still runs all three OSes
+        type: choice
+        options: [all, macOS, Windows]
+        default: all
       diagnostic_source_run_attempt:
         description: Exact qualified producer attempt; empty selects attempt 1
         type: string
@@ -345,7 +350,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, windows-2025]
+        os: ${{ fromJSON(inputs.diagnostic_platform == 'Windows' && '["windows-2025"]' || inputs.diagnostic_platform == 'macOS' && '["macos-15"]' || '["macos-15","windows-2025"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

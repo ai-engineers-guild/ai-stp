@@ -182,12 +182,29 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     if ($Label -cnotmatch '^[A-Za-z0-9 ]{1,120}$') { throw 'Unexpected keyboard fixture text' }
     $field = Wait-Element $Process (Text 'profiles.contextLabel') ([System.Windows.Automation.ControlType]::Edit)
     Focus-Control $Process $field
-    [System.Windows.Forms.SendKeys]::SendWait('^a')
+    $before = Read-EditValue $field
+    if ($before.Length -gt 0) {
+        [System.Windows.Forms.SendKeys]::SendWait('^a{BACKSPACE}')
+        $null = Wait-Observation $Process 'cleared context label' ({
+            if ((Read-EditValue $field) -ceq '') { return $true }
+            return $null
+        }.GetNewClosure())
+    }
+    if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
+        ![System.Windows.Automation.Automation]::Compare(
+            [System.Windows.Automation.AutomationElement]::FocusedElement, $field
+        )) { throw 'Native edit lost its owned keyboard target' }
     [System.Windows.Forms.SendKeys]::SendWait($Label)
-    $null = Wait-Observation $Process 'entered context label' ({
-        if ((Read-EditValue $field) -ceq $Label) { return $true }
-        return $null
-    }.GetNewClosure())
+    try {
+        $null = Wait-Observation $Process 'entered context label' ({
+            if ((Read-EditValue $field) -ceq $Label) { return $true }
+            return $null
+        }.GetNewClosure())
+    } catch {
+        $observed = Read-EditValue $field
+        throw ('Native text entry did not match: length=' + $observed.Length +
+            ', expected_length=' + $Label.Length + ', unchanged=' + ($observed -ceq $before))
+    }
 }
 
 function Read-Review([System.Diagnostics.Process] $Process, [string] $Locale = 'en') {
@@ -318,6 +335,13 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
         }.GetNewClosure())
         $selection = Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'language option'
         $selection.Select()
+        if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
+            $expand.Collapse()
+        }
+        $null = Wait-Observation $Process 'closed native language selector' ({
+            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed) { return $true }
+            return $null
+        }.GetNewClosure())
     }
     $null = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
 }
