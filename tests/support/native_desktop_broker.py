@@ -40,7 +40,7 @@ def _approval(line: bytes, nonce: str, sequence: int) -> str:
         or not 1 <= len(request["user_code"]) <= 128
     ):
         raise ValueError("Native fixture request refused")
-    return cast(str, request["user_code"])
+    return request["user_code"]
 
 
 def run_owner(
