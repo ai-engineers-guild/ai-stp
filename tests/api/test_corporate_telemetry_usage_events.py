@@ -290,6 +290,64 @@ async def test_ingest_dedup_and_identity_binding(
     assert forged.json()["rejected"] == 2
 
 
+@pytest.mark.parametrize("changed_field", ["source", "outcome", "invoked_at"])
+async def test_ingest_same_id_cannot_change_observation(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+    changed_field: str,
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    organization_id, account_id, device_id, auth = await _tenant(
+        client, sessionmaker, "tu-immutable"
+    )
+    project_id = await _project(sessionmaker, organization_id)
+    original = _usage_event(
+        "usage_event_immutable",
+        organization_id,
+        account_id,
+        device_id,
+        project_id,
+        source="agent_reported",
+    )
+    first = await _ingest(client, organization_id, auth, [original])
+    assert first.status_code == 200 and first.json()["accepted"] == 1
+    changes = {
+        "source": "native_hook",
+        "outcome": "failed",
+        "invoked_at": format_timestamp(datetime.now(UTC)),
+    }
+    changed = {**original, changed_field: changes[changed_field]}
+    refused = await _ingest(client, organization_id, auth, [changed])
+    assert refused.status_code == 200
+    assert refused.json()["rejected_ids"] == [original["event_id"]]
+    assert refused.json()["duplicate_ids"] == []
+    replay = await _ingest(client, organization_id, auth, [original])
+    assert replay.status_code == 200 and replay.json()["duplicates"] == 1
+    report = await client.get(f"{_base(organization_id)}/usage-reports", headers=auth)
+    assert report.status_code == 200 and report.json()["total_events"] == 0
+
+
+async def test_ingest_browser_session_cannot_claim_native_hook(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    organization_id, account_id, device_id, _auth = await _tenant(
+        client, sessionmaker, "tu-browser-native"
+    )
+    project_id = await _project(sessionmaker, organization_id)
+    async with sessionmaker() as db:
+        issued = await issue_session(db, account_id=account_id, device_id=None, ttl_seconds=3600)
+        await db.commit()
+    auth = {"Authorization": f"Bearer {issued.raw_token}"}
+    event = _usage_event(
+        "usage_event_browser_native", organization_id, account_id, device_id, project_id
+    )
+    refused = await _ingest(client, organization_id, auth, [event])
+    assert refused.status_code == 200
+    assert refused.json()["rejected_ids"] == [event["event_id"]]
+    reported = await _ingest(client, organization_id, auth, [{**event, "source": "agent_reported"}])
+    assert reported.status_code == 200 and reported.json()["accepted_ids"] == [event["event_id"]]
+
+
 async def test_ingest_rejects_forbidden_fields(
     db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
 ) -> None:
