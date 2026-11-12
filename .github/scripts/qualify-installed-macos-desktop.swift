@@ -216,28 +216,42 @@ func enter(_ process: Process, _ field: AXUIElement, _ value: String) throws {
 
 func review(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -> Review {
     let region = try visible(process, catalogs.text("profiles.reviewNativeProfilePlan", locale))
-    return try wait("exact public context plan") {
-        var document: [String: Any]?
-        var raw: String?
-        var digest: String?
-        _ = walk(region) { node in
-            for name in [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute] {
-                guard let value = attribute(node, name) as? String, value.utf8.count <= 65536 else { continue }
-                if value.range(of: "^sha256:[0-9a-f]{64}$", options: .regularExpression) != nil { digest = value }
-                if let bytes = value.data(using: .utf8),
-                    let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
-                    let change = object["change"] as? [String: Any], change["context"] is [String: Any] {
-                    document = change
-                    raw = value
+    var observation = "not observed"
+    do {
+        return try wait("exact public context plan") {
+            var document: [String: Any]?
+            var raw: String?
+            var digest: String?
+            var nodes = 0, strings = 0, jsonValues = 0
+            var roles: [String: Int] = [:]
+            _ = walk(region) { node in
+                nodes += 1
+                let role = attribute(node, kAXRoleAttribute) as? String ?? "unknown"
+                roles[role, default: 0] += 1
+                for name in [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute] {
+                    guard let value = attribute(node, name) as? String, value.utf8.count <= 65536 else { continue }
+                    strings += 1
+                    if value.range(of: "^sha256:[0-9a-f]{64}$", options: .regularExpression) != nil { digest = value }
+                    if let bytes = value.data(using: .utf8),
+                        let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] {
+                        jsonValues += 1
+                        if let change = object["change"] as? [String: Any], change["context"] is [String: Any] {
+                            document = change
+                            raw = value
+                        }
+                    }
                 }
+                return false
             }
-            return false
+            let roleSummary = roles.keys.sorted().map { "\($0)=\(roles[$0]!)" }.joined(separator: ",")
+            observation = "nodes=\(nodes), strings=\(strings), JSON=\(jsonValues), plan=\(raw != nil), digest=\(digest != nil), roles=[\(roleSummary)]"
+            guard let change = document, let raw = raw, let digest = digest,
+                let context = change["context"] as? [String: Any], let action = change["action"] as? String
+            else { return nil }
+            return Review(raw: raw, digest: digest, context: context, action: action)
         }
-        guard let change = document, let raw = raw, let digest = digest,
-            let context = change["context"] as? [String: Any]
-        else { return nil }
-        guard let action = change["action"] as? String else { return nil }
-        return Review(raw: raw, digest: digest, context: context, action: action)
+    } catch {
+        throw ProbeFailure("\(error); native review observation: \(observation)")
     }
 }
 

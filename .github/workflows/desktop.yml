@@ -15,6 +15,18 @@ on:
         description: Build diagnostic packages without application acceptance or release permission
         type: boolean
         default: false
+      diagnostic_source_run_id:
+        description: Reuse an exact successful current Dev qualification for native-owner diagnosis
+        type: string
+        default: ''
+      diagnostic_app_source:
+        description: Exact qualified application SHA for native-owner diagnosis
+        type: string
+        default: ''
+      diagnostic_source_run_attempt:
+        description: Exact qualified producer attempt; empty selects attempt 1
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -30,6 +42,9 @@ env:
 
 jobs:
   desktop:
+    if: >-
+      inputs.diagnostic_source_run_id == '' && inputs.diagnostic_app_source == '' &&
+      inputs.diagnostic_source_run_attempt == ''
     name: desktop-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -315,3 +330,67 @@ jobs:
           name: desktop-preflight-intent-${{ matrix.os }}
           path: ${{ runner.temp }}/desktop-preflight.json
           if-no-files-found: error
+
+  native-diagnostic:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.diagnostic_source_run_id != '' || inputs.diagnostic_app_source != '' ||
+      inputs.diagnostic_source_run_attempt != '')
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Prepare the declared hosted SDK
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          python-version: '3.15.2'
+      - name: Admit the exact current Dev qualification
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_DESKTOP_DIAGNOSTIC_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_DESKTOP_DIAGNOSTIC_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
+        with:
+          recipe: ci-desktop-admit-native-diagnostic
+      - name: Read the exact qualified platform package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ai-stp-desktop-${{ matrix.os }}
+          run-id: ${{ inputs.diagnostic_source_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/qualified-desktop
+      - name: Exercise the installed application with current native owners
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+        with:
+          recipe: ci-desktop-installed-personal-workspace
+      - name: Bind diagnostic evidence to its distinct fixture and application
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_DESKTOP_DIAGNOSTIC_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_DESKTOP_DIAGNOSTIC_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
+        with:
+          recipe: ci-desktop-retain-native-diagnostic
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: desktop-native-diagnostic-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-personal-desktop.json
+          if-no-files-found: error
+          retention-days: 7

@@ -436,22 +436,40 @@ ci-desktop-probe-the-packaged-cli-resource-tree:
 ci-desktop-installed-personal-workspace:
     set -euo pipefail
     bundle="apps/desktop/src-tauri/target/release/bundle"
+    source="${GITHUB_SHA}"
     output="${RUNNER_TEMP}/installed-personal-desktop.json"
+    if test -n "${AI_STP_DESKTOP_DIAGNOSTIC_SOURCE:-}"; then
+      test "${GITHUB_EVENT_NAME}" = workflow_dispatch
+      test "${GITHUB_WORKFLOW}" = desktop
+      bundle="${RUNNER_TEMP}/qualified-desktop"
+      source="${AI_STP_DESKTOP_DIAGNOSTIC_SOURCE}"
+    fi
     case "${RUNNER_OS}" in
       macOS)
         bash .github/scripts/qualify-installed-macos-desktop.sh \
-          "${bundle}" "${GITHUB_SHA}" "${output}"
+          "${bundle}" "${source}" "${output}"
         ;;
       Windows)
         pwsh -STA -NoProfile -NonInteractive -File \
           .github/scripts/qualify-installed-windows-desktop.ps1 \
-          -Bundle "$(cygpath -aw "${bundle}")" -Source "${GITHUB_SHA}" \
+          -Bundle "$(cygpath -aw "${bundle}")" -Source "${source}" \
           -Output "$(cygpath -aw "${output}")"
         ;;
       *)
         exit 2
         ;;
     esac
+
+# Current Dev admission and distinct evidence for manual native-owner diagnosis.
+[group('ci')]
+[private]
+ci-desktop-admit-native-diagnostic:
+    python -m release_scripts.desktop_native_diagnostic admit
+
+[group('ci')]
+[private]
+ci-desktop-retain-native-diagnostic:
+    python -m release_scripts.desktop_native_diagnostic retain
 
 # Desktop three installed linux desktop journeys with bundled cli and native vault.
 [group('ci')]

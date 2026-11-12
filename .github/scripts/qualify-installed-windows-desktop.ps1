@@ -146,7 +146,7 @@ function Focus-Control([System.Diagnostics.Process] $Process, $Element) {
     $Element.SetFocus()
     $null = Wait-Observation $Process 'owned keyboard focus' ({
         if ([NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle -and
-            [System.Windows.Automation.AutomationElement]::Compare(
+            [System.Windows.Automation.Automation]::Compare(
                 [System.Windows.Automation.AutomationElement]::FocusedElement, $Element
             )) { return $true }
         return $null
