@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
 import tempfile
+from functools import partial
 from pathlib import Path
 
 from alembic import command
@@ -22,8 +24,15 @@ from tests.support.postgres import isolated_database
 def main() -> None:
     disposable_runner()
     assert os.environ["RUNNER_OS"] in {"macOS", "Windows"}
-    assert os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch"
-    assert os.environ["GITHUB_WORKFLOW"] == "desktop"
+    diagnostic = bool(os.environ.get("AI_STP_NATIVE_ENGINE_SOURCE_RUN"))
+    if diagnostic:
+        assert os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch"
+        assert os.environ["GITHUB_WORKFLOW"] == "desktop"
+    else:
+        assert not os.environ.get("AI_STP_NATIVE_ENGINE_SOURCE")
+        assert os.environ["GITHUB_EVENT_NAME"] in {"push", "workflow_dispatch"}
+        assert os.environ["GITHUB_WORKFLOW"] == "check"
+    native_os = os.environ["RUNNER_OS"]
     source = os.environ["GITHUB_SHA"]
     assert re.fullmatch(r"[0-9a-f]{40}", source)
     temporary = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
@@ -37,14 +46,32 @@ def main() -> None:
             engine = prepare(root, source)
             assert engine is not None
             binary, identity = engine
-            assert identity["diagnostic_only"] is True
+            assert identity["diagnostic_only"] is diagnostic
             with cluster() as (template_url, database):
                 report_stage("postgresql-ready")
                 os.environ["AI_STP_TEST_DB_URL"] = template_url
-                for name, owner in [
-                    ("ownership", verify_ownership),
-                    ("corporate", verify_corporate),
-                ]:
+                cases = [
+                    ("ownership", partial(verify_ownership.prove, credential_store="os_keyring")),
+                    (
+                        "corporate",
+                        partial(
+                            verify_corporate.prove,
+                            credential_store="os_keyring",
+                            historical_consumers=native_os != "macOS",
+                        ),
+                    ),
+                ]
+                if native_os == "macOS":
+                    cases.append(
+                        (
+                            "corporate-file",
+                            partial(
+                                verify_corporate.prove,
+                                credential_store="file",
+                            ),
+                        )
+                    )
+                for name, owner in cases:
                     fixture = root / name
                     fixture.mkdir()
                     with isolated_database(
@@ -55,21 +82,51 @@ def main() -> None:
                         command.upgrade(Config("alembic.ini"), "head")
                         report_stage(f"{name}-journey")
                         try:
-                            asyncio.run(
-                                owner.prove(binary, url, fixture, credential_store="os_keyring")
-                            )
+                            asyncio.run(owner(binary, url, fixture))
                         finally:
                             close_api_log_files(fixture / "api")
                         report_stage(f"{name}-passed")
             report_stage("postgresql-stopped")
+            historical_writers: list[dict[str, int | str]] = []
+            for schema, suffix in [
+                (58, ""),
+                (59, "_BINDING"),
+                (60, "_LOCATION"),
+                (61, "_MISSING_CHECKOUT"),
+            ]:
+                prefix = f"AI_STP_TEST_PREVIOUS{suffix}_CLI"
+                previous = Path(os.environ[prefix + "_BINARY"])
+                assert previous.resolve().is_relative_to(temporary)
+                assert previous.is_file() and not previous.is_symlink()
+                assert 4096 < previous.stat().st_size <= 512 * 1024 * 1024
+                previous_source = os.environ[prefix + "_SOURCE"]
+                assert re.fullmatch(r"[0-9a-f]{40}", previous_source)
+                with previous.open("rb") as stream:
+                    previous_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+                historical_writers.append(
+                    {
+                        "registry_schema": schema,
+                        "source_sha": previous_source,
+                        "binary_sha256": previous_digest,
+                        "origin": "pinned_source_build" if schema < 60 else "immutable_release",
+                    }
+                )
             proof = {
                 "schema_version": 1,
                 "evidence_kind": "native_cli_corporate_api_postgresql",
                 "fixture_source_sha": source,
+                "fixture_run_id": os.environ["GITHUB_RUN_ID"],
+                "fixture_run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
                 "engine": identity,
                 "source_run_attempt": int(os.environ["AI_STP_NATIVE_ENGINE_SOURCE_ATTEMPT"]),
                 "database": database,
+                "historical_writers": historical_writers,
                 "native_credential_store": "os_keyring",
+                "historical_corporate_credential_store": "file"
+                if native_os == "macOS"
+                else "os_keyring",
+                "historical_os_vault_compatibility_qualified": native_os == "Windows",
+                "journeys": [name for name, _ in cases],
                 "ownership_transfer_journey_passed": True,
                 "corporate_journeys_passed": True,
                 "database_process_stopped": True,

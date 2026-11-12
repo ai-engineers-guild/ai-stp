@@ -81,6 +81,15 @@ jobs:
     with:
       installed_engine: true
 
+  native-corporate:
+    needs: archives
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    uses: ./.github/workflows/native-corporate-checks.yml
+
   secrets:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
@@ -415,6 +424,7 @@ jobs:
       - wasi-confinement
       - safety-runtime
       - vendor-discovery
+      - native-corporate
       - secrets
       - integration-python
       - integration-web
@@ -449,7 +459,7 @@ jobs:
           printf 'Qualification phase: %s\n' "${PHASE}"
           jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
             --arg wasi "${WASI_SELECTED}" '
-            type == "object" and length == 22 and
+            type == "object" and length == 23 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
             ($phase != "full" or $wasi == "true") and

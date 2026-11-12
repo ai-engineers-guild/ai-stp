@@ -450,6 +450,7 @@ async def qualify(
     git_executable: str,
     old_recoveries: list[dict[str, Any]],
     foreign_context: str,
+    historical_consumers: bool = True,
 ) -> None:
     async with app.state.sessionmaker() as db:
         membership = await db.scalar(
@@ -556,4 +557,5 @@ async def qualify(
         context=current_context,
         connection=retained_connection,
         foreign_context=foreign_context,
+        historical_consumers=historical_consumers,
     )

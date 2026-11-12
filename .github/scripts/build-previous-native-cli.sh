@@ -7,8 +7,10 @@ set -euo pipefail
 # registry/download cache remains shared on the runner.
 previous_epoch="${1:-58}"
 binary_name=ai-stp
+runner_temp="${RUNNER_TEMP:?}"
 if [[ "${RUNNER_OS:?}" == Windows ]]; then
   binary_name=ai-stp.exe
+  runner_temp="$(cygpath -u "${runner_temp}")"
 fi
 case "${previous_epoch}" in
   58)
@@ -23,7 +25,7 @@ case "${previous_epoch}" in
     ;;
   *) echo "Only the two explicit qualified writer epochs are supported." >&2; exit 2 ;;
 esac
-previous_root="${RUNNER_TEMP:?}/ai-stp-previous-native-${previous_epoch}-source"
+previous_root="${runner_temp}/ai-stp-previous-native-${previous_epoch}-source"
 producer_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 producer_recipe="$(python3 - "${producer_directory}" <<'PYHASH'
 import hashlib
@@ -37,7 +39,7 @@ for name in ("build-previous-native-cli.sh", "previous-native-cache.py"):
 print(digest.hexdigest())
 PYHASH
 )"
-cached_root="${RUNNER_TEMP}/ai-stp-previous-native-binaries/${previous_commit}"
+cached_root="${runner_temp}/ai-stp-previous-native-binaries/${previous_commit}"
 test ! -e "${previous_root}"
 git fetch --no-tags origin "${previous_commit}"
 test "$(git rev-parse FETCH_HEAD)" = "${previous_commit}"
@@ -46,8 +48,12 @@ mkdir -p "${previous_root}"
 git archive --format=tar "${previous_commit}" apps/cli |
   tar --extract --directory="${previous_root}"
 cmp apps/cli/rust-toolchain.toml "${previous_root}/apps/cli/rust-toolchain.toml"
-export CARGO_TARGET_DIR="${RUNNER_TEMP}/ai-stp-previous-native-${previous_commit}-target"
-export CARGO_BUILD_BUILD_DIR="${RUNNER_TEMP}/ai-stp-previous-native-${previous_commit}-build"
+export CARGO_TARGET_DIR="${runner_temp}/ai-stp-previous-native-${previous_commit}-target"
+export CARGO_BUILD_BUILD_DIR="${runner_temp}/ai-stp-previous-native-${previous_commit}-build"
+if [[ "${RUNNER_OS}" == Windows ]]; then
+  CARGO_TARGET_DIR="$(cygpath -m "${CARGO_TARGET_DIR}")"
+  CARGO_BUILD_BUILD_DIR="$(cygpath -m "${CARGO_BUILD_BUILD_DIR}")"
+fi
 cd "${previous_root}/apps/cli"
 compiler="$(rustc --version --verbose)"
 if [[ -e "${cached_root}" || -L "${cached_root}" ]]; then
@@ -78,6 +84,9 @@ mkdir "${previous_root}/installed"
 cp "${previous_binary}" "${previous_root}/installed/${binary_name}"
 cmp "${previous_binary}" "${previous_root}/installed/${binary_name}"
 previous_binary="${previous_root}/installed/${binary_name}"
+if [[ "${RUNNER_OS}" == Windows ]]; then
+  previous_binary="$(cygpath -m "${previous_binary}")"
+fi
 python3 - "${previous_binary}" "${previous_epoch}" "${previous_root}" <<'PY'
 import json
 import pathlib

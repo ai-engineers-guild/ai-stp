@@ -24,23 +24,44 @@ from typing import Any
 from tests.support.native_runner import disposable_runner, report_stage
 
 
-def run_command(program: Path, *arguments: str) -> str:
-    # A daemon may inherit output handles after its launcher exits. A regular
-    # file keeps completion tied to the owned launcher, independent of pipe EOF.
+def run_command(program: Path, *arguments: str, input_data: bytes | None = None) -> str:
+    # Daemon launchers use a file so descendants cannot hold pipe EOF open.
+    # Only foreground initdb uses private stdin and in-memory output; detaching
+    # its console makes PostgreSQL's non-echoing prompt read that owned pipe.
+    private_input = input_data is not None
     with tempfile.TemporaryFile() as output:
-        result = subprocess.run(
-            [str(program), *arguments],
-            stdin=subprocess.DEVNULL,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            timeout=90,
-            check=False,
-        )
-        output.seek(0)
-        payload = output.read(64 * 1024 + 1)
+        try:
+            result = subprocess.run(
+                [str(program), *arguments],
+                stdin=None if private_input else subprocess.DEVNULL,
+                input=input_data,
+                stdout=subprocess.PIPE if private_input else output,
+                stderr=subprocess.STDOUT,
+                start_new_session=private_input and os.name != "nt",
+                creationflags=subprocess.CREATE_NO_WINDOW
+                if private_input and os.name == "nt"
+                else 0,
+                timeout=90,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            raise AssertionError("PostgreSQL command exceeded its time bound") from None
+        if private_input:
+            payload = result.stdout
+            assert input_data is not None
+            assert not any(line and line in payload for line in input_data.splitlines()), (
+                "PostgreSQL command echoed private input"
+            )
+        else:
+            output.seek(0)
+            payload = output.read(64 * 1024 + 1)
     assert len(payload) <= 64 * 1024, "PostgreSQL command output exceeded its bound"
     text = payload.decode("utf-8", errors="replace")
-    assert result.returncode == 0, (program.name, result.returncode, text[-4096:])
+    assert result.returncode == 0, (
+        program.name,
+        result.returncode,
+        "Private input command failed" if private_input else text[-4096:],
+    )
     return text
 
 
@@ -145,9 +166,6 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
             version,
         ), version
         password = secrets.token_hex(24)
-        password_file = root / "password"
-        password_file.write_text(password + "\n", encoding="utf-8")
-        password_file.chmod(0o600)
         report_stage("postgresql-initialize")
         run_command(
             initdb,
@@ -155,14 +173,13 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
             str(data),
             "-U",
             "ai_stp_fixture",
-            "--pwfile",
-            str(password_file),
+            "--pwprompt",
             "--auth-host=scram-sha-256",
             "--auth-local=scram-sha-256",
             "--encoding=UTF8",
             "--locale=C",
+            input_data=((password + "\n") * 2).encode("ascii"),
         )
-        password_file.unlink()
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
             port = reservation.getsockname()[1]

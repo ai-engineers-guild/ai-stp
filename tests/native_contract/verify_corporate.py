@@ -82,7 +82,13 @@ async def refused(binary: Path, home: Path, arguments: list[str]) -> ErrorEnvelo
 
 
 async def journeys(
-    binary: Path, root: Path, app: Any, origin: str, *, credential_store: str = "file"
+    binary: Path,
+    root: Path,
+    app: Any,
+    origin: str,
+    *,
+    credential_store: str = "file",
+    historical_consumers: bool = True,
 ) -> None:
     home, state = root / "consumer", root / "state"
     home.mkdir()
@@ -1208,11 +1214,17 @@ async def journeys(
         git_executable=git_executable,
         old_recoveries=[recovery, missing],
         foreign_context=contexts[1],
+        historical_consumers=historical_consumers,
     )
 
 
 async def prove(
-    binary: Path, database_url: str, root: Path, *, credential_store: str = "file"
+    binary: Path,
+    database_url: str,
+    root: Path,
+    *,
+    credential_store: str = "file",
+    historical_consumers: bool = True,
 ) -> None:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -1236,7 +1248,14 @@ async def prove(
                             await serving
                             raise AssertionError("fixture API stopped before readiness")
                         await asyncio.sleep(0.01)
-                await journeys(binary, root, app, origin, credential_store=credential_store)
+                await journeys(
+                    binary,
+                    root,
+                    app,
+                    origin,
+                    credential_store=credential_store,
+                    historical_consumers=historical_consumers,
+                )
             finally:
                 server.should_exit = True
                 await asyncio.wait_for(serving, timeout=30)

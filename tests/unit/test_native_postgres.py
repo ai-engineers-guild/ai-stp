@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import socket
 import sys
 from pathlib import Path
 
+import pytest
 from tests.support.native_postgres import run_command
 
 CHILD = """
@@ -44,3 +46,27 @@ def test_command_does_not_wait_for_a_live_descendants_inherited_output() -> None
             peer.sendall(b"K")
             assert peer.recv(1) == b"D"
             assert peer.recv(1) == b""
+
+
+def test_private_command_input_uses_a_non_echoing_anonymous_pipe() -> None:
+    payload = b"owned-disposable-input\nowned-disposable-input\n"
+    observed = run_command(
+        Path(sys.executable),
+        "-c",
+        "import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())",
+        input_data=payload,
+    )
+    assert observed.strip() == hashlib.sha256(payload).hexdigest()
+
+
+def test_private_command_failure_does_not_expose_its_input() -> None:
+    payload = b"owned-disposable-input\n"
+    with pytest.raises(AssertionError) as failure:
+        run_command(
+            Path(sys.executable),
+            "-c",
+            "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read()); sys.exit(1)",
+            input_data=payload,
+        )
+    assert str(failure.value) == "PostgreSQL command echoed private input"
+    assert payload.decode().strip() not in str(failure.value)

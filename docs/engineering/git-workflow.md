@@ -99,11 +99,22 @@ The retained proof separates application and fixture source, identifies the
 producer attempt and records `diagnostic_only`. These artifacts do not replace
 same-source installed acceptance or authorize delivery.
 
-The `diagnostic_native_corporate` mode exercises archived CLI ownership and
-corporate journeys against the actual API, a pinned native PostgreSQL distribution
-and an ephemeral loopback cluster on macOS/Windows. It uses the native OS vault and
-retains separate CLI evidence; GUI acceptance and live SSO stay with their own
-consumers. The ordinary source and release workflows cannot select this mode.
+The mandatory `native-corporate-checks.yml` owner exercises ownership, corporate
+and checkout/retirement journeys against the actual API and pinned native
+PostgreSQL on macOS and Windows, using the archived CLI from the same source run.
+It retains OS-vault and historical schema58/59 source-writer and immutable released
+schema60/61 consumer controls. Every applicable owner must succeed; the Source
+qualification counts this job directly. The explicit `diagnostic_native_corporate`
+Desktop mode reuses that owner with an admitted current Dev archive, preserves the
+fixture/application source distinction, and cannot save historical build caches or
+authorize release. Browser approval remains a synthetic fixture; this evidence
+does not qualify live corporate SSO or the Desktop corporate GUI.
+On macOS, the OS-vault journey retains the historical executable's actual
+credential-store refusal and verifies unchanged registry bytes/server counts.
+An independent file-store journey runs all historical schema controls. The proof
+identifies both stores; historical cross-executable Keychain access is not qualified.
+Windows retains the complete OS-vault journey. No fixture changes Keychain access
+or rewrites historical executable bytes.
 
 The installed ABBA owner retains both end-to-end navigation and an independent
 WebView observation from the trusted navigation click through usable content,

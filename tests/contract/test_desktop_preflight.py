@@ -107,7 +107,10 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
         "actions": "read",
         "security-events": "read",
     }
-    steps = {step.get("name"): step for step in corporate["steps"]}
+    assert corporate["uses"] == "./.github/workflows/native-corporate-checks.yml"
+    assert corporate["with"]["diagnostic_only"] is True
+    owner = workflow("native-corporate-checks")["jobs"]["journeys"]
+    steps = {step.get("name"): step for step in owner["steps"]}
     order = list(steps)
     admit = "Admit the exact current Dev qualification"
     archive = "Read the exact qualified native CLI archive"
@@ -116,15 +119,19 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
     assert (
         order.index(admit) < order.index(archive) < order.index(preparation) < order.index(consumer)
     )
+    assert steps[admit]["if"] == "inputs.diagnostic_only"
     assert steps[admit]["with"]["recipe"] == "ci-desktop-admit-native-diagnostic"
-    assert steps[archive]["with"]["run-id"] == "${{ inputs.diagnostic_source_run_id }}"
+    assert (
+        steps[archive]["with"]["run-id"]
+        == "${{ inputs.diagnostic_source_run_id || github.run_id }}"
+    )
     assert "inputs.diagnostic_app_source" in steps[archive]["with"]["name"]
     assert steps[consumer]["env"]["AI_STP_REQUIRE_ENGINE"] == "true"
     assert not {"GH_TOKEN", "GITHUB_TOKEN"} & steps[consumer]["env"].keys()
     assert steps[preparation]["with"] == {"recipe": "ci-native-corporate-prepare"}
     assert steps[consumer]["with"] == {"recipe": "ci-native-corporate"}
 
-    assert any(step.get("uses") == "./.github/actions/project-rust" for step in corporate["steps"])
+    assert any(step.get("uses") == "./.github/actions/project-rust" for step in owner["steps"])
     for name in [
         "Build the immutable previous schema58 native writer",
         "Build the qualified previous schema59 binding writer",
