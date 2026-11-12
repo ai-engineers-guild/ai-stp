@@ -88,9 +88,6 @@ public static class NativeDesktopInput
     [DllImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
     private static extern uint MapVirtualKey(uint code, uint kind);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetAncestor(IntPtr window, uint flags);
-
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetPhysicalCursorPos(int x, int y);
@@ -101,7 +98,7 @@ public static class NativeDesktopInput
     private static bool WindowOwnedBy(IntPtr root, IntPtr window)
     {
         return root != IntPtr.Zero && window != IntPtr.Zero &&
-            (window == root || IsChild(root, window) || GetAncestor(window, 3) == root);
+            (window == root || IsChild(root, window));
     }
 
     public static bool PointerButtonsReleased()

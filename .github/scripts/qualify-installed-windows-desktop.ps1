@@ -485,9 +485,13 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
             )
             return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
         }.GetNewClosure())
-        Click-NativeControl $Process $option
+        $selection = Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'language option'
+        $selection.Select()
         $selector = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
         $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
+        if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
+            $expand.Collapse()
+        }
         $null = Wait-Observation $Process 'closed native language selector' ({
             if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
                 [NativeDesktopInput]::PointerButtonsReleased()) { return $true }
@@ -651,7 +655,7 @@ try {
     theme_locale_observations = $personal.Combinations
     native_text_selection_replacements = $script:contextTextReplacements
     native_text_input_api = 'SendInput_UNICODE_SCANCODE'
-    native_combo_input_api = 'SendInput_POINTER'
+    native_combo_input_api = 'SendInput_POINTER_UIA_SELECTION'
     personal_controls = [ordered]@{
         native_vault_initialization = $true
         two_native_offline_contexts = $true
