@@ -95,17 +95,7 @@ foreach ($locale in $languageConfiguration.languages.Keys) {
     $catalogs[$locale] = Get-Content -Raw -LiteralPath (Join-Path $catalogRoot ($locale + '.json')) | ConvertFrom-Json -AsHashtable
 }
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class NativeDesktopInput {
-    [DllImport("user32.dll")]
-    public static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool SetForegroundWindow(IntPtr window);
-}
-'@
+Add-Type -Path (Join-Path $PSScriptRoot 'native-desktop-input.cs')
 
 function Text([string] $Key, [string] $Locale = 'en') {
     if (!$catalogs.ContainsKey($Locale) -or !$catalogs[$Locale].ContainsKey($Key)) {
@@ -169,10 +159,22 @@ function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) 
     if (!$Element.Current.IsEnabled -or
         !$Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $value) -or
         $value.Current.IsReadOnly) { throw 'Native context edit is not observably editable' }
-    if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
-        ![System.Windows.Automation.Automation]::Compare(
-            [System.Windows.Automation.AutomationElement]::FocusedElement, $Element
-        )) { throw 'Native edit lost its owned keyboard target' }
+    $keyboardOwned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+    $modifiers = [NativeDesktopInput]::PressedModifiers()
+    $foregroundOwned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+    $automationFocused = [System.Windows.Automation.Automation]::Compare(
+        [System.Windows.Automation.AutomationElement]::FocusedElement, $Element
+    )
+    if (!$keyboardOwned -or $modifiers -ne 0 -or !$foregroundOwned -or !$automationFocused) {
+        Write-Host ([ordered]@{
+            native_keyboard_target = 'refused'
+            keyboard_focus_owned = $keyboardOwned
+            pressed_modifiers = $modifiers
+            foreground_owned = $foregroundOwned
+            automation_focused = $automationFocused
+        } | ConvertTo-Json -Compress)
+        throw 'Native edit lost its owned keyboard target'
+    }
 }
 
 function Read-EditValue($Element) {
@@ -212,13 +214,17 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
         Assert-KeyboardTarget $Process $field
         Write-Host ([ordered]@{
             native_text_clear = 'before_keyboard'
+            keyboard_api = 'SendInput'
+            keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+            pressed_modifiers = [NativeDesktopInput]::PressedModifiers()
             initial_length = $before.Length
             enabled = $field.Current.IsEnabled
             read_only = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly
             selection_ranges = @($text.GetSelection()).Count
             foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
         } | ConvertTo-Json -Compress)
-        [System.Windows.Forms.SendKeys]::SendWait('{BACKSPACE}')
+        $injected = [NativeDesktopInput]::Backspace()
+        Write-Host ('Native clear keyboard events accepted: ' + $injected)
         try {
             $null = Wait-Observation $Process 'cleared context label' ({
                 if ((Read-EditValue $field) -ceq '') { return $true }
@@ -229,6 +235,8 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
             $ranges = @($text.GetSelection())
             Write-Host ([ordered]@{
                 native_text_clear = 'refused'
+                keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+                pressed_modifiers = [NativeDesktopInput]::PressedModifiers()
                 initial_length = $before.Length
                 observed_length = $observed.Length
                 enabled = $field.Current.IsEnabled
@@ -242,7 +250,8 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
         $script:contextTextReplacements++
     }
     Assert-KeyboardTarget $Process $field
-    [System.Windows.Forms.SendKeys]::SendWait($Label)
+    $injected = [NativeDesktopInput]::TypeText($Label)
+    Write-Host ('Native text keyboard events accepted: ' + $injected)
     try {
         $null = Wait-Observation $Process 'entered context label' ({
             if ((Read-EditValue $field) -ceq $Label) { return $true }
@@ -561,6 +570,7 @@ try {
     installed_personal_workspace_restart = $true
     theme_locale_observations = $personal.Combinations
     native_text_selection_replacements = $script:contextTextReplacements
+    native_text_input_api = 'SendInput'
     personal_controls = [ordered]@{
         native_vault_initialization = $true
         two_native_offline_contexts = $true
