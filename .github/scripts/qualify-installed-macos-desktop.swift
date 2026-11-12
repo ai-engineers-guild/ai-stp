@@ -278,11 +278,28 @@ func confirm(_ process: Process, _ catalogs: Catalogs) throws {
     }
 }
 
+func openPublicPlan(_ process: Process, _ catalogs: Catalogs) throws {
+    let disclosure = try visible(process, catalogs.text("profiles.exactPublicPlan"), role: kAXDisclosureTriangleRole, enabled: true)
+    func expanded() -> Bool? {
+        if let value = attribute(disclosure, kAXExpandedAttribute) as? Bool { return value }
+        if let value = attribute(disclosure, kAXValueAttribute) as? NSNumber,
+            value.intValue == 0 || value.intValue == 1 { return value.intValue == 1 }
+        return nil
+    }
+    if expanded() != true {
+        try focus(process, disclosure)
+        try key(process, 49)
+    }
+    _ = try wait("expanded public plan disclosure") {
+        expanded() == true ? true : nil
+    }
+}
+
 func context(_ process: Process, _ catalogs: Catalogs, _ label: String) throws -> Review {
     let field = try visible(process, catalogs.text("profiles.contextLabel"), role: kAXTextFieldRole, enabled: true)
     try enter(process, field, label)
     try pressNamed(process, catalogs.text("profiles.reviewContextCreation"), role: kAXButtonRole)
-    try pressNamed(process, catalogs.text("profiles.exactPublicPlan"), role: kAXDisclosureTriangleRole)
+    try openPublicPlan(process, catalogs)
     let retained = try review(process, catalogs, "en")
     _ = try validate(retained, "create", label)
     return retained
@@ -303,7 +320,7 @@ func selected(_ cli: URL, _ identifier: String) throws {
 
 func selectContext(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ label: String, _ identifier: String) throws {
     try pressNamed(process, catalogs.text("profiles.reviewViewSelection"), role: kAXButtonRole)
-    try pressNamed(process, catalogs.text("profiles.exactPublicPlan"), role: kAXDisclosureTriangleRole)
+    try openPublicPlan(process, catalogs)
     _ = try validate(review(process, catalogs, "en"), "select", label, identifier)
     try confirm(process, catalogs)
     try selected(cli, identifier)

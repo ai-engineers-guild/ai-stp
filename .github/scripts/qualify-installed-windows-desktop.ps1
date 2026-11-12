@@ -157,6 +157,20 @@ function Focus-Control([System.Diagnostics.Process] $Process, $Element) {
     }.GetNewClosure())
 }
 
+function Read-EditValue($Element) {
+    $pattern = $null
+    if ($Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $pattern)) {
+        return [string] $pattern.Current.Value
+    }
+    if ($Element.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref] $pattern)) {
+        $text = $pattern.DocumentRange.GetText(65537)
+        if ($text.Length -gt 65536) { throw 'Native edit text exceeds its observation bound' }
+        return $text.TrimEnd([char[]] "`r`n")
+    }
+    $patterns = @($Element.GetSupportedPatterns() | ForEach-Object { $_.ProgrammaticName }) -join ','
+    throw ('Native edit has no readable value/text pattern: ' + $patterns)
+}
+
 function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     if ($Label -cnotmatch '^[A-Za-z0-9 ]{1,120}$') { throw 'Unexpected keyboard fixture text' }
     $field = Wait-Element $Process (Text 'profiles.contextLabel') ([System.Windows.Automation.ControlType]::Edit)
@@ -164,8 +178,7 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     [System.Windows.Forms.SendKeys]::SendWait('^a')
     [System.Windows.Forms.SendKeys]::SendWait($Label)
     $null = Wait-Observation $Process 'entered context label' ({
-        $pattern = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-        if ($pattern.Current.Value -ceq $Label) { return $true }
+        if ((Read-EditValue $field) -ceq $Label) { return $true }
         return $null
     }.GetNewClosure())
 }
@@ -345,7 +358,7 @@ function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
                 throw 'Appearance changes replaced the retained context plan'
             }
             $field = Wait-Element $Process (Text 'profiles.contextLabel' $locale) ([System.Windows.Automation.ControlType]::Edit)
-            if ($field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -cne 'Native personal one') {
+            if ((Read-EditValue $field) -cne 'Native personal one') {
                 throw 'Language change replaced entered context text'
             }
             $checkbox = Wait-Element $Process (Text 'profiles.iReviewedThisExactPlanAndAuthorizeThisLocal' $locale) (
