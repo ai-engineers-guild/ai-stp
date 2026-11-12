@@ -1210,6 +1210,15 @@ pub fn run() {
             // if its bundled engine is missing. Development may use an override.
             let bundled = (!cfg!(debug_assertions) || bundled.is_file()).then_some(bundled);
             app.manage(Arc::new(AppState::new(bundled)));
+            // Configured webviews and state restoration finish before application setup.
+            // Queue native geometry queries through the running event loop, outside plugin creation.
+            if let Some(window) = app.get_webview_window("main") {
+                drop(tauri::async_runtime::spawn_blocking(move || {
+                    if window_geometry::fit_normal_window(&window).is_err() {
+                        eprintln!("Could not fit the Desktop window inside the display work area");
+                    }
+                }));
+            }
             Ok(())
         })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -1233,8 +1242,6 @@ pub fn run() {
                 })
                 .build(),
         )
-        // Tauri invokes window-ready plugins in registration order, after restoration above.
-        .plugin(window_geometry::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![

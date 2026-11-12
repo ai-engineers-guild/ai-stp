@@ -1,19 +1,8 @@
-//! Startup geometry after the native window-state owner restores user preferences.
+//! Startup geometry after the configured webview and restored state are attached.
 
-use tauri::plugin::TauriPlugin;
-use tauri::{LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, Window};
+use tauri::{LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow};
 
-pub(super) fn init<R: Runtime>() -> TauriPlugin<R> {
-    tauri::plugin::Builder::new("window-geometry")
-        .on_window_ready(|window| {
-            if window.label() == "main" && fit_normal_window(&window).is_err() {
-                eprintln!("Could not fit the Desktop window inside the display work area");
-            }
-        })
-        .build()
-}
-
-fn fit_normal_window<R: Runtime>(window: &Window<R>) -> tauri::Result<()> {
+pub(super) fn fit_normal_window<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
     if window.is_maximized()? || window.is_fullscreen()? {
         return Ok(());
     }
@@ -51,10 +40,12 @@ fn fit_normal_window<R: Runtime>(window: &Window<R>) -> tauri::Result<()> {
             configuration.min_height.unwrap_or_default(),
         )
         .to_physical::<u32>(window.scale_factor()?);
-        window.set_min_size(Some(PhysicalSize::new(
-            minimum.width.min(available.width),
-            minimum.height.min(available.height),
-        )))?;
+        if minimum.width > available.width || minimum.height > available.height {
+            window.set_min_size(Some(PhysicalSize::new(
+                minimum.width.min(available.width),
+                minimum.height.min(available.height),
+            )))?;
+        }
     }
     let size = PhysicalSize::new(
         inner.width.min(available.width),
