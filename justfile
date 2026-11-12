@@ -61,7 +61,7 @@ test_dist := env_var_or_default("AI_STP_TEST_DIST", "load")
 # (Python 3.12+ sys.monitoring) traces with far less interpreter overhead.
 # Exported so a focused run sees the same backend as the gate. pyproject pins
 # `core = "sysmon"` and must not list greenlet under concurrency — that pair
-# made coverage fall back to ctrace with a warning per worker (ADR-0117).
+# made coverage fall back to ctrace with a warning per worker.
 export COVERAGE_CORE := env_var_or_default("AI_STP_TEST_COVERAGE_CORE", "sysmon")
 
 # A missing bun must fail the recipe, not skip the step. The version is
@@ -405,7 +405,7 @@ back-static: back-dependencies
     {{ run }} python -m release_scripts.update_component_fixture --check
     {{ py }} {{ scripts }}/skill_projections.py --check
 
-# Coverage is printed, not a fail-under (ADR-0147). The second call reads
+# Coverage is printed, not a fail-under. The second call reads
 # the data pytest-cov wrote so the local log matches CI's combined report.
 [doc('Full test suite with coverage report')]
 [group('back')]
