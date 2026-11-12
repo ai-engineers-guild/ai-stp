@@ -180,6 +180,55 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
     }
     malformed = write_skill(roots["config"], PREFIX + "malformed", PREFIX + "malformed", "Invalid")
     malformed.write_text("---\nname: 123\n---\nControlled malformed fixture.\n", encoding="utf-8")
+    edge_cases: list[tuple[str, Path, str | None]] = []
+
+    def skill_case(relative: str, payload: str, identifier: str, display: str | None) -> None:
+        document = roots["config"] / relative
+        document.parent.mkdir(parents=True, exist_ok=True)
+        document.write_text(payload, encoding="utf-8")
+        edge_cases.append((PREFIX + identifier, document, display))
+
+    plain = "Format only caller-supplied fixture text.\n"
+    skill_case(PREFIX + "plain/SKILL.md", plain, "plain", PREFIX + "plain")
+    skill_case(
+        PREFIX + "description/SKILL.md",
+        "---\ndescription: Controlled\n---\n" + plain,
+        "description",
+        PREFIX + "description",
+    )
+    skill_case(
+        PREFIX + "name/SKILL.md", "---\nname: Display only\n---\n" + plain, "name", "Display only"
+    )
+    skill_case(
+        PREFIX + "empty/SKILL.md", "---\nname: ''\ndescription: ''\n---\n" + plain, "empty", ""
+    )
+    skill_case(PREFIX + "flat.md", "---\nname: Flat display\n---\n" + plain, "flat", "Flat display")
+    skill_case("category/" + PREFIX + "nested/SKILL.md", plain, "nested", PREFIX + "nested")
+    skill_case(PREFIX + "parent/SKILL.md", plain, "parent", PREFIX + "parent")
+    skill_case(PREFIX + "parent/" + PREFIX + "blocked/SKILL.md", plain, "blocked", None)
+    skill_case("category/" + PREFIX + "ignored-flat.md", plain, "ignored-flat", None)
+    for ignored in [".hidden", "node_modules", "venv", "__pycache__"]:
+        identifier = "ignored-" + ignored.removeprefix(".").replace("_", "-")
+        skill_case(ignored + "/" + PREFIX + identifier + "/SKILL.md", plain, identifier, None)
+    skill_case(
+        "a/b/c/d/e/" + PREFIX + "depth-six/SKILL.md", plain, "depth-six", PREFIX + "depth-six"
+    )
+    skill_case("a/b/c/d/e/f/" + PREFIX + "depth-seven/SKILL.md", plain, "depth-seven", None)
+    for identifier in ["same-display-first", "same-display-second"]:
+        skill_case(
+            PREFIX + identifier + "/SKILL.md",
+            "---\nname: Shared display\n---\n" + plain,
+            identifier,
+            "Shared display",
+        )
+    for field in ["name", "description"]:
+        identifier = "numeric-" + field
+        skill_case(
+            PREFIX + identifier + "/SKILL.md",
+            "---\n" + field + ": 123\n---\n" + plain,
+            identifier,
+            None,
+        )
     child_environment = variables(root, vendor_home)
     isolated_sources(project)
     controls: dict[str, bool] = {}
@@ -201,6 +250,17 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
     controls["project_shadow_wins"] = True
     observed(first, PREFIX + "malformed", None)
     controls["malformed_frontmatter_not_loaded"] = True
+    for identifier, path, display in edge_cases:
+        observed(first, identifier, path if display is not None else None)
+        if display is not None:
+            assert next(row for row in first if row["id"] == identifier)["name"] == display
+    controls["optional_frontmatter_uses_path_identity"] = True
+    controls["empty_display_does_not_change_identity"] = True
+    controls["flat_and_nested_skill_paths"] = True
+    controls["parent_skill_stops_nested_scan"] = True
+    controls["ignored_directories_and_depth_boundary"] = True
+    controls["duplicate_display_names_keep_distinct_path_ids"] = True
+    controls["numeric_optional_fields_not_loaded"] = True
 
     restricted = inspect("project-disabled.log", {"OPENCODE_CONFIG_PROJECT_DISABLE": "1"})
     observed(restricted, PREFIX + "project", None)
