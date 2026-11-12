@@ -319,7 +319,7 @@ func theme(_ process: Process, _ catalogs: Catalogs, _ locale: String, _ dark: B
 }
 
 func sidebar(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws {
-    _ = try wait("native sidebar direction") {
+    _ = try wait("native sidebar direction") { () throws -> Bool? in
         let control = try visible(process, catalogs.text("language.label", locale), role: kAXPopUpButtonRole, enabled: true)
         guard let windows = attribute(application(process), kAXWindowsAttribute) as? [AXUIElement], let window = windows.first,
             let controlPosition = attribute(control, kAXPositionAttribute), let controlSize = attribute(control, kAXSizeAttribute),
