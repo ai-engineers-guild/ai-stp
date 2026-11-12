@@ -154,11 +154,8 @@ function Focus-Control([System.Diagnostics.Process] $Process, $Element) {
     }.GetNewClosure())
 }
 
-function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) {
-    $value = $null
-    if (!$Element.Current.IsEnabled -or
-        !$Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $value) -or
-        $value.Current.IsReadOnly) { throw 'Native context edit is not observably editable' }
+function Assert-KeyboardFocus([System.Diagnostics.Process] $Process, $Element) {
+    if (!$Element.Current.IsEnabled) { throw 'Native keyboard target is disabled' }
     $keyboardOwned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
     $modifiers = [NativeDesktopInput]::PressedModifiers()
     $foregroundOwned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
@@ -175,6 +172,13 @@ function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) 
         } | ConvertTo-Json -Compress)
         throw 'Native edit lost its owned keyboard target'
     }
+}
+
+function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) {
+    Assert-KeyboardFocus $Process $Element
+    $value = $null
+    if (!$Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $value) -or
+        $value.Current.IsReadOnly) { throw 'Native context edit is not observably editable' }
 }
 
 function Read-EditValue($Element) {
@@ -396,13 +400,28 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
         $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
         [Console]::Error.WriteLine('Native locale ' + $Previous + ' -> ' + $Next +
             '; initial_state=' + $expand.Current.ExpandCollapseState)
-        if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded) {
-            $expand.Expand()
+        if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed) {
+            throw 'Native language selector is not initially collapsed'
         }
-        $null = Wait-Observation $Process 'expanded native language selector' ({
-            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) { return $true }
-            return $null
-        }.GetNewClosure())
+        Assert-KeyboardFocus $Process $selector
+        $injected = [NativeDesktopInput]::ToggleComboBox()
+        Write-Host ('Native combo open keyboard events accepted: ' + $injected)
+        try {
+            $null = Wait-Observation $Process 'expanded native language selector' ({
+                if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) { return $true }
+                return $null
+            }.GetNewClosure())
+        } catch {
+            Write-Host ([ordered]@{
+                native_combo_open = 'refused'
+                enabled = $selector.Current.IsEnabled
+                state = [string] $expand.Current.ExpandCollapseState
+                keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+                pressed_modifiers = [NativeDesktopInput]::PressedModifiers()
+                foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+            } | ConvertTo-Json -Compress)
+            throw
+        }
         $option = Wait-Observation $Process 'packaged native language option' ({
             $condition = [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty, $name
@@ -411,8 +430,13 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
         }.GetNewClosure())
         $selection = Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'language option'
         $selection.Select()
+        $selector = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
+        $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
         if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
-            $expand.Collapse()
+            Focus-Control $Process $selector
+            Assert-KeyboardFocus $Process $selector
+            $injected = [NativeDesktopInput]::ToggleComboBox()
+            Write-Host ('Native combo close keyboard events accepted: ' + $injected)
         }
         $null = Wait-Observation $Process 'closed native language selector' ({
             if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed) { return $true }
@@ -571,6 +595,7 @@ try {
     theme_locale_observations = $personal.Combinations
     native_text_selection_replacements = $script:contextTextReplacements
     native_text_input_api = 'SendInput'
+    native_combo_input_api = 'SendInput_F4'
     personal_controls = [ordered]@{
         native_vault_initialization = $true
         two_native_offline_contexts = $true

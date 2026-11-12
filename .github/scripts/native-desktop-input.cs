@@ -125,6 +125,11 @@ public static class NativeDesktopInput
         return Send(new[] { Key(0x08, 0, 0), Key(0x08, 0, 0x02) });
     }
 
+    public static uint ToggleComboBox()
+    {
+        return Send(new[] { Key(0x73, 0, 0), Key(0x73, 0, 0x02) });
+    }
+
     public static uint TypeText(string value)
     {
         if (String.IsNullOrEmpty(value) || value.Length > 120)
