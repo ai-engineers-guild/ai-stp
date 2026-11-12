@@ -135,7 +135,9 @@ pathlib.Path(sys.argv[3]).write_text("completed")
     assert capsys.readouterr().out == ""
 
 
-@pytest.mark.parametrize("checkpoint", ["discovery_unavailable", "PRIVATE-CANARY"])
+@pytest.mark.parametrize(
+    "checkpoint", ["discovery_unavailable", "context_connection", "organization", "PRIVATE-CANARY"]
+)
 def test_native_selector_diagnostic_accepts_only_closed_classification(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], checkpoint: str
 ) -> None:
@@ -144,7 +146,7 @@ import pathlib,sys
 print("private diagnostic PRIVATE-CANARY",flush=True)
 print("AI_STP_NATIVE_DESKTOP_STAGE_V1 "+sys.argv[1],flush=True)
 print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 123",flush=True)
-if sys.argv[1] == "discovery_unavailable":
+if sys.argv[1] != "PRIVATE-CANARY":
  pathlib.Path(sys.argv[2]).write_text("completed")
  sys.exit(3)
 assert sys.stdin.readline()==""
@@ -153,8 +155,8 @@ pathlib.Path(sys.argv[2]).write_text("completed")
     codes: list[str] = []
     marker = tmp_path / "completed"
     expected = (
-        "at discovery_unavailable; controller line 123"
-        if checkpoint == "discovery_unavailable"
+        f"at {checkpoint}; controller line 123"
+        if checkpoint != "PRIVATE-CANARY"
         else "Native fixture checkpoint refused"
     )
     with pytest.raises(ValueError, match=expected) as refused:

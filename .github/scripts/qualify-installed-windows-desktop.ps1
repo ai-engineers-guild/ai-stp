@@ -588,7 +588,11 @@ function Require-Pattern($Element, $Pattern, [string] $Label) {
     $value = $null
     if ($Element.TryGetCurrentPattern($Pattern, [ref] $value)) { return $value }
     $supported = @($Element.GetSupportedPatterns() | ForEach-Object { $_.ProgrammaticName }) -join ','
-    throw ("Native $Label has no " + $Pattern.ProgrammaticName + '; supported=' + $supported)
+    $failure = [InvalidOperationException]::new(
+        "Native $Label has no " + $Pattern.ProgrammaticName + '; supported=' + $supported
+    )
+    $failure.Data['native_controller_source_line'] = @(Get-PSCallStack)[1].ScriptLineNumber
+    throw $failure
 }
 
 function Wait-PreferenceReady([System.Diagnostics.Process] $Process, [string] $Locale) {
@@ -693,23 +697,12 @@ function Assert-Sidebar([System.Diagnostics.Process] $Process, [string] $Locale)
 function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $Key, [string] $Name) {
     $selectorCallerLine = @(Get-PSCallStack)[1].ScriptLineNumber
     try {
-        # Reveal the form's following action before resolving the native selector.
-        # Its existing eligibility also proves sign-in discovery has completed.
-        $followingKey = if ($Key -ceq 'profiles.signInMethod') {
-            'profiles.reviewConnectionCreation'
-        } else { 'profiles.reviewContextCreation' }
-        $following = Wait-Element $Process (Text $followingKey) (
-            [System.Windows.Automation.ControlType]::Button
-        ) ($Key -cne 'profiles.signInMethod')
-        if ($following.Current.IsOffscreen) {
-            $scroll = Require-Pattern $following ([System.Windows.Automation.ScrollItemPattern]::Pattern) 'profile form action'
-            $scroll.ScrollIntoView()
-            $null = Wait-Observation $Process 'visible native profile form action' ({
-                if (!$following.Current.IsOffscreen) { return $true }
-                return $null
-            }.GetNewClosure())
-        }
         $selector = Wait-Element $Process (Text $Key) ([System.Windows.Automation.ControlType]::ComboBox)
+        Focus-Control $Process $selector
+        $null = Wait-Observation $Process 'visible owned native profile selector' ({
+            if (!$selector.Current.IsOffscreen) { return $true }
+            return $null
+        }.GetNewClosure())
     } catch {
         $_.Exception.Data['native_controller_source_line'] = $selectorCallerLine
         # Only this first selector precedes every account enrollment and login.
@@ -764,7 +757,6 @@ function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $K
         [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 ' + $checkpoint)
         throw
     }
-    Focus-Control $Process $selector
     $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'profile selector'
     if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed) {
         throw 'Native profile selector was not initially collapsed'
@@ -923,7 +915,9 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
     Assert-CorporateSession $Fixture $connection
     Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
     Enter-Context $Process 'Native corporate context' 'profiles.contextLabel' $false
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 context_connection')
     Select-ProfileOption $Process 'profiles.contextConnection' ('Native company connection · ' + $Fixture.origin)
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 organization')
     Invoke-Control (Wait-Element $Process (Text 'profiles.readAvailableOrganizations') ([System.Windows.Automation.ControlType]::Button))
     Select-ProfileOption $Process 'profiles.organization' 'Installed fixture company · corporate'
     Invoke-Control (Wait-Element $Process (Text 'profiles.reviewContextCreation') ([System.Windows.Automation.ControlType]::Button))

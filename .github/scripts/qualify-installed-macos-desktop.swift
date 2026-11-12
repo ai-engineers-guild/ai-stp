@@ -708,7 +708,9 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     try pressNamed(process, catalogs.text("shell.connections"), role: "AXLink")
     try enter(process, visible(process, catalogs.text("profiles.contextLabel"), role: kAXTextFieldRole, enabled: true),
         "Native corporate context")
+    corporateStage("context_connection")
     try profileOption(process, catalogs, "profiles.contextConnection", "Native company connection · " + fixture.origin)
+    corporateStage("organization")
     try pressNamed(process, catalogs.text("profiles.readAvailableOrganizations"), role: kAXButtonRole)
     try profileOption(process, catalogs, "profiles.organization", "Installed fixture company · corporate")
     try pressNamed(process, catalogs.text("profiles.reviewContextCreation"), role: kAXButtonRole)

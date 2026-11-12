@@ -37,6 +37,8 @@ STAGES = frozenset(
         b"connection_saved",
         b"pending",
         b"approval",
+        b"context_connection",
+        b"organization",
         b"context",
         b"selection",
         b"restart",
