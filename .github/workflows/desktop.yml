@@ -412,9 +412,6 @@ jobs:
 
   native-corporate-diagnostic:
     if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_native_corporate
-    env:
-      UV_PROJECT_ENVIRONMENT: .venv
-      UV_PYTHON: '3.15.2'
     permissions:
       contents: read
       actions: read

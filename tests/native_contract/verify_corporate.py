@@ -30,6 +30,7 @@ from tests.native_contract import verify_checkout
 from tests.native_contract.verify_ownership import apply, native
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.catalog_seed import FIXTURE_SETUP_ID, load_fixture_seed
+from tests.support.native_runner import cli_environment
 from tests.support.postgres import isolated_database
 
 from ai_stp_api.app import create_app
@@ -67,7 +68,7 @@ async def refused(binary: Path, home: Path, arguments: list[str]) -> ErrorEnvelo
         "--json",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env=dict(os.environ, HOME=str(home), XDG_DATA_HOME=str(home), XDG_CONFIG_HOME=str(home)),
+        env=cli_environment(home),
     )
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)

@@ -23,6 +23,7 @@ from tests.support.catalog_seed import (
     load_fixture_seed,
 )
 from tests.support.component_passports import adaptation_fields
+from tests.support.native_runner import cli_environment
 from tests.support.postgres import isolated_database
 
 from ai_stp_api.app import create_app
@@ -76,20 +77,13 @@ def projection(harness: str) -> tuple[dict[str, JsonValue], bytes]:
 
 
 async def native_result(binary: Path, home: Path, arguments: list[str]) -> tuple[int, bytes, bytes]:
-    environment = dict(
-        os.environ,
-        HOME=str(home),
-        XDG_DATA_HOME=str(home),
-        XDG_CONFIG_HOME=str(home),
-        AI_STP_TELEMETRY_SUPPRESS="1",
-    )
     process = await asyncio.create_subprocess_exec(
         str(binary),
         *arguments,
         "--json",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env=environment,
+        env=cli_environment(home),
     )
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60)

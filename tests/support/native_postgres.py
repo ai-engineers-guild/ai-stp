@@ -21,21 +21,27 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from tests.support.native_runner import disposable_runner
+from tests.support.native_runner import disposable_runner, report_stage
 
 
-def _command(program: Path, *arguments: str) -> str:
-    result = subprocess.run(
-        [str(program), *arguments],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        timeout=90,
-        check=False,
-    )
-    assert result.returncode == 0, (program.name, result.returncode, result.stdout[-4096:])
-    return result.stdout
+def run_command(program: Path, *arguments: str) -> str:
+    # A daemon may inherit output handles after its launcher exits. A regular
+    # file keeps completion tied to the owned launcher, independent of pipe EOF.
+    with tempfile.TemporaryFile() as output:
+        result = subprocess.run(
+            [str(program), *arguments],
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            timeout=90,
+            check=False,
+        )
+        output.seek(0)
+        payload = output.read(64 * 1024 + 1)
+    assert len(payload) <= 64 * 1024, "PostgreSQL command output exceeded its bound"
+    text = payload.decode("utf-8", errors="replace")
+    assert result.returncode == 0, (program.name, result.returncode, text[-4096:])
+    return text
 
 
 def _digest(path: Path) -> str:
@@ -89,7 +95,7 @@ def _macos_sdk(root: Path, pin: dict[str, Any]) -> Path:
     assert archive.stat().st_size == pin["size"] and _digest(archive) == pin["sha256"]
     mount = root / "mount"
     mount.mkdir()
-    _command(
+    run_command(
         Path("/usr/bin/hdiutil"),
         "attach",
         "-readonly",
@@ -107,7 +113,7 @@ def _macos_sdk(root: Path, pin: dict[str, Any]) -> Path:
         shutil.copytree(source, target, symlinks=True)
         return target
     finally:
-        _command(Path("/usr/bin/hdiutil"), "detach", str(mount))
+        run_command(Path("/usr/bin/hdiutil"), "detach", str(mount))
         marker.unlink()
 
 
@@ -127,12 +133,13 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
     pg_ctl: Path | None = None
     data = root / "data"
     try:
+        report_stage("postgresql-sdk")
         sdk = _macos_sdk(root, pin) if native_os == "macOS" else _windows_sdk(root, pin)
         suffix = ".exe" if platform.system() == "Windows" else ""
         postgres, initdb, pg_ctl = (
             sdk / "bin" / (name + suffix) for name in ["postgres", "initdb", "pg_ctl"]
         )
-        version = _command(postgres, "--version").strip()
+        version = run_command(postgres, "--version").strip()
         assert re.fullmatch(
             r"postgres \(PostgreSQL\) " + re.escape(document["postgresql_version"]) + r"(?:\s.*)?",
             version,
@@ -141,7 +148,8 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
         password_file = root / "password"
         password_file.write_text(password + "\n", encoding="utf-8")
         password_file.chmod(0o600)
-        _command(
+        report_stage("postgresql-initialize")
+        run_command(
             initdb,
             "-D",
             str(data),
@@ -158,7 +166,8 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
             port = reservation.getsockname()[1]
-        _command(
+        report_stage("postgresql-start")
+        run_command(
             pg_ctl,
             "-D",
             str(data),
@@ -184,7 +193,8 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
         )
     finally:
         if pg_ctl is not None and (data / "postmaster.pid").exists():
-            _command(pg_ctl, "-D", str(data), "-w", "-t", "30", "-m", "fast", "stop")
+            report_stage("postgresql-stop")
+            run_command(pg_ctl, "-D", str(data), "-w", "-t", "30", "-m", "fast", "stop")
         assert not (data / "postmaster.pid").exists(), (
             "Retain the owned cluster while its process is active"
         )

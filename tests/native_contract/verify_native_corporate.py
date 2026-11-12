@@ -14,7 +14,7 @@ from alembic.config import Config
 from tests.native_contract import verify_corporate, verify_ownership
 from tests.native_vendor.installation import prepare
 from tests.support.native_postgres import cluster
-from tests.support.native_runner import disposable_runner
+from tests.support.native_runner import disposable_runner, report_stage
 from tests.support.postgres import isolated_database
 
 
@@ -32,11 +32,13 @@ def main() -> None:
             prefix="ai-stp-native-corporate-", dir=temporary
         ) as location:
             root = Path(location)
+            report_stage("archived-cli")
             engine = prepare(root, source)
             assert engine is not None
             binary, identity = engine
             assert identity["diagnostic_only"] is True
             with cluster() as (template_url, database):
+                report_stage("postgresql-ready")
                 os.environ["AI_STP_TEST_DB_URL"] = template_url
                 for name, owner in [
                     ("ownership", verify_ownership),
@@ -48,10 +50,14 @@ def main() -> None:
                         "The admitted native PostgreSQL cluster is required"
                     ) as url:
                         os.environ["AI_STP_DB_URL"] = url
+                        report_stage(f"{name}-migrations")
                         command.upgrade(Config("alembic.ini"), "head")
+                        report_stage(f"{name}-journey")
                         asyncio.run(
                             owner.prove(binary, url, fixture, credential_store="os_keyring")
                         )
+                        report_stage(f"{name}-passed")
+            report_stage("postgresql-stopped")
             proof = {
                 "schema_version": 1,
                 "evidence_kind": "native_cli_corporate_api_postgresql",
