@@ -10,7 +10,10 @@ export default function LanguageSelect({
   const { locale, pending, failed } = useLocale();
   const preferences = usePreferences();
   return (
-    <div className={compact ? "text-xs" : "space-y-2"}>
+    <fieldset
+      className={compact ? "min-w-0 text-xs" : "min-w-0 space-y-2"}
+      aria-label={text("language.label")}
+    >
       <label className="field-label">
         <span className={compact ? "sr-only" : ""}>
           {text("language.label")}
@@ -19,7 +22,7 @@ export default function LanguageSelect({
           name="language"
           className="input w-full"
           value={locale}
-          disabled={pending || preferences.pending}
+          aria-busy={pending || preferences.pending}
           onChange={(event) => {
             const next = event.target.value;
             if (isLocale(next)) void changeLocale(next);
@@ -39,6 +42,11 @@ export default function LanguageSelect({
           ))}
         </select>
       </label>
+      {(pending || preferences.pending) && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {text("status.applying")}
+        </p>
+      )}
       {!compact && (
         <p className="text-xs text-muted-foreground">{text("language.help")}</p>
       )}
@@ -52,6 +60,6 @@ export default function LanguageSelect({
           {text("language.saveFailed")}
         </p>
       )}
-    </div>
+    </fieldset>
   );
 }

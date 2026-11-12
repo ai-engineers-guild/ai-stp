@@ -374,8 +374,18 @@ func selectContext(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ label
     _ = try visible(process, label + catalogs.text("profiles.selectedView"))
 }
 
+func preferenceReady(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -> AXUIElement {
+    let label = try catalogs.text("language.label", locale)
+    let selector = try visible(process, label, role: kAXPopUpButtonRole, enabled: true)
+    let group = try visible(process, label, role: kAXGroupRole)
+    _ = try wait("acknowledged native appearance preferences") {
+        match(group, label: try catalogs.text("status.applying", locale), role: nil, enabled: false) == nil ? true : nil
+    }
+    return selector
+}
+
 func language(_ process: Process, _ catalogs: Catalogs, _ previous: String, _ next: String) throws {
-    let selector = try visible(process, catalogs.text("language.label", previous), role: kAXPopUpButtonRole, enabled: true)
+    let selector = try preferenceReady(process, catalogs, previous)
     let expected = try catalogs.name(next)
     if attribute(selector, kAXValueAttribute) as? String != expected {
         try press(selector)
@@ -384,7 +394,7 @@ func language(_ process: Process, _ catalogs: Catalogs, _ previous: String, _ ne
         }
         try press(option)
     }
-    _ = try visible(process, catalogs.text("language.label", next), role: kAXPopUpButtonRole, enabled: true)
+    _ = try preferenceReady(process, catalogs, next)
 }
 
 func theme(_ process: Process, _ catalogs: Catalogs, _ locale: String, _ dark: Bool) throws {
@@ -393,7 +403,7 @@ func theme(_ process: Process, _ catalogs: Catalogs, _ locale: String, _ dark: B
         try pressNamed(process, catalogs.text(dark ? "shell.dark" : "shell.light", locale), role: kAXButtonRole)
     }
     _ = try visible(process, desiredLabel, role: kAXButtonRole, enabled: true)
-    _ = try visible(process, catalogs.text("language.label", locale), role: kAXPopUpButtonRole, enabled: true)
+    _ = try preferenceReady(process, catalogs, locale)
 }
 
 func sidebar(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws {

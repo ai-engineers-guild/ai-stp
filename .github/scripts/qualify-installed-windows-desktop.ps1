@@ -533,8 +533,23 @@ function Require-Pattern($Element, $Pattern, [string] $Label) {
     throw ("Native $Label has no " + $Pattern.ProgrammaticName + '; supported=' + $supported)
 }
 
+function Wait-PreferenceReady([System.Diagnostics.Process] $Process, [string] $Locale) {
+    $selector = Wait-Element $Process (Text 'language.label' $Locale) ([System.Windows.Automation.ControlType]::ComboBox)
+    $group = Wait-Element $Process (Text 'language.label' $Locale) ([System.Windows.Automation.ControlType]::Group) $true
+    $condition = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'status.applying' $Locale)
+    )
+    $null = Wait-Observation $Process 'acknowledged native appearance preferences' ({
+        if ($null -eq $group.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)) {
+            return $true
+        }
+        return $null
+    }.GetNewClosure())
+    return $selector
+}
+
 function Select-Language([System.Diagnostics.Process] $Process, [string] $Previous, [string] $Next) {
-    $selector = Wait-Element $Process (Text 'language.label' $Previous) ([System.Windows.Automation.ControlType]::ComboBox)
+    $selector = Wait-PreferenceReady $Process $Previous
     if ($Previous -cne $Next) {
         $name = [string] $languageConfiguration.languages[$Next].name
         if ($Next -ceq 'kk') { $name += ' · ' + $languageConfiguration.languages[$Next].shortName }
@@ -586,7 +601,7 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
             return $null
         }.GetNewClosure())
     }
-    $null = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
+    $null = Wait-PreferenceReady $Process $Next
 }
 
 function Set-Theme([System.Diagnostics.Process] $Process, [string] $Locale, [bool] $Dark) {
@@ -600,7 +615,7 @@ function Set-Theme([System.Diagnostics.Process] $Process, [string] $Locale, [boo
         Invoke-Control (Wait-Element $Process (Text $other $Locale) ([System.Windows.Automation.ControlType]::Button))
     }
     $null = Wait-Element $Process (Text $key $Locale) ([System.Windows.Automation.ControlType]::Button)
-    $null = Wait-Element $Process (Text 'language.label' $Locale) ([System.Windows.Automation.ControlType]::ComboBox)
+    $null = Wait-PreferenceReady $Process $Locale
 }
 
 function Assert-Sidebar([System.Diagnostics.Process] $Process, [string] $Locale) {
