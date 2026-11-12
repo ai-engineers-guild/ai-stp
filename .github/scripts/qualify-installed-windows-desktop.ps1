@@ -86,6 +86,23 @@ function Wait-Element([System.Diagnostics.Process] $Process, [string] $Name, $Co
     throw $failure
 }
 
+function Show-Desktop([System.Diagnostics.Process] $Process) {
+    $window = Wait-Observation $Process 'owned native window' ({
+        if ($Process.MainWindowHandle -ne [IntPtr]::Zero) {
+            return [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+        }
+        return $null
+    }.GetNewClosure())
+    $pattern = Require-Pattern $window ([System.Windows.Automation.WindowPattern]::Pattern) 'application window'
+    $pattern.SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Maximized)
+    $null = Wait-Observation $Process 'maximized owned native window' ({
+        if ($pattern.Current.WindowVisualState -eq [System.Windows.Automation.WindowVisualState]::Maximized) {
+            return $true
+        }
+        return $null
+    }.GetNewClosure())
+}
+
 function Open-Settings([System.Diagnostics.Process] $Process) {
     $link = Wait-Element $Process 'Settings' ([System.Windows.Automation.ControlType]::Hyperlink)
     $link.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
@@ -605,6 +622,22 @@ function Assert-Sidebar([System.Diagnostics.Process] $Process, [string] $Locale)
 
 function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $Key, [string] $Name) {
     try {
+        # Reveal the form's following action before resolving the native selector.
+        # Its existing eligibility also proves sign-in discovery has completed.
+        $followingKey = if ($Key -ceq 'profiles.signInMethod') {
+            'profiles.reviewConnectionCreation'
+        } else { 'profiles.reviewContextCreation' }
+        $following = Wait-Element $Process (Text $followingKey) (
+            [System.Windows.Automation.ControlType]::Button
+        ) ($Key -cne 'profiles.signInMethod')
+        if ($following.Current.IsOffscreen) {
+            $scroll = Require-Pattern $following ([System.Windows.Automation.ScrollItemPattern]::Pattern) 'profile form action'
+            $scroll.ScrollIntoView()
+            $null = Wait-Observation $Process 'visible native profile form action' ({
+                if (!$following.Current.IsOffscreen) { return $true }
+                return $null
+            }.GetNewClosure())
+        }
         $selector = Wait-Element $Process (Text $Key) ([System.Windows.Automation.ControlType]::ComboBox)
     } catch {
         # Only this first selector precedes every account enrollment and login.
@@ -758,7 +791,9 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
     Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
     Enter-Context $Process 'Native company connection' 'profiles.connectionLabel' $false
     Enter-Context $Process $Fixture.origin 'profiles.serverOrigin' $false
-    Invoke-Control (Wait-Element $Process (Text 'profiles.checkServerSignInMethods') ([System.Windows.Automation.ControlType]::Button))
+    $discovery = Wait-Element $Process (Text 'profiles.checkServerSignInMethods') ([System.Windows.Automation.ControlType]::Button)
+    Focus-Control $Process $discovery
+    Click-NativeControl $Process $discovery
     Select-ProfileOption $Process 'profiles.signInMethod' 'github'
     Invoke-Control (Wait-Element $Process (Text 'profiles.reviewConnectionCreation') ([System.Windows.Automation.ControlType]::Button))
     Invoke-Control (Wait-Element $Process (Text 'profiles.exactPublicPlan') $null $true)
@@ -921,6 +956,7 @@ $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
     Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
 ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
 try {
+    Show-Desktop $process
     $null = Wait-Element $process "Engine $($version.cli_version)" $null
     Open-Settings $process
     $confirmation = Wait-Element $process 'Initialize or resume this device using the selected credential storage.' (
@@ -940,6 +976,7 @@ try {
     $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
     Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
 ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
+    Show-Desktop $process
     $null = Wait-Element $process (Text 'language.label' 'ar') ([System.Windows.Automation.ControlType]::ComboBox)
     $themeKey = if ($personal.Dark) { 'shell.light' } else { 'shell.dark' }
     $null = Wait-Element $process (Text $themeKey 'ar') ([System.Windows.Automation.ControlType]::Button)
@@ -974,6 +1011,7 @@ try {
         $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
             Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
         ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
+        Show-Desktop $process
         $null = Wait-Element $process (Text 'language.label') ([System.Windows.Automation.ControlType]::ComboBox)
         Assert-SelectedContext $process $corporate.Context
         Invoke-Control (Wait-Element $process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
