@@ -229,6 +229,12 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
             identifier,
             None,
         )
+    singular = vendor_home / "skill" / "SKILL.md"
+    singular.parent.mkdir()
+    singular.write_text(
+        "---\nname: Singular root display\n---\nControlled fixture.\n", encoding="utf-8"
+    )
+    edge_cases.append(("skill", singular, "Singular root display"))
     child_environment = variables(root, vendor_home)
     isolated_sources(project)
     controls: dict[str, bool] = {}
@@ -261,6 +267,7 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
     controls["ignored_directories_and_depth_boundary"] = True
     controls["duplicate_display_names_keep_distinct_path_ids"] = True
     controls["numeric_optional_fields_not_loaded"] = True
+    controls["singular_root_skill_uses_root_directory_id"] = True
 
     restricted = inspect("project-disabled.log", {"OPENCODE_CONFIG_PROJECT_DISABLE": "1"})
     observed(restricted, PREFIX + "project", None)
@@ -327,19 +334,56 @@ def qualify_installed(
 ) -> dict[str, Any]:
     case = installation.Installation(engine, root / "i", "OPENCODE_CONFIG_DIR")
     case.environment.update(variables(case.root, case.vendor_home))
+    case.environment["PATH"] = str(executable.parent) + os.pathsep + case.environment["PATH"]
     name = PREFIX + "installed-opencode"
     (case.source / "SKILL.md").write_text(
-        f"---\nname: {name}\ndescription: Controlled native installation fixture\n---\n"
+        f"---\nname: Display for {name}\ndescription: Controlled native installation fixture\n---\n"
         "Format only caller-supplied fixture text.\n",
         encoding="utf-8",
     )
+    (case.source / "README.md").write_text("Controlled skill sidecar.\n", encoding="utf-8")
     receipt = case.install("opencode", "skill", name, "global")
+    version_document = case.run(
+        [
+            "local",
+            "version",
+            "show",
+            "--kind",
+            "component",
+            "--id",
+            case.component_id,
+            "--version",
+            "1.0",
+        ]
+    )
+
+    def component(value: Any) -> dict[str, Any] | None:
+        if isinstance(value, dict):
+            mapping = cast(dict[str, Any], value)
+            if mapping.get("kind") == "component" and mapping.get("stable_id") == case.component_id:
+                return mapping
+            for child in mapping.values():
+                if (found := component(child)) is not None:
+                    return found
+        return None
+
+    passport = component(version_document)
+    assert passport is not None
+    scope = passport["adaptations"][0]["scope_adaptations"][0]
+    assert scope["projection_format"] == "ai-stp-adaptation-projection/2"
+    assert scope["supported_harness_versions"] == [version]
+    assert {item["path"]: item["native_ids"] for item in scope["members"]} == {
+        f"skills/{name}/SKILL.md": [name],
+        f"skills/{name}/README.md": [],
+    }
     path = case.vendor_home / "skills" / name / "SKILL.md"
     expected = binary_digest(path)
     with reader(
         executable, case.project, case.environment, case.root / "reader.log", version
     ) as server:
-        observed(server.skills(), name, path)
+        rows = server.skills()
+        observed(rows, name, path)
+        assert next(row for row in rows if row["id"] == name)["name"] == "Display for " + name
         removal = case.remove(receipt)
         case.run(case.apply_arguments(removal), refused=True)
         assert binary_digest(path) == expected, "Active-reader refusal changed installed bytes"
@@ -357,6 +401,8 @@ def qualify_installed(
         "install_and_remove_receipts_idempotent": True,
         "original_context_preserved_across_selected_view": True,
         "vendor_skill_observed": True,
+        "path_identity_independent_of_display": True,
+        "per_file_identity_matches_public_passport": True,
         "active_reader_refusal_preserves_bytes": True,
         "original_removal_after_reader_exit": True,
         "skill_absent_after_reader_restart": True,

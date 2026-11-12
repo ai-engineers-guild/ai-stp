@@ -94,18 +94,40 @@ $catalogs = @{}
 foreach ($locale in $languageConfiguration.languages.Keys) {
     $catalogs[$locale] = Get-Content -Raw -LiteralPath (Join-Path $catalogRoot ($locale + '.json')) | ConvertFrom-Json -AsHashtable
 }
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class NativeDesktopInput {
-    [DllImport("user32.dll")]
-    public static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool SetForegroundWindow(IntPtr window);
+Add-Type -Path (Join-Path $PSScriptRoot 'native-desktop-input.cs')
+
+# Failure images contain only the disposable fixture's owned foreground window.
+function Save-NativeFailureImage([System.Diagnostics.Process] $Process) {
+    $bitmap = $null
+    $graphics = $null
+    try {
+        $Process.Refresh()
+        if ($Process.HasExited -or
+            [NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle) { return }
+        $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+        $bounds = $window.Current.BoundingRectangle
+        $width = [int][Math]::Ceiling($bounds.Width)
+        $height = [int][Math]::Ceiling($bounds.Height)
+        if ($width -le 0 -or $height -le 0 -or $width -gt 4096 -or $height -gt 4096) { return }
+        Add-Type -AssemblyName System.Drawing.Common
+        $bitmap = [System.Drawing.Bitmap]::new($width, $height)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.CopyFromScreen(
+            [int] $bounds.X, [int] $bounds.Y, 0, 0,
+            [System.Drawing.Size]::new($width, $height)
+        )
+        $bitmap.Save(
+            (Join-Path $env:RUNNER_TEMP 'installed-personal-desktop-failure.png'),
+            [System.Drawing.Imaging.ImageFormat]::Png
+        )
+        Write-Host 'Captured the owned fixture window after native refusal'
+    } catch {
+        Write-Host 'Owned fixture window image unavailable; original refusal retained'
+    } finally {
+        if ($null -ne $graphics) { $graphics.Dispose() }
+        if ($null -ne $bitmap) { $bitmap.Dispose() }
+    }
 }
-'@
 
 function Text([string] $Key, [string] $Locale = 'en') {
     if (!$catalogs.ContainsKey($Locale) -or !$catalogs[$Locale].ContainsKey($Key)) {
@@ -164,6 +186,91 @@ function Focus-Control([System.Diagnostics.Process] $Process, $Element) {
     }.GetNewClosure())
 }
 
+function Click-NativeControl([System.Diagnostics.Process] $Process, $Element) {
+    if (!$Element.Current.IsEnabled) { throw 'Native pointer target is disabled' }
+    $scroll = $null
+    if ($Element.TryGetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern, [ref] $scroll)) {
+        $scroll.ScrollIntoView()
+    }
+    $point = $Element.GetClickablePoint()
+    $hit = [System.Windows.Automation.AutomationElement]::FromPoint($point)
+    $matched = $false
+    for ($depth = 0; $depth -lt 6 -and $null -ne $hit; $depth++) {
+        if ([System.Windows.Automation.Automation]::Compare($hit, $Element)) {
+            $matched = $true
+            break
+        }
+        $hit = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($hit)
+    }
+    if (!$matched) { throw 'Native clickable point does not identify the intended control' }
+    $injected = [NativeDesktopInput]::ClickAt(
+        $Process.MainWindowHandle, [int][Math]::Floor($point.X), [int][Math]::Floor($point.Y)
+    )
+    Write-Host ('Native pointer events accepted: ' + $injected)
+}
+
+function Assert-KeyboardFocus([System.Diagnostics.Process] $Process, $Element) {
+    if (!$Element.Current.IsEnabled) { throw 'Native keyboard target is disabled' }
+    $keyboardOwned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+    $modifiers = [NativeDesktopInput]::PressedModifiers()
+    $foregroundOwned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+    $automationFocused = [System.Windows.Automation.Automation]::Compare(
+        [System.Windows.Automation.AutomationElement]::FocusedElement, $Element
+    )
+    if (!$keyboardOwned -or $modifiers -ne 0 -or !$foregroundOwned -or !$automationFocused) {
+        Write-Host ([ordered]@{
+            native_keyboard_target = 'refused'
+            keyboard_focus_owned = $keyboardOwned
+            pressed_modifiers = $modifiers
+            foreground_owned = $foregroundOwned
+            automation_focused = $automationFocused
+        } | ConvertTo-Json -Compress)
+        throw 'Native edit lost its owned keyboard target'
+    }
+}
+
+function Focus-KeyboardLink([System.Diagnostics.Process] $Process, $Target) {
+    $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+    $previous = [System.Windows.Automation.AutomationElement]::FocusedElement
+    $seen = [System.Collections.Generic.HashSet[string]]::new()
+    for ($step = 1; $step -le 32; $step++) {
+        if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
+            ![NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle) -or
+            [NativeDesktopInput]::PressedModifiers() -ne 0) {
+            throw 'Native navigation has no owned keyboard target'
+        }
+        $injected = [NativeDesktopInput]::PreviousTab()
+        Write-Host ('Native focus traversal keyboard events accepted: ' + $injected)
+        $next = Wait-Observation $Process 'actual keyboard focus transition' ({
+            $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+            if ($null -eq $focused -or [NativeDesktopInput]::PressedModifiers() -ne 0 -or
+                ($null -ne $previous -and [System.Windows.Automation.Automation]::Compare($focused, $previous))) {
+                return $null
+            }
+            $ancestor = $focused
+            for ($depth = 0; $depth -lt 64 -and $null -ne $ancestor; $depth++) {
+                if ([System.Windows.Automation.Automation]::Compare($ancestor, $window)) {
+                    return $focused
+                }
+                $ancestor = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($ancestor)
+            }
+            throw 'Native keyboard focus left the owned application'
+        }.GetNewClosure())
+        if ([System.Windows.Automation.Automation]::Compare($next, $Target)) { return $step }
+        $identifier = $next.GetRuntimeId() -join ','
+        if (!$seen.Add($identifier)) { throw 'Native keyboard navigation completed a cycle without its link' }
+        $previous = $next
+    }
+    throw 'Native keyboard navigation exceeded its bounded control count'
+}
+
+function Assert-KeyboardTarget([System.Diagnostics.Process] $Process, $Element) {
+    Assert-KeyboardFocus $Process $Element
+    $value = $null
+    if (!$Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $value) -or
+        $value.Current.IsReadOnly) { throw 'Native context edit is not observably editable' }
+}
+
 function Read-EditValue($Element) {
     $pattern = $null
     if ($Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref] $pattern)) {
@@ -182,19 +289,66 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     if ($Label -cnotmatch '^[A-Za-z0-9 ]{1,120}$') { throw 'Unexpected keyboard fixture text' }
     $field = Wait-Element $Process (Text 'profiles.contextLabel') ([System.Windows.Automation.ControlType]::Edit)
     Focus-Control $Process $field
+    Click-NativeControl $Process $field
+    Assert-KeyboardTarget $Process $field
     $before = Read-EditValue $field
     if ($before.Length -gt 0) {
-        [System.Windows.Forms.SendKeys]::SendWait('^a{BACKSPACE}')
-        $null = Wait-Observation $Process 'cleared context label' ({
-            if ((Read-EditValue $field) -ceq '') { return $true }
+        $text = $null
+        if (!$field.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref] $text) -or
+            $text.SupportedTextSelection -eq [System.Windows.Automation.SupportedTextSelection]::None) {
+            throw 'Native context edit cannot expose its text selection'
+        }
+        $injected = [NativeDesktopInput]::SelectAll()
+        Write-Host ('Native selection keyboard events accepted: ' + $injected)
+        $null = Wait-Observation $Process 'complete context text selection' ({
+            $ranges = @($text.GetSelection())
+            if ($ranges.Count -eq 1 -and $null -ne $ranges[0] -and
+                $ranges[0].GetText(65537).TrimEnd([char[]] "`r`n") -ceq $before -and
+                (Read-EditValue $field) -ceq $before -and
+                [NativeDesktopInput]::PressedModifiers() -eq 0) { return $true }
             return $null
         }.GetNewClosure())
+        Assert-KeyboardTarget $Process $field
+        Write-Host ([ordered]@{
+            native_text_clear = 'before_keyboard'
+            keyboard_api = 'SendInput_SCANCODE'
+            keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+            pressed_modifiers = [NativeDesktopInput]::PressedModifiers()
+            initial_length = $before.Length
+            enabled = $field.Current.IsEnabled
+            read_only = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly
+            selection_ranges = @($text.GetSelection()).Count
+            foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+        } | ConvertTo-Json -Compress)
+        $injected = [NativeDesktopInput]::Backspace()
+        Write-Host ('Native clear keyboard events accepted: ' + $injected)
+        try {
+            $null = Wait-Observation $Process 'cleared context label' ({
+                if ((Read-EditValue $field) -ceq '') { return $true }
+                return $null
+            }.GetNewClosure())
+        } catch {
+            $observed = Read-EditValue $field
+            $ranges = @($text.GetSelection())
+            Write-Host ([ordered]@{
+                native_text_clear = 'refused'
+                keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+                pressed_modifiers = [NativeDesktopInput]::PressedModifiers()
+                initial_length = $before.Length
+                observed_length = $observed.Length
+                enabled = $field.Current.IsEnabled
+                read_only = $field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly
+                unchanged = $observed -ceq $before
+                selection_ranges = $ranges.Count
+                foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+            } | ConvertTo-Json -Compress)
+            throw
+        }
+        $script:contextTextReplacements++
     }
-    if ([NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle -or
-        ![System.Windows.Automation.Automation]::Compare(
-            [System.Windows.Automation.AutomationElement]::FocusedElement, $field
-        )) { throw 'Native edit lost its owned keyboard target' }
-    [System.Windows.Forms.SendKeys]::SendWait($Label)
+    Assert-KeyboardTarget $Process $field
+    $injected = [NativeDesktopInput]::TypeText($Label)
+    Write-Host ('Native text keyboard events accepted: ' + $injected)
     try {
         $null = Wait-Observation $Process 'entered context label' ({
             if ((Read-EditValue $field) -ceq $Label) { return $true }
@@ -278,9 +432,19 @@ function Confirm-Review([System.Diagnostics.Process] $Process) {
         $condition = [System.Windows.Automation.PropertyCondition]::new(
             [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'profiles.reviewNativeProfilePlan')
         )
-        if ($null -eq $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)) { return $true }
+        $working = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            (Text 'profiles.workingThroughTheNativeEngine')
+        )
+        if ($null -eq $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition) -and
+            $null -eq $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $working)) {
+            return $true
+        }
         return $null
     }.GetNewClosure())
+    $null = Wait-Element $Process (Text 'profiles.reviewContextCreation') (
+        [System.Windows.Automation.ControlType]::Button
+    )
 }
 
 function New-ContextReview([System.Diagnostics.Process] $Process, [string] $Label) {
@@ -329,13 +493,27 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
         $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
         [Console]::Error.WriteLine('Native locale ' + $Previous + ' -> ' + $Next +
             '; initial_state=' + $expand.Current.ExpandCollapseState)
-        if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded) {
-            $expand.Expand()
+        if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed) {
+            throw 'Native language selector is not initially collapsed'
         }
-        $null = Wait-Observation $Process 'expanded native language selector' ({
-            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) { return $true }
-            return $null
-        }.GetNewClosure())
+        Click-NativeControl $Process $selector
+        try {
+            $null = Wait-Observation $Process 'expanded native language selector' ({
+                if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded -and
+                    [NativeDesktopInput]::PointerButtonsReleased()) { return $true }
+                return $null
+            }.GetNewClosure())
+        } catch {
+            Write-Host ([ordered]@{
+                native_combo_open = 'refused'
+                enabled = $selector.Current.IsEnabled
+                state = [string] $expand.Current.ExpandCollapseState
+                keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
+                pressed_modifiers = [NativeDesktopInput]::PressedModifiers()
+                foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle
+            } | ConvertTo-Json -Compress)
+            throw
+        }
         $option = Wait-Observation $Process 'packaged native language option' ({
             $condition = [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty, $name
@@ -344,11 +522,14 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
         }.GetNewClosure())
         $selection = Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'language option'
         $selection.Select()
+        $selector = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
+        $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
         if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
             $expand.Collapse()
         }
         $null = Wait-Observation $Process 'closed native language selector' ({
-            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed) { return $true }
+            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
+                [NativeDesktopInput]::PointerButtonsReleased()) { return $true }
             return $null
         }.GetNewClosure())
     }
@@ -390,6 +571,7 @@ function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
         [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'shell.light')
     )
     $initialDark = $null -ne $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+    $script:contextTextReplacements = 0
     $first = New-ContextReview $Process 'Native personal one'
     $firstId = Assert-Review $first 'create' 'Native personal one'
     $locale = 'en'
@@ -432,6 +614,9 @@ function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
     if ($ids.Count -ne 2 -or $firstId -cnotin $ids -or $secondId -cnotin $ids) {
         throw 'Dismissed context review changed native records'
     }
+    if ($script:contextTextReplacements -ne 2) {
+        throw 'Native context text replacement coverage differs'
+    }
     Select-Context $Process 'Native personal one' $firstId
     Select-Context $Process 'Native personal two' $secondId
     Set-Theme $Process 'en' (!$initialDark)
@@ -472,8 +657,15 @@ try {
     Assert-SelectedContext $process $personal.Selected
     Select-Language $process 'ar' 'en'
     $link = Wait-Element $process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink)
-    Focus-Control $process $link
-    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+    $tabSteps = Focus-KeyboardLink $process $link
+    Assert-KeyboardFocus $process $link
+    Write-Host ([ordered]@{
+        native_navigation_focus = 'observed_by_keyboard'
+        traversal_steps = $tabSteps
+        native_focus_is_root = [NativeDesktopInput]::KeyboardFocusIsRoot($process.MainWindowHandle)
+    } | ConvertTo-Json -Compress)
+    $injected = [NativeDesktopInput]::Enter()
+    Write-Host ('Native navigation keyboard events accepted: ' + $injected)
     $null = Wait-Element $process (Text 'profiles.connectionsAndContexts') $null
     $null = Wait-Element $process ('Native personal two' + (Text 'profiles.selectedView')) $null
     if (@((Read-Native @('context', 'list')).contexts).Count -ne 2) {
@@ -485,6 +677,9 @@ try {
         throw 'Installed device identity changed after restart'
     }
     Close-Desktop $process
+} catch {
+    Save-NativeFailureImage $process
+    throw
 } finally {
     if (!$process.HasExited) { Stop-Process -Id $process.Id }
 }
@@ -498,6 +693,9 @@ try {
     cli_version = $version.cli_version
     installed_personal_workspace_restart = $true
     theme_locale_observations = $personal.Combinations
+    native_text_selection_replacements = $script:contextTextReplacements
+    native_text_input_api = 'SendInput_UNICODE_SCANCODE'
+    native_combo_input_api = 'SendInput_POINTER_UIA_SELECTION'
     personal_controls = [ordered]@{
         native_vault_initialization = $true
         two_native_offline_contexts = $true

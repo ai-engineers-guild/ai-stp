@@ -139,6 +139,12 @@ Resume the retained plan after interruption, including after admission expiry.
 Settled legacy tasks are read-only. Native services can upgrade the registry as
 needed. Inspect readable versions with `ai-stp capabilities --json`.
 
+Newly authored OpenCode skills use their destination folder as the native ID;
+frontmatter names are display metadata. Installation currently requires an
+observed OpenCode 2.2.7. Other or unobserved versions refuse before configuration
+writes. Retained projections and saved author plans keep their recorded identity
+rules and exact immutable objects.
+
 ## Contexts and recovery
 
 `account providers --api-url URL` reads a server's enabled sign-in methods.

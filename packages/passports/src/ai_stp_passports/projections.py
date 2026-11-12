@@ -24,7 +24,7 @@ def build_projection(
     file_contents: Mapping[str, bytes],
 ) -> bytes:
     """Build the sole canonical ZIP representation of one scope projection."""
-    if scope.projection_format != PROJECTION_FORMAT:
+    if scope.projection_format not in {PROJECTION_FORMAT, "ai-stp-adaptation-projection/2"}:
         raise ProjectionArtifactError("unsupported projection format")
     if len(scope.members) > MAX_PROJECTION_FILES:
         raise ProjectionArtifactError("projection exceeds the consumer member limit")

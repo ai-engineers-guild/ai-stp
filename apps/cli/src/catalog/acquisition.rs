@@ -303,6 +303,7 @@ impl<'a> Capture<'a> {
                         .ok_or_else(invalid)?;
                     let files = artifact::verify(scope, bytes)?;
                     native_identity::verify_files(
+                        text(scope, "projection_format")?,
                         text(document, "component_type")?,
                         text(adaptation, "harness_id")?,
                         scope["members"].as_array().ok_or_else(invalid)?,

@@ -965,15 +965,54 @@ def inspect_personal_task(driver: Driver, task_id: str, ownership: dict[str, Any
     require(bool(re.fullmatch(r"task_[0-7][0-9A-HJKMNP-TV-Z]{25}", task_id)), "invalid task")
     driver.navigate("tasks")
     driver.click(driver.find(f'main a[href="#/install?task={task_id}"]'))
-    driver.wait(
-        lambda: driver.read(
-            "const text=document.querySelector('main').textContent;"
-            "return text.includes(arguments[0])&&text.includes(arguments[1]);",
-            task_id,
-            "Personal task · retained local owner",
-        ),
-        "native personal task ownership in the installed workspace",
-    )
+    try:
+        driver.wait(
+            lambda: driver.read(
+                "const text=document.querySelector('main').textContent;"
+                "return text.includes(arguments[0])&&text.includes(arguments[1]);",
+                task_id,
+                "Personal task · retained local owner",
+            ),
+            "native personal task ownership in the installed workspace",
+        )
+    except ValueError:
+        observation: dict[str, Any] = {"observation": "unavailable"}
+        stage = driver.stage
+        try:
+            if driver.last_response_ok:
+                observation = driver.read(
+                    "const root=document.querySelector('main'),text=root?.textContent??'';"
+                    "const codes=[...(root?.querySelectorAll('[role=alert] code')??[])]"
+                    ".map(node=>node.textContent.trim());"
+                    "const known=new Set(arguments[2]);"
+                    "return {observation:'read',route_matches:location.hash===arguments[0],"
+                    "task_visible:text.includes(arguments[1]),"
+                    "owner_visible:text.includes('Personal task · retained local owner'),"
+                    "identity_disclosure:[...(root?.querySelectorAll('summary')??[])]"
+                    ".some(node=>node.textContent==='Original task identity'),"
+                    "locale_english:document.documentElement.lang==='en',"
+                    "loading_count:Math.min(100,root?.querySelectorAll('[role=status]').length??0),"
+                    "alert_count:Math.min(100,root?.querySelectorAll('[role=alert]').length??0),"
+                    "known_codes:codes.filter(code=>known.has(code)).slice(0,8),"
+                    "unknown_code_count:Math.min(100,codes.filter(code=>!known.has(code)).length)};",
+                    f"#/install?task={task_id}",
+                    task_id,
+                    [
+                        "AI_STP_VALIDATION_ERROR",
+                        "AI_STP_NOT_FOUND",
+                        "AI_STP_PRECONDITION_FAILED",
+                        "AI_STP_CONFLICT",
+                        "AI_STP_DEPENDENCY_UNAVAILABLE",
+                        "AI_STP_INTERNAL",
+                        "DESKTOP_TASK_CONTRACT",
+                    ],
+                )
+        except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException):
+            pass
+        finally:
+            driver.stage = stage
+        print(json.dumps({"diagnostic": "installed_personal_task", **observation}), flush=True)
+        raise
     summary = dict(
         driver.wait(
             lambda: driver.read(

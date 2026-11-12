@@ -1,4 +1,4 @@
-"""Official package-registry adapters (SPEC-057 REQ-5703, REQ-5704, REQ-5718)."""
+"""Official package-registry adapters."""
 
 from __future__ import annotations
 

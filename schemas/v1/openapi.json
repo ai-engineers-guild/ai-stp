@@ -2230,6 +2230,31 @@
                 "transform"
               ]
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "scope_adaptations": {
+                  "contains": {
+                    "properties": {
+                      "projection_format": {
+                        "const": "ai-stp-adaptation-projection/2"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "harness_id": {
+                  "const": "opencode"
+                },
+                "logical_component_type": {
+                  "const": "skill"
+                }
+              }
+            }
           }
         ],
         "description": "One immutable harness-native implementation of a logical component.",
@@ -26584,6 +26609,25 @@
                 }
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "projection_format": {
+                  "const": "ai-stp-adaptation-projection/2"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "projection_kind": {
+                  "const": "native_files"
+                },
+                "provider_component_kind": {
+                  "const": "skill"
+                }
+              }
+            }
           }
         ],
         "description": "All native facts for one adaptation at one projection scope.",
@@ -26604,7 +26648,10 @@
             "$ref": "#/components/schemas/NonEmptyArtifactRef"
           },
           "projection_format": {
-            "const": "ai-stp-adaptation-projection/1",
+            "enum": [
+              "ai-stp-adaptation-projection/1",
+              "ai-stp-adaptation-projection/2"
+            ],
             "title": "Projection Format",
             "type": "string"
           },

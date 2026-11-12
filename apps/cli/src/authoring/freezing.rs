@@ -86,6 +86,7 @@ pub(crate) fn verify(connection: &Connection, document: &Value) -> Result<()> {
             )?;
             let files = artifact::verify(scope, &payload)?;
             native_identity::verify_files(
+                text(scope, "projection_format")?,
                 text(document, "component_type")?,
                 text(adaptation, "harness_id")?,
                 scope["members"].as_array().ok_or_else(invalid)?,
@@ -400,7 +401,7 @@ pub(super) fn project(
         "write_semantics":if key.is_empty(){"replace"}else{"merge"},
         "withdrawal_semantics":if key.is_empty(){"remove_path"}else{"preserve_unowned"}
     }))).collect::<Result<Vec<_>>>()?;
-    native_identity::verify_files(kind, harness, &members, &files)?;
+    native_identity::verify_files(artifact::FORMAT, kind, harness, &members, &files)?;
     let bytes = artifact::build_members(&members, &files)?;
     let address = digest::bytes("ai-stp:artifact:v1", &bytes)?;
     let mut scope = json!({"scope":route.target_scope,"projection_format":artifact::FORMAT,

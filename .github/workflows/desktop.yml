@@ -286,6 +286,14 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-desktop-installed-personal-workspace
+      - name: Retain the owned Windows fixture window after refusal
+        if: failure() && runner.os == 'Windows' && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-personal-desktop-failure-windows
+          path: ${{ runner.temp }}/installed-personal-desktop-failure.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Retain installed macOS and Windows personal results
         if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

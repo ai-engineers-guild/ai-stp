@@ -1,12 +1,9 @@
-"""Runtime usage ingestion, scoped aggregation, drill-down, and export.
+"""Tenant-scoped runtime usage ingestion, aggregation and export.
 
-The service is deliberately free of HTTP concerns: the corporate slice resolves
-the caller and the permission; this module resolves the *employee set* the
-caller may see, applies the closed filters, and writes or reads the coordinate-
-only tables. Retention, redaction policy, and revocation belong to the
-telemetry-privacy authority (SPEC-089); this module honours the pinned seam by
-reading the policy and revocation tables when they exist and falling back to
-documented defaults when the governance stream is not yet integrated.
+The corporate HTTP slice authenticates the caller and checks permission. This
+service binds coordinate-only events to that account and device, checks current
+collection policy and revocations, and limits reports to the authorized employee
+set. Replaying an event ID cannot change the retained observation.
 """
 
 from __future__ import annotations
@@ -120,8 +117,16 @@ _DEDUP_COMPARE_FIELDS: Final[tuple[str, ...]] = (
     "component_version",
     "component_passport_digest",
     "activity_kind",
+    "source",
+    "outcome",
     "schema_version",
 )
+
+
+def _same_event(left: EventRow, right: EventRow) -> bool:
+    return all(
+        getattr(left, field) == getattr(right, field) for field in _DEDUP_COMPARE_FIELDS
+    ) and _stamp(left.invoked_at) == _stamp(right.invoked_at)
 
 
 @dataclass(frozen=True)
@@ -763,7 +768,9 @@ async def ingest_events(
     Identity is bound to the authenticated caller, never to the payload: an
     event naming another employee, another held device, a foreign tenant, an
     unknown project, a revoked subject, or a timestamp outside the retention
-    window is rejected rather than stored.
+    window is rejected rather than stored. A native-hook claim also requires a
+    device-bound session. An existing event ID is a duplicate only when every
+    supplied observation field matches; the original row is never promoted.
     """
     await set_tenant_scope(session, organization_id)
     policy = await session.get(TelemetryPolicy, organization_id)
@@ -781,8 +788,8 @@ async def ingest_events(
     revoked = await revoked_subjects(session, organization_id=organization_id)
     projects = await _active_projects(session, organization_id=organization_id)
     # A session bound to a device can only emit for that device; a session
-    # without one (a browser context) may only name an active device the
-    # caller's own account holds.
+    # without one (a browser context) may only report an active device the
+    # caller's own account holds; it cannot claim a native hook.
     device_query = select(Device.id).where(
         Device.account_id == caller_account_id,
         Device.state == "active",
@@ -803,6 +810,7 @@ async def ingest_events(
             event.organization_id != organization_id
             or event.employee_id != caller_account_id
             or event.device_id not in caller_devices
+            or (event.source == "native_hook" and caller_device_id is None)
             or event.project_id not in projects
             or ("account", event.employee_id) in revoked
             or ("device", event.device_id) in revoked
@@ -823,17 +831,10 @@ async def ingest_events(
                 )
             )
         if existing is not None:
-            if any(
-                getattr(existing, field) != getattr(candidate, field)
-                for field in _DEDUP_COMPARE_FIELDS
-            ):
+            if not _same_event(existing, candidate):
                 rejected += 1
                 rejected_ids.append(event.event_id)
                 continue
-            if existing.source == "agent_reported" and event.source == "native_hook":
-                existing.source = event.source
-                existing.outcome = event.outcome
-                existing.invoked_at = candidate.invoked_at
             duplicates += 1
             duplicate_ids.append(event.event_id)
             continue
@@ -863,23 +864,16 @@ async def ingest_events(
             )
             if stored is None:
                 raise
-            if any(
-                getattr(stored, field) != getattr(candidate, field)
-                for field in _DEDUP_COMPARE_FIELDS
-            ):
+            if not _same_event(stored, candidate):
                 rejected += 1
                 rejected_ids.append(event.event_id)
             else:
-                if stored.source == "agent_reported" and event.source == "native_hook":
-                    stored.source = event.source
-                    stored.outcome = event.outcome
-                    stored.invoked_at = candidate.invoked_at
                 duplicates += 1
                 duplicate_ids.append(event.event_id)
             continue
         # ``candidate`` is still transient after the Core insert; ``seen`` must
-        # hold a persistent row so a same-batch native confirmation promotes
-        # the stored event instead of mutating an object the flush never sees.
+        # hold a persistent row so same-batch retries compare with the stored
+        # original observation.
         # Marking it detached lets ``merge(load=False)`` attach it without a
         # re-read: the row was just inserted, so its state matches the
         # database, and unset columns stay expired for lazy load.

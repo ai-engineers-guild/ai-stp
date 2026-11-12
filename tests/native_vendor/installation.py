@@ -273,6 +273,7 @@ class Installation:
         )
         assert authored["state"] == "completed"
         setup = authored["outcome"]["setup_id"]
+        self.component_id = str(authored["outcome"]["component_id"])
         version = self.run(
             ["local", "version", "show", "--kind", "setup", "--id", setup, "--version", "1.0"]
         )

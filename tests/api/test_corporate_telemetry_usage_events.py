@@ -1,9 +1,7 @@
-"""Corporate runtime usage: ingest binding, scoped reports, drill-down, export.
+"""Corporate runtime usage through the production router and real PostgreSQL.
 
-The usage routers are mounted onto the test application; production wiring
-into the corporate router is the integration point outside this file.
-PostgreSQL fixtures mirror `tests/api/platform/conftest.py` so the root
-conftest's `pg` marker still applies through the shared fixture names.
+The shared migration fixture marks these tests for the PostgreSQL owner.
+Do not mount a second router here: route registration is part of acceptance.
 """
 
 from __future__ import annotations
@@ -23,7 +21,6 @@ from tests.support.postgres import migrated_database, migrated_template
 from ai_stp_api.app import create_app
 from ai_stp_api.session import issue_session
 from ai_stp_api.settings import Settings
-from ai_stp_api.slices.corporate import usage_events, usage_reports
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.models import Account, AuditEvent, Device
@@ -76,8 +73,6 @@ async def db_api_client(
 ) -> AsyncIterator[tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings]]:
     settings = make_settings(tmp_path, database_url=migrated_database_url)
     app = create_app(settings)
-    app.include_router(usage_events.router, prefix="/v1")
-    app.include_router(usage_reports.router, prefix="/v1")
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -288,6 +283,64 @@ async def test_ingest_dedup_and_identity_binding(
     )
     assert forged.status_code == 200
     assert forged.json()["rejected"] == 2
+
+
+@pytest.mark.parametrize("changed_field", ["source", "outcome", "invoked_at"])
+async def test_ingest_same_id_cannot_change_observation(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+    changed_field: str,
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    organization_id, account_id, device_id, auth = await _tenant(
+        client, sessionmaker, "tu-immutable"
+    )
+    project_id = await _project(sessionmaker, organization_id)
+    original = _usage_event(
+        "usage_event_immutable",
+        organization_id,
+        account_id,
+        device_id,
+        project_id,
+        source="agent_reported",
+    )
+    first = await _ingest(client, organization_id, auth, [original])
+    assert first.status_code == 200 and first.json()["accepted"] == 1
+    changes = {
+        "source": "native_hook",
+        "outcome": "failed",
+        "invoked_at": format_timestamp(datetime.now(UTC)),
+    }
+    changed = {**original, changed_field: changes[changed_field]}
+    refused = await _ingest(client, organization_id, auth, [changed])
+    assert refused.status_code == 200
+    assert refused.json()["rejected_ids"] == [original["event_id"]]
+    assert refused.json()["duplicate_ids"] == []
+    replay = await _ingest(client, organization_id, auth, [original])
+    assert replay.status_code == 200 and replay.json()["duplicates"] == 1
+    report = await client.get(f"{_base(organization_id)}/usage-reports", headers=auth)
+    assert report.status_code == 200 and report.json()["total_events"] == 0
+
+
+async def test_ingest_browser_session_cannot_claim_native_hook(
+    db_api_client: tuple[AsyncClient, async_sessionmaker[AsyncSession], Settings],
+) -> None:
+    client, sessionmaker, _settings = db_api_client
+    organization_id, account_id, device_id, _auth = await _tenant(
+        client, sessionmaker, "tu-browser-native"
+    )
+    project_id = await _project(sessionmaker, organization_id)
+    async with sessionmaker() as db:
+        issued = await issue_session(db, account_id=account_id, device_id=None, ttl_seconds=3600)
+        await db.commit()
+    auth = {"Authorization": f"Bearer {issued.raw_token}"}
+    event = _usage_event(
+        "usage_event_browser_native", organization_id, account_id, device_id, project_id
+    )
+    refused = await _ingest(client, organization_id, auth, [event])
+    assert refused.status_code == 200
+    assert refused.json()["rejected_ids"] == [event["event_id"]]
+    reported = await _ingest(client, organization_id, auth, [{**event, "source": "agent_reported"}])
+    assert reported.status_code == 200 and reported.json()["accepted_ids"] == [event["event_id"]]
 
 
 async def test_ingest_rejects_forbidden_fields(

@@ -1,4 +1,4 @@
-"""Service-level checks for corporate runtime usage over SQLite (SPEC-088).
+"""Service-level checks for corporate runtime usage over SQLite.
 
 The async service is exercised against a real database - the same code path
 PostgreSQL takes minus RLS, which `set_tenant_scope` already no-ops off the
@@ -492,23 +492,43 @@ class TestIngest:
         assert (replay.accepted, replay.duplicates, replay.rejected) == (0, 1, 0)
         assert replay.duplicate_ids == [event.event_id]
 
-    @pytest.mark.parametrize("same_batch", [False, True])
-    async def test_native_confirmation_promotes_one_fallback_event(
-        self, session: AsyncSession, same_batch: bool
+    @pytest.mark.parametrize("delivery", ["stored", "same_batch", "insert_race"])
+    @pytest.mark.parametrize("changed_field", ["source", "outcome", "invoked_at"])
+    async def test_same_id_preserves_original_observation(
+        self,
+        session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        delivery: str,
+        changed_field: str,
     ) -> None:
         tenant = await _seed(session)
-        fallback = _event(tenant, "usage_event_promoted", source="agent_reported")
-        native = fallback.model_copy(update={"source": "native_hook", "outcome": "failed"})
-        if same_batch:
-            await _ingest(session, tenant, [fallback, native])
+        original = _event(tenant, "usage_event_immutable", source="agent_reported")
+        changes = {
+            "source": "native_hook",
+            "outcome": "failed",
+            "invoked_at": format_timestamp(RECENT + timedelta(seconds=1)),
+        }
+        changed = original.model_copy(update={changed_field: changes[changed_field]})
+        if delivery == "same_batch":
+            result = await _ingest(session, tenant, [original, changed])
+            assert result.accepted_ids == [original.event_id]
+        elif delivery == "insert_race":
+            conflict = runtime_usage_service._row_for(  # pyright: ignore[reportPrivateUsage]
+                tenant.organization_id, original
+            )
+            _race_committed_row(session, conflict, monkeypatch)
+            result = await _ingest(session, tenant, [changed])
         else:
-            await _ingest(session, tenant, [fallback])
-            result = await _ingest(session, tenant, [native])
-            assert result.duplicate_ids == [native.event_id]
-        await _ingest(session, tenant, [fallback])
+            await _ingest(session, tenant, [original])
+            result = await _ingest(session, tenant, [changed])
+        assert result.rejected_ids == [original.event_id]
+        assert result.duplicate_ids == []
+        replay = await _ingest(session, tenant, [original])
+        assert replay.duplicate_ids == [original.event_id]
         rows = list(await session.scalars(select(EventRow)))
         assert len(rows) == 1
-        assert (rows[0].source, rows[0].outcome) == ("native_hook", "failed")
+        assert (rows[0].source, rows[0].outcome) == (original.source, original.outcome)
+        assert rows[0].invoked_at.replace(tzinfo=UTC) == RECENT
         report = await runtime_usage_service.aggregate_report(
             session,
             organization_id=tenant.organization_id,
@@ -516,7 +536,14 @@ class TestIngest:
             scope=runtime_usage_service.UsageScope(employees=None),
             now=NOW,
         )
-        assert report.total_events == 1
+        assert report.total_events == 0
+
+    async def test_deviceless_session_cannot_claim_native_hook(self, session: AsyncSession) -> None:
+        tenant = await _seed(session)
+        event = _event(tenant, "usage_event_unbound_native")
+        result = await _ingest(session, tenant, [event], caller_device=None)
+        assert result.rejected_ids == [event.event_id]
+        assert list(await session.scalars(select(EventRow))) == []
 
     async def test_duplicate_id_with_changed_component_is_rejected(
         self, session: AsyncSession
@@ -799,14 +826,21 @@ class TestIngest:
         ok = await _ingest(
             session,
             tenant,
-            [_event(tenant, "usage_event_0000000000004")],
+            [_event(tenant, "usage_event_0000000000004", source="agent_reported")],
             caller_device=None,
         )
         assert ok.accepted == 1
         foreign = await _ingest(
             session,
             tenant,
-            [_event(tenant, "usage_event_0000000000005", device_id=tenant.device_b)],
+            [
+                _event(
+                    tenant,
+                    "usage_event_0000000000005",
+                    device_id=tenant.device_b,
+                    source="agent_reported",
+                )
+            ],
             caller_device=None,
         )
         assert foreign.rejected == 1

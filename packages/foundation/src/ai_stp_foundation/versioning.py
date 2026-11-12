@@ -1,4 +1,4 @@
-"""Two-integer ``X.Y`` versions (SPEC-015 REQ-1505, ADR-0004).
+"""Canonical two-integer ``X.Y`` versions.
 
 A version is stored as a string but compared as two non-negative integers.
 Leading zeros are non-canonical and rejected.
