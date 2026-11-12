@@ -229,6 +229,12 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
             identifier,
             None,
         )
+    singular = vendor_home / "skill" / "SKILL.md"
+    singular.parent.mkdir()
+    singular.write_text(
+        "---\nname: Singular root display\n---\nControlled fixture.\n", encoding="utf-8"
+    )
+    edge_cases.append(("skill", singular, "Singular root display"))
     child_environment = variables(root, vendor_home)
     isolated_sources(project)
     controls: dict[str, bool] = {}
@@ -261,6 +267,7 @@ def qualify(executable: Path, root: Path, version: str) -> dict[str, Any]:
     controls["ignored_directories_and_depth_boundary"] = True
     controls["duplicate_display_names_keep_distinct_path_ids"] = True
     controls["numeric_optional_fields_not_loaded"] = True
+    controls["singular_root_skill_uses_root_directory_id"] = True
 
     restricted = inspect("project-disabled.log", {"OPENCODE_CONFIG_PROJECT_DISABLE": "1"})
     observed(restricted, PREFIX + "project", None)

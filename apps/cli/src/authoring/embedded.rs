@@ -249,7 +249,7 @@ fn component(
         json!({"digest":digest::bytes("ai-stp:artifact:v1",&bytes)?,"size_bytes":bytes.len()});
     let profile = surfaces::profile(&request.harness_id, prepared.scope)?;
     let versions = if prepared.projection_format == artifact::PATH_IDENTITY_FORMAT {
-        json!(["2.2.7"])
+        json!([native_identity::OPENCODE_SKILL_VERSION])
     } else {
         json!([])
     };

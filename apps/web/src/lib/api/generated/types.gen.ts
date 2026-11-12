@@ -13318,7 +13318,7 @@ export type ScopeAdaptation = unknown & {
   /**
    * Projection Format
    */
-  projection_format: "ai-stp-adaptation-projection/1";
+  projection_format: "ai-stp-adaptation-projection/1" | "ai-stp-adaptation-projection/2";
   projection_kind: ProjectionKind;
   provider_component_kind: ComponentType;
   required_surface: ProviderSurfaceRef;

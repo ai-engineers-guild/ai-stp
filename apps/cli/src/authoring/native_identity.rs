@@ -11,6 +11,8 @@ mod opencode;
 mod opencode_v2;
 mod pi;
 
+pub(crate) const OPENCODE_SKILL_VERSION: &str = "2.2.7";
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;

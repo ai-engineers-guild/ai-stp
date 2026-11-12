@@ -66,7 +66,14 @@ pub(super) fn skills<'a>(
         }
         let name = match parents.last() {
             Some(parent) => (*parent).to_owned(),
-            None if *leaf == "SKILL.md" => "skills".into(),
+            None if *leaf == "SKILL.md" => path
+                .strip_prefix(".opencode/")
+                .or_else(|| path.strip_prefix(".agents/"))
+                .unwrap_or(path)
+                .split('/')
+                .next()
+                .ok_or_else(invalid)?
+                .to_owned(),
             None => leaf.strip_suffix(".md").ok_or_else(invalid)?.to_owned(),
         };
         valid(std::slice::from_ref(&name))?;
@@ -81,4 +88,22 @@ pub(super) fn skills<'a>(
         return Err(invalid());
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_skill_keeps_the_directory_id_of_each_native_alias()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        for (path, expected) in [
+            ("skill/SKILL.md", "skill"),
+            (".opencode/skills/SKILL.md", "skills"),
+        ] {
+            let found = skills([(path, b"Controlled fixture.\n".as_slice())])?;
+            assert_eq!(found[path], vec![expected.to_owned()]);
+        }
+        Ok(())
+    }
 }

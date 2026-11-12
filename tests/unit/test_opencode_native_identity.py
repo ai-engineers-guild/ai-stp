@@ -1,8 +1,12 @@
 """Qualified OpenCode path IDs coexist with exact retained 1.x declarations."""
 
+from typing import cast
+
 import pytest
 
-from ai_stp_sources import SourceError
+from ai_stp_foundation.canonical import JsonValue
+from ai_stp_passports import ComponentVersionPassport
+from ai_stp_sources import EmbeddedDraft, SourceError, SourceSnapshot, freeze_setup_definition
 from ai_stp_sources.native_identity import identities
 
 FORMAT = "ai-stp-adaptation-projection/2"
@@ -85,3 +89,64 @@ def test_current_format_cannot_reinterpret_other_harnesses_or_kinds() -> None:
             identities(
                 harness, kind, {"skills/path/SKILL.md": b"Fixture.\n"}, projection_format=FORMAT
             )
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("skills/SKILL.md", "skills"),
+        ("skill/SKILL.md", "skill"),
+        (".opencode/skill/SKILL.md", "skill"),
+        (".agents/skills/SKILL.md", "skills"),
+    ],
+)
+def test_root_skill_uses_the_actual_native_directory_name(path: str, expected: str) -> None:
+    assert current({path: b"Controlled fixture.\n"}) == {path: [expected]}
+
+
+def test_public_embedded_writer_and_retained_reader_keep_the_same_exact_projection() -> None:
+    snapshot = SourceSnapshot(
+        kind="path",
+        canonical_coordinate="path:skills/source",
+        exact_identity="skills/source",
+        component_digest="sha256:" + "a" * 64,
+        files={
+            "SKILL.md": b"---\nname: Display name\n---\nControlled fixture.\n",
+            "README.md": b"Controlled sidecar.\n",
+        },
+    )
+    draft = EmbeddedDraft(
+        snapshot=snapshot,
+        component_type="skill",
+        name="folder",
+        description="Controlled fixture",
+        license_spdx="MIT",
+        harness_id="opencode",
+        target_scope="global",
+        managed_paths=("skills/folder/README.md", "skills/folder/SKILL.md"),
+    )
+
+    def freeze(members: tuple[EmbeddedDraft, ...], retained: tuple[dict[str, JsonValue], ...] = ()):
+        return freeze_setup_definition(
+            setup_id="setup_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            version="1.0",
+            harness_id="opencode",
+            input_digest="sha256:" + "b" * 64,
+            publisher_id="account_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            created_at="2026-11-12T00:00:00.000Z",
+            catalog_members=(),
+            embedded_members=members,
+            retained_embedded=retained,
+        )
+
+    first = freeze((draft,))
+    records = cast(list[dict[str, JsonValue]], first.document["embedded"])
+    passport = ComponentVersionPassport.model_validate(records[0]["passport"])
+    scope = passport.adaptations[0].scope_adaptations[0]
+    assert scope.projection_format == FORMAT
+    assert scope.supported_harness_versions == ["2.2.7"]
+    assert {member.path: member.native_ids for member in scope.members} == {
+        "skills/folder/SKILL.md": ["folder"],
+        "skills/folder/README.md": [],
+    }
+    assert freeze((), (records[0],)).document["embedded"] == first.document["embedded"]

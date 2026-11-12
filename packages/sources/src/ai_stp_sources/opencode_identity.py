@@ -35,6 +35,20 @@ def skills(files: Mapping[str, bytes]) -> dict[str, list[str]]:
             for field in ("name", "description")
         ):
             raise invalid()
-        name = parents[-1] if parents else "skills" if parts[-1] == "SKILL.md" else parts[-1][:-3]
+        root_path = next(
+            (
+                path[len(prefix) :]
+                for prefix in (".opencode/", ".agents/")
+                if path.startswith(prefix)
+            ),
+            path,
+        )
+        name = (
+            parents[-1]
+            if parents
+            else root_path.split("/", 1)[0]
+            if parts[-1] == "SKILL.md"
+            else parts[-1][:-3]
+        )
         result[path] = [name]
     return result
