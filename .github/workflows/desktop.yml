@@ -350,7 +350,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.diagnostic_platform == 'Windows' && '["windows-2025"]' || inputs.diagnostic_platform == 'macOS' && '["macos-15"]' || '["macos-15","windows-2025"]') }}
+        os: >-
+          ${{ fromJSON(
+          inputs.diagnostic_platform == 'Windows' && '["windows-2025"]' ||
+          inputs.diagnostic_platform == 'macOS' && '["macos-15"]' ||
+          '["macos-15","windows-2025"]'
+          ) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
