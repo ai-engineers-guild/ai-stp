@@ -768,8 +768,13 @@ function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $K
         return $null
     }.GetNewClosure())
     $option = Wait-Observation $Process 'owned native profile option' ({
-        $condition = [System.Windows.Automation.PropertyCondition]::new(
-            [System.Windows.Automation.AutomationElement]::NameProperty, $Name
+        $condition = [System.Windows.Automation.AndCondition]::new(
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty, $Name
+            ),
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::IsSelectionItemPatternAvailableProperty, $true
+            )
         )
         return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
     }.GetNewClosure())
