@@ -1,4 +1,4 @@
-"""Content-addressed component adaptation identities (ADR-0143)."""
+"""Content-addressed component adaptation identities."""
 
 import re
 from typing import Final

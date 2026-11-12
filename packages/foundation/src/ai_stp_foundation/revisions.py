@@ -1,4 +1,4 @@
-"""Content-addressed revision identifiers (ADR-0036, SPEC-015 REQ-1502).
+"""Content-addressed revision identifiers.
 
 A revision ID is not a logical stable ID: it is derived deterministically from
 the canonical revision content in the ``ai-stp:revision:v1`` domain, so equal
