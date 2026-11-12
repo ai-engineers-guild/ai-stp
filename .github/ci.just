@@ -141,6 +141,14 @@ ci-integration-web-documentation-markdown-syntax:
 [script('bash')]
 ci-integration-native-native-formatting-all-target-analysis-and-library-units:
     set -euo pipefail
+    case "${RUNNER_OS}" in
+      macOS)
+        swiftc -typecheck .github/scripts/qualify-installed-macos-desktop.swift
+        ;;
+      Windows)
+        pwsh -NoProfile -NonInteractive -File .github/scripts/check-native-powershell.ps1
+        ;;
+    esac
     cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- resources --check
     cargo fmt --manifest-path apps/cli/Cargo.toml --check
     cargo fmt --manifest-path apps/cli/xtask/Cargo.toml --check
@@ -435,7 +443,7 @@ ci-desktop-installed-personal-workspace:
           "${bundle}" "${GITHUB_SHA}" "${output}"
         ;;
       Windows)
-        powershell.exe -NoProfile -NonInteractive -File \
+        pwsh -STA -NoProfile -NonInteractive -File \
           .github/scripts/qualify-installed-windows-desktop.ps1 \
           -Bundle "$(cygpath -aw "${bundle}")" -Source "${GITHUB_SHA}" \
           -Output "$(cygpath -aw "${output}")"
