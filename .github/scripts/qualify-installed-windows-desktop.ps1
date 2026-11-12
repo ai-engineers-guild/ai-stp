@@ -292,15 +292,32 @@ function Select-Context([System.Diagnostics.Process] $Process, [string] $Label, 
     $null = Wait-Element $Process ($Label + (Text 'profiles.selectedView')) $null
 }
 
+function Require-Pattern($Element, $Pattern, [string] $Label) {
+    $value = $null
+    if ($Element.TryGetCurrentPattern($Pattern, [ref] $value)) { return $value }
+    $supported = @($Element.GetSupportedPatterns() | ForEach-Object { $_.ProgrammaticName }) -join ','
+    throw ("Native $Label has no " + $Pattern.ProgrammaticName + '; supported=' + $supported)
+}
+
 function Select-Language([System.Diagnostics.Process] $Process, [string] $Previous, [string] $Next) {
     $selector = Wait-Element $Process (Text 'language.label' $Previous) ([System.Windows.Automation.ControlType]::ComboBox)
     if ($Previous -cne $Next) {
-        # The native select renders this same ordered packaged declaration.
-        $options = @($languageConfiguration.languages.Keys)
-        $index = [Array]::IndexOf($options, $Next)
-        if ($index -lt 0) { throw 'Unknown packaged native language' }
-        Focus-Control $Process $selector
-        [System.Windows.Forms.SendKeys]::SendWait('%{DOWN}{HOME}' + ('{DOWN}' * $index) + '{ENTER}')
+        $name = [string] $languageConfiguration.languages[$Next].name
+        if ($Next -ceq 'kk') { $name += ' · ' + $languageConfiguration.languages[$Next].shortName }
+        $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
+        $expand.Expand()
+        $null = Wait-Observation $Process 'expanded native language selector' ({
+            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) { return $true }
+            return $null
+        }.GetNewClosure())
+        $option = Wait-Observation $Process 'packaged native language option' ({
+            $condition = [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty, $name
+            )
+            return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        }.GetNewClosure())
+        $selection = Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'language option'
+        $selection.Select()
     }
     $null = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
 }

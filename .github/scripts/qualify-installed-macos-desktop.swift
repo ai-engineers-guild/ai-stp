@@ -15,7 +15,7 @@ func wait<T>(_ label: String, seconds: Double = 45, _ observe: () throws -> T?) 
     let deadline = ProcessInfo.processInfo.systemUptime + seconds
     while ProcessInfo.processInfo.systemUptime < deadline {
         if let result = try observe() { return result }
-        Thread.sleep(forTimeInterval: 0.2)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.2))
     }
     throw ProbeFailure("Timed out waiting for \(label)")
 }
@@ -181,6 +181,10 @@ func ownsKeyboard(_ process: Process) -> Bool {
 }
 
 func focus(_ process: Process, _ node: AXUIElement) throws {
+    guard let running = NSRunningApplication(processIdentifier: process.processIdentifier) else {
+        throw ProbeFailure("Owned running application is unavailable")
+    }
+    try check(running.activate(options: []), "Owned application activation was refused")
     try check(AXUIElementSetAttributeValue(application(process), kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success,
         "Owned application could not become frontmost")
     try check(AXUIElementSetAttributeValue(node, kAXFocusedAttribute as CFString, kCFBooleanTrue) == .success,
