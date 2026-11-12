@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 
-from tests.native_vendor.rpc import Pipe
+from tests.support.native_pipe import Pipe
 
 
 def test_closed_vendor_input_does_not_skip_owned_process_cleanup() -> None:
