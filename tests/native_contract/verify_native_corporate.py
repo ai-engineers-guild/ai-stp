@@ -13,6 +13,7 @@ from alembic import command
 from alembic.config import Config
 from tests.native_contract import verify_corporate, verify_ownership
 from tests.native_vendor.installation import prepare
+from tests.support.api_settings import close_api_log_files
 from tests.support.native_postgres import cluster
 from tests.support.native_runner import disposable_runner, report_stage
 from tests.support.postgres import isolated_database
@@ -53,9 +54,12 @@ def main() -> None:
                         report_stage(f"{name}-migrations")
                         command.upgrade(Config("alembic.ini"), "head")
                         report_stage(f"{name}-journey")
-                        asyncio.run(
-                            owner.prove(binary, url, fixture, credential_store="os_keyring")
-                        )
+                        try:
+                            asyncio.run(
+                                owner.prove(binary, url, fixture, credential_store="os_keyring")
+                            )
+                        finally:
+                            close_api_log_files(fixture / "api")
                         report_stage(f"{name}-passed")
             report_stage("postgresql-stopped")
             proof = {

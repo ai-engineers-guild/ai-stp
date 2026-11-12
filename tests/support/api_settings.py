@@ -6,6 +6,7 @@ compose the same app instead of a second opinion about its settings.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from ai_stp_api.settings import (
@@ -71,3 +72,15 @@ def make_settings(
         content=content or ContentSettings(),
         corporate=CorporateSettings(bootstrap_secret="corporate-bootstrap-test-secret"),
     )
+
+
+def close_api_log_files(directory: Path) -> None:
+    """Release only file handlers rooted in the finished API fixture directory."""
+    root = logging.getLogger()
+    directory = directory.resolve()
+    for handler in tuple(root.handlers):
+        if isinstance(handler, logging.FileHandler) and Path(
+            handler.baseFilename
+        ).resolve().is_relative_to(directory):
+            root.removeHandler(handler)
+            handler.close()

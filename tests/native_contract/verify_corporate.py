@@ -30,6 +30,7 @@ from tests.native_contract import verify_checkout
 from tests.native_contract.verify_ownership import apply, native
 from tests.support.api_settings import make_settings, make_test_auth
 from tests.support.catalog_seed import FIXTURE_SETUP_ID, load_fixture_seed
+from tests.support.native_credentials import lose_enrollment_key
 from tests.support.native_runner import cli_environment
 from tests.support.postgres import isolated_database
 
@@ -1090,9 +1091,8 @@ async def journeys(
     # Losing a local key permits preparation, never proof of server revocation.
     # The real exchange must refuse while that previous server device is active.
     retained = await run("account", "status", "--connection", replacement)
-    missing_key = state / "ai-stp-v2-connections" / f"device-key.{child['device_id']}"
-    assert missing_key.is_file() and not missing_key.is_symlink()
-    missing_key.unlink()
+    assert retained["device_id"] == child["device_id"]
+    lose_enrollment_key(state, child["device_id"], credential_store)
     missing = await run(
         "account",
         "connections",
