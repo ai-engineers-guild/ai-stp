@@ -592,6 +592,7 @@ function Require-Pattern($Element, $Pattern, [string] $Label) {
         "Native $Label has no " + $Pattern.ProgrammaticName + '; supported=' + $supported
     )
     $failure.Data['native_controller_source_line'] = @(Get-PSCallStack)[1].ScriptLineNumber
+    $failure.Data['native_controller_pattern_missing'] = $true
     throw $failure
 }
 
@@ -694,6 +695,45 @@ function Assert-Sidebar([System.Diagnostics.Process] $Process, [string] $Locale)
 }
 
 
+function Write-OptionFailure($Selector, $Option, [string] $Name, $Failure) {
+    $record = [ordered]@{
+        hresult = '00000000'; missing_pattern = $false; control_type = $null
+        enabled = $null; offscreen = $null; selection_item = $null; invoke = $null
+        selected_after = $null
+    }
+    $exception = $Failure.Exception
+    for ($depth = 0; $depth -lt 8 -and $null -ne $exception; $depth++) {
+        $record.hresult = $exception.HResult.ToString('X8')
+        if ($exception.Data.Contains('native_controller_pattern_missing') -and
+            $exception.Data['native_controller_pattern_missing'] -eq $true) {
+            $record.missing_pattern = $true
+        }
+        $exception = $exception.InnerException
+    }
+    try { $record.control_type = $Option.Current.ControlType.Id } catch {}
+    try { $record.enabled = $Option.Current.IsEnabled } catch {}
+    try { $record.offscreen = $Option.Current.IsOffscreen } catch {}
+    foreach ($property in @(
+        @('selection_item', [System.Windows.Automation.AutomationElement]::IsSelectionItemPatternAvailableProperty),
+        @('invoke', [System.Windows.Automation.AutomationElement]::IsInvokePatternAvailableProperty)
+    )) {
+        try {
+            $observed = $Option.GetCurrentPropertyValue($property[1])
+            if ($observed -is [bool]) { $record[$property[0]] = $observed }
+        } catch {}
+    }
+    try {
+        $pattern = $null
+        if ($Selector.TryGetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern, [ref] $pattern)) {
+            $chosen = @($pattern.Current.GetSelection())
+            $record.selected_after = $chosen.Count -eq 1 -and $chosen[0].Current.Name -ceq $Name
+        }
+    } catch {}
+    [Console]::Out.WriteLine(
+        'AI_STP_NATIVE_DESKTOP_OPTION_V1 ' + ($record | ConvertTo-Json -Compress)
+    )
+}
+
 function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $Key, [string] $Name) {
     $selectorCallerLine = @(Get-PSCallStack)[1].ScriptLineNumber
     try {
@@ -784,11 +824,22 @@ function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $K
         return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
     }.GetNewClosure())
     # Native options can expose a default action without a selection-state provider.
-    $selection = $null
-    if ($option.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref] $selection)) {
-        $selection.Select()
-    } else {
-        (Require-Pattern $option ([System.Windows.Automation.InvokePattern]::Pattern) 'profile option').Invoke()
+    try {
+        $selection = $null
+        if ($option.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref] $selection)) {
+            $selection.Select()
+        } else {
+            (Require-Pattern $option ([System.Windows.Automation.InvokePattern]::Pattern) 'profile option').Invoke()
+        }
+    } catch {
+        $originalFailure = $_
+        if (!$originalFailure.Exception.Data.Contains('native_controller_source_line')) {
+            $originalFailure.Exception.Data['native_controller_source_line'] = $originalFailure.InvocationInfo.ScriptLineNumber
+        }
+        try { Write-OptionFailure $selector $option $Name $originalFailure } catch {
+            [Console]::Error.WriteLine('Owned native option diagnostic unavailable')
+        }
+        throw $originalFailure
     }
     if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
         $expand.Collapse()

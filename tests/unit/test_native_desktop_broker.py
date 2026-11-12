@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -168,5 +169,98 @@ pathlib.Path(sys.argv[2]).write_text("completed")
             approve=codes.append,
         )
     assert codes == [] and marker.read_text() == "completed"
+    assert "PRIVATE-CANARY" not in str(refused.value)
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "valid",
+        "nullable",
+        "extra",
+        "missing",
+        "role_low",
+        "role_high",
+        "integer_bool",
+        "flag",
+        "hresult",
+        "malformed",
+        "not_object",
+        "oversize",
+        "repeated",
+    ],
+)
+def test_native_option_failure_accepts_only_bounded_codes_and_capabilities(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], case: str
+) -> None:
+    child = r"""
+import pathlib,sys
+print("private UI PRIVATE-CANARY",flush=True)
+print("AI_STP_NATIVE_DESKTOP_STAGE_V1 context_connection",flush=True)
+print("AI_STP_NATIVE_DESKTOP_OPTION_V1 "+sys.argv[1],flush=True)
+if sys.argv[2]=="repeated":
+ print("AI_STP_NATIVE_DESKTOP_OPTION_V1 "+sys.argv[1],flush=True)
+if sys.argv[2] in {"valid","nullable"}:
+ pathlib.Path(sys.argv[3]).write_text("completed")
+ print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 123",flush=True)
+ sys.exit(3)
+assert sys.stdin.readline()==""
+pathlib.Path(sys.argv[3]).write_text("completed")
+"""
+    payload: dict[str, object] = {
+        "hresult": "80040201",
+        "missing_pattern": False,
+        "control_type": 50007,
+        "enabled": True,
+        "offscreen": False,
+        "selection_item": False,
+        "invoke": True,
+        "selected_after": None,
+    }
+    if case == "nullable":
+        for key in ["control_type", "enabled", "offscreen", "selection_item", "invoke"]:
+            payload[key] = None
+    if case == "extra":
+        payload["ui_text"] = "PRIVATE-CANARY"
+    if case == "missing":
+        del payload["hresult"]
+    if case == "role_low":
+        payload["control_type"] = 49999
+    if case == "role_high":
+        payload["control_type"] = 50041
+    if case == "integer_bool":
+        payload["control_type"] = True
+    if case == "flag":
+        payload["selected_after"] = "PRIVATE-CANARY"
+    if case == "hresult":
+        payload["hresult"] = "PRIVATE-CANARY"
+    encoded = (
+        "{PRIVATE-CANARY"
+        if case == "malformed"
+        else "[]"
+        if case == "not_object"
+        else " " * 1025 + json.dumps(payload)
+        if case == "oversize"
+        else json.dumps(payload)
+    )
+    marker = tmp_path / "completed"
+    expected = (
+        "at context_connection; controller line 123"
+        if case in {"valid", "nullable"}
+        else "Native fixture option diagnostic"
+    )
+    with pytest.raises(ValueError, match=expected) as refused:
+        run_owner(
+            [sys.executable, "-u", "-c", child, encoded, case, str(marker)],
+            environment=dict(os.environ),
+            errors=tmp_path / "errors",
+            nonce="a" * 64,
+            approve=lambda _: pytest.fail("A native option failure cannot request approval"),
+        )
+    if case in {"valid", "nullable"}:
+        observed = str(refused.value).split("; option diagnostic=", 1)[1]
+        assert json.loads(observed) == payload
+    assert marker.read_text() == "completed"
     assert "PRIVATE-CANARY" not in str(refused.value)
     assert capsys.readouterr().out == ""
