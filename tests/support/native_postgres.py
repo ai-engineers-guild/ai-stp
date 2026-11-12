@@ -191,6 +191,8 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
             # Keep its native restricted-token re-execution and inherited stdio.
             # https://github.com/postgres/postgres/blob/REL_18_STABLE/src/common/sprompt.c
             initialization_environment = dict(os.environ, OSTYPE="msys")
+        initializing = root / "initializing"
+        initializing.touch()
         run_command(
             initdb,
             "-D",
@@ -205,6 +207,7 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
             input_data=((password + "\n") * 2).encode("ascii"),
             environment=initialization_environment,
         )
+        initializing.unlink()
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
             port = reservation.getsockname()[1]
@@ -241,6 +244,9 @@ def cluster() -> Generator[tuple[str, dict[str, Any]], None, None]:
             "Retain the owned cluster while its process is active"
         )
         assert not (root / "mounted").exists(), "Retain the SDK mount until native detach completes"
+        assert not (root / "initializing").exists(), (
+            "Retain the owned SDK and data until initialization completion is observed"
+        )
         shutil.rmtree(root)
 
 
