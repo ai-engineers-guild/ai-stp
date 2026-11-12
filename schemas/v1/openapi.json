@@ -978,7 +978,7 @@
       },
       "AuthorAttestation": {
         "additionalProperties": false,
-        "description": "Full closed author attestation on the /v1 wire (ADR-0092).",
+        "description": "Full closed author attestation on the /v1 wire.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -14320,7 +14320,7 @@
       },
       "DetectedHarness": {
         "additionalProperties": true,
-        "description": "One harness observed on the device, with the version that was observed.\n\nOnly the supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine (SPEC-011 REQ-1109): it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
+        "description": "One harness observed on the device, with the version that was observed.\n\nOnly the supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine: it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
         "properties": {
           "harness_id": {
             "$ref": "#/components/schemas/HarnessId"
@@ -30104,7 +30104,7 @@
       },
       "SyncEvent": {
         "additionalProperties": false,
-        "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim (REQ-2508). ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
+        "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim. ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
         "properties": {
           "actor_id": {
             "$ref": "#/components/schemas/AccountId"
@@ -30186,7 +30186,7 @@
       },
       "SyncEventReceipt": {
         "additionalProperties": true,
-        "description": "Durable outcome of one event (SPEC-009 receipt states).",
+        "description": "Durable outcome of one event.",
         "properties": {
           "conflict": {
             "anyOf": [
@@ -40093,7 +40093,7 @@
                     }
                   },
                   "searchComponents.experimentalOnConsent": {
-                    "summary": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
+                    "summary": "With consent experimental candidates have their own section, separate from items. Both sections are empty in this fixture.",
                     "value": {
                       "experimental": [],
                       "items": [],
@@ -40511,7 +40511,7 @@
               "application/json": {
                 "examples": {
                   "readComponentVersion.published": {
-                    "summary": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
+                    "summary": "The passport is the description of the version; its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
                     "value": {
                       "checks": null,
                       "distribution_visibility": null,

@@ -54,7 +54,7 @@
   "$id": "urn:ai-stp:schema:v1:sync-event",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim (REQ-2508). ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
+  "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim. ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
   "properties": {
     "actor_id": {
       "$ref": "#/$defs/AccountId"

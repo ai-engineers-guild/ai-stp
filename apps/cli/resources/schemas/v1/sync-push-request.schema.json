@@ -41,7 +41,7 @@
     },
     "SyncEvent": {
       "additionalProperties": false,
-      "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim (REQ-2508). ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
+      "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim. ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
       "properties": {
         "actor_id": {
           "$ref": "#/$defs/AccountId"

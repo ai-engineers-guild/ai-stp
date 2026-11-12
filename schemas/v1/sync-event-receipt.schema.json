@@ -70,7 +70,7 @@
   "$id": "urn:ai-stp:schema:v1:sync-event-receipt",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Durable outcome of one event (SPEC-009 receipt states).",
+  "description": "Durable outcome of one event.",
   "properties": {
     "conflict": {
       "anyOf": [

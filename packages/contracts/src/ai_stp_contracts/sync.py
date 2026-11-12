@@ -63,7 +63,7 @@ class SyncEvent(ContractModel):
     """One push event: a candidate revision and its idempotency key.
 
     ``device_id`` must match the session-bound active device; the server never
-    trusts a different device claim (REQ-2508). ``payload`` is the allowlisted
+    trusts a different device claim. ``payload`` is the allowlisted
     revision document body; tombstone may send an empty object.
     """
 
@@ -108,7 +108,7 @@ class SyncConflictInfo(ContractModel):
 
 
 class SyncEventReceipt(ContractModel):
-    """Durable outcome of one event (SPEC-009 receipt states)."""
+    """Durable outcome of one event."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
