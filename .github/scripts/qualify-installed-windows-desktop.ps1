@@ -772,13 +772,24 @@ function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $K
             [System.Windows.Automation.PropertyCondition]::new(
                 [System.Windows.Automation.AutomationElement]::NameProperty, $Name
             ),
-            [System.Windows.Automation.PropertyCondition]::new(
-                [System.Windows.Automation.AutomationElement]::IsSelectionItemPatternAvailableProperty, $true
+            [System.Windows.Automation.OrCondition]::new(
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::IsSelectionItemPatternAvailableProperty, $true
+                ),
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::IsInvokePatternAvailableProperty, $true
+                )
             )
         )
         return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
     }.GetNewClosure())
-    (Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'profile option').Select()
+    # Native options can expose a default action without a selection-state provider.
+    $selection = $null
+    if ($option.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref] $selection)) {
+        $selection.Select()
+    } else {
+        (Require-Pattern $option ([System.Windows.Automation.InvokePattern]::Pattern) 'profile option').Invoke()
+    }
     if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
         $expand.Collapse()
     }
