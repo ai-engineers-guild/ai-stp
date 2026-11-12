@@ -103,15 +103,46 @@ function Show-Desktop([System.Diagnostics.Process] $Process) {
     }.GetNewClosure())
 }
 
-function Assert-NormalWorkArea([System.Diagnostics.Process] $Process) {
-    $null = Wait-Observation $Process 'normal native window within display work area' ({
-        if ($Process.MainWindowHandle -eq [IntPtr]::Zero) { return $null }
-        $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
-        $pattern = Require-Pattern $window ([System.Windows.Automation.WindowPattern]::Pattern) 'application window'
-        if ($pattern.Current.WindowVisualState -eq [System.Windows.Automation.WindowVisualState]::Normal -and
-            [NativeDesktopInput]::WindowFitsWorkArea($Process.MainWindowHandle)) { return $true }
-        return $null
-    }.GetNewClosure())
+function Assert-NormalWorkArea([System.Diagnostics.Process] $Process, [string] $Phase) {
+    try {
+        $null = Wait-Observation $Process 'normal native window within display work area' ({
+            if ($Process.MainWindowHandle -eq [IntPtr]::Zero) { return $null }
+            $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+            $pattern = Require-Pattern $window ([System.Windows.Automation.WindowPattern]::Pattern) 'application window'
+            if ($pattern.Current.WindowVisualState -eq [System.Windows.Automation.WindowVisualState]::Normal -and
+                [NativeDesktopInput]::WindowFitsWorkArea($Process.MainWindowHandle)) { return $true }
+            return $null
+        }.GetNewClosure())
+    } catch {
+        $original = $_
+        try {
+            if ($Phase -cnotin @('initial', 'restored')) { throw 'Unknown geometry phase' }
+            $bounds = [NativeDesktopInput]::WindowBounds($Process.MainWindowHandle)
+            $area = [NativeDesktopInput]::WorkArea($Process.MainWindowHandle)
+            $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+            $pattern = Require-Pattern $window ([System.Windows.Automation.WindowPattern]::Pattern) 'application window'
+            $record = [ordered]@{
+                schema_version = 1; source_sha = $Source; platform = 'Windows'; phase = $Phase
+                coordinate_unit = 'physical_pixels'
+                frame = [ordered]@{
+                    x = $bounds[0]; y = $bounds[1]
+                    width = $bounds[2] - $bounds[0]; height = $bounds[3] - $bounds[1]
+                }
+                work_areas = @([ordered]@{
+                    x = $area[0]; y = $area[1]
+                    width = $area[2] - $area[0]; height = $area[3] - $area[1]
+                    scale_factor = [NativeDesktopInput]::GetDpiForWindow($Process.MainWindowHandle) / 96.0
+                })
+                native_window_state = [ordered]@{ visual_state = [int] $pattern.Current.WindowVisualState }
+            }
+            $bytes = [Text.Encoding]::UTF8.GetBytes(($record | ConvertTo-Json -Depth 6 -Compress))
+            if ($bytes.Length -gt 16384) { throw 'Geometry observation exceeds its bound' }
+            $path = Join-Path $env:RUNNER_TEMP 'installed-native-window-geometry.json'
+            $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew)
+            try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
+        } catch { [Console]::Error.WriteLine('Owned native geometry observation unavailable') }
+        throw $original
+    }
 }
 
 function Set-OversizedNormalState([string] $Path, [int[]] $Area) {
@@ -1009,7 +1040,7 @@ $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
     Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
 ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
 try {
-    Assert-NormalWorkArea $process
+    Assert-NormalWorkArea $process 'initial'
     $initialWorkArea = [NativeDesktopInput]::WorkArea($process.MainWindowHandle)
     Show-Desktop $process
     $null = Wait-Element $process "Engine $($version.cli_version)" $null
@@ -1032,7 +1063,7 @@ try {
     $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
     Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
 ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
-    Assert-NormalWorkArea $process
+    Assert-NormalWorkArea $process 'restored'
     Show-Desktop $process
     $null = Wait-Element $process (Text 'language.label' 'ar') ([System.Windows.Automation.ControlType]::ComboBox)
     $themeKey = if ($personal.Dark) { 'shell.light' } else { 'shell.dark' }

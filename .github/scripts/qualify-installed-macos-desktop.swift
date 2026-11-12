@@ -74,34 +74,67 @@ func close(_ process: Process) throws {
     _ = try wait("Desktop termination", seconds: 15) { process.isRunning ? nil : true }
 }
 
-func normalWorkArea(_ process: Process) throws -> CGSize {
-    return try wait("normal native window within display work area") {
-        guard let windows = attribute(application(process), kAXWindowsAttribute) as? [AXUIElement],
-            windows.count == 1, let window = windows.first,
-            let position = attribute(window, kAXPositionAttribute),
-            let size = attribute(window, kAXSizeAttribute),
-            let primary = NSScreen.screens.first
-        else { return nil }
-        try check(CFGetTypeID(position) == AXValueGetTypeID() &&
-            CFGetTypeID(size) == AXValueGetTypeID(), "Native window geometry is unavailable")
-        var point = CGPoint.zero
-        var extent = CGSize.zero
-        try check(AXValueGetValue((position as! AXValue), .cgPoint, &point) &&
-            AXValueGetValue((size as! AXValue), .cgSize, &extent),
-            "Native window geometry could not be read")
-        let frame = CGRect(origin: point, size: extent)
-        guard frame.width > 0 && frame.height > 0 else { return nil }
-        for screen in NSScreen.screens {
-            let visible = screen.visibleFrame
-            // Accessibility uses the primary screen's top-left; AppKit uses its bottom-left.
-            let area = CGRect(x: visible.minX, y: primary.frame.maxY - visible.maxY,
-                width: visible.width, height: visible.height)
-            if area.contains(frame) {
-                return CGSize(width: area.width * screen.backingScaleFactor,
-                    height: area.height * screen.backingScaleFactor)
+func normalWorkArea(_ process: Process, phase: String = "initial") throws -> CGSize {
+    var snapshot: [String: Any] = [:]
+    do {
+        return try wait("normal native window within display work area") {
+            guard let windows = attribute(application(process), kAXWindowsAttribute) as? [AXUIElement],
+                windows.count == 1, let window = windows.first,
+                let position = attribute(window, kAXPositionAttribute),
+                let size = attribute(window, kAXSizeAttribute),
+                let primary = NSScreen.screens.first
+            else { return nil }
+            try check(CFGetTypeID(position) == AXValueGetTypeID() &&
+                CFGetTypeID(size) == AXValueGetTypeID(), "Native window geometry is unavailable")
+            var point = CGPoint.zero
+            var extent = CGSize.zero
+            try check(AXValueGetValue((position as! AXValue), .cgPoint, &point) &&
+                AXValueGetValue((size as! AXValue), .cgSize, &extent),
+                "Native window geometry could not be read")
+            snapshot["window_count"] = windows.count
+            snapshot["frame"] = [
+                "x": Double(point.x), "y": Double(point.y),
+                "width": Double(extent.width), "height": Double(extent.height),
+            ]
+            snapshot["work_areas"] = NSScreen.screens.map { screen in
+                let visible = screen.visibleFrame
+                return [
+                    "x": Double(visible.minX), "y": Double(primary.frame.maxY - visible.maxY),
+                    "width": Double(visible.width), "height": Double(visible.height),
+                    "scale_factor": Double(screen.backingScaleFactor),
+                ]
+            }
+            let frame = CGRect(origin: point, size: extent)
+            guard frame.width > 0 && frame.height > 0 else { return nil }
+            for screen in NSScreen.screens {
+                let visible = screen.visibleFrame
+                // Accessibility uses the primary screen's top-left; AppKit uses its bottom-left.
+                let area = CGRect(x: visible.minX, y: primary.frame.maxY - visible.maxY,
+                    width: visible.width, height: visible.height)
+                if area.contains(frame) {
+                    return CGSize(width: area.width * screen.backingScaleFactor,
+                        height: area.height * screen.backingScaleFactor)
+                }
+            }
+            return nil
+        }
+    } catch {
+        let environment = ProcessInfo.processInfo.environment
+        if ["initial", "restored"].contains(phase),
+            let root = environment["RUNNER_TEMP"], let source = environment["GITHUB_SHA"] {
+            var record = snapshot
+            record["schema_version"] = 1
+            record["source_sha"] = source
+            record["platform"] = "macOS"
+            record["phase"] = phase
+            record["coordinate_unit"] = "logical_points"
+            if let bytes = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]),
+                bytes.count <= 16384 {
+                let path = URL(fileURLWithPath: root).appendingPathComponent("installed-native-window-geometry.json")
+                try? bytes.write(to: path, options: [.withoutOverwriting])
             }
         }
-        return nil
+        throw error
     }
 }
 
@@ -769,7 +802,7 @@ func prove() throws {
     fputs("Restarting the initialized workspace\n", stderr)
     try oversizedNormalState(windowState, initialWorkArea)
     process = try launch(app)
-    _ = try normalWorkArea(process)
+    _ = try normalWorkArea(process, phase: "restored")
     _ = try visible(process, catalogs.text("language.label", "ar"), role: kAXPopUpButtonRole, enabled: true)
     _ = try visible(process, catalogs.text(dark ? "shell.light" : "shell.dark", "ar"), role: kAXButtonRole, enabled: true)
     try sidebar(process, catalogs, "ar")

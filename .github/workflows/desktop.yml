@@ -319,6 +319,14 @@ jobs:
           path: ${{ runner.temp }}/installed-native-corporate-desktop.json
           if-no-files-found: error
           retention-days: 7
+      - name: Retain bounded native window geometry after refusal
+        if: failure() && (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-native-window-geometry-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-native-window-geometry.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Retain the owned Windows fixture window after refusal
         if: failure() && runner.os == 'Windows' && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

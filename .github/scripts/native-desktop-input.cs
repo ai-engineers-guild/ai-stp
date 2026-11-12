@@ -124,16 +124,25 @@ public static class NativeDesktopInput
         return new[] { info.WorkArea.Left, info.WorkArea.Top, info.WorkArea.Right, info.WorkArea.Bottom };
     }
 
-    public static bool WindowFitsWorkArea(IntPtr window)
+    [DllImport("user32.dll")]
+    public static extern uint GetDpiForWindow(IntPtr window);
+
+    public static int[] WindowBounds(IntPtr window)
     {
         Rectangle bounds;
-        // DWMWA_EXTENDED_FRAME_BOUNDS excludes invisible resize borders and uses physical pixels.
         if (DwmGetWindowAttribute(window, 9, out bounds, (uint)Marshal.SizeOf(typeof(Rectangle))) != 0)
             throw new InvalidOperationException("Visible native window bounds could not be observed");
+        return new[] { bounds.Left, bounds.Top, bounds.Right, bounds.Bottom };
+    }
+
+    public static bool WindowFitsWorkArea(IntPtr window)
+    {
+        // DWMWA_EXTENDED_FRAME_BOUNDS excludes invisible resize borders and uses physical pixels.
+        int[] bounds = WindowBounds(window);
         int[] area = WorkArea(window);
-        return bounds.Right > bounds.Left && bounds.Bottom > bounds.Top &&
-            bounds.Left >= area[0] && bounds.Top >= area[1] &&
-            bounds.Right <= area[2] && bounds.Bottom <= area[3];
+        return bounds[2] > bounds[0] && bounds[3] > bounds[1] &&
+            bounds[0] >= area[0] && bounds[1] >= area[1] &&
+            bounds[2] <= area[2] && bounds[3] <= area[3];
     }
 
     private static bool WindowOwnedBy(IntPtr root, IntPtr window)
