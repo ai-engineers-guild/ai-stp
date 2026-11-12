@@ -97,6 +97,39 @@ foreach ($locale in $languageConfiguration.languages.Keys) {
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -Path (Join-Path $PSScriptRoot 'native-desktop-input.cs')
 
+# Failure images contain only the disposable fixture's owned foreground window.
+function Save-NativeFailureImage([System.Diagnostics.Process] $Process) {
+    $bitmap = $null
+    $graphics = $null
+    try {
+        $Process.Refresh()
+        if ($Process.HasExited -or
+            [NativeDesktopInput]::GetForegroundWindow() -ne $Process.MainWindowHandle) { return }
+        $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+        $bounds = $window.Current.BoundingRectangle
+        $width = [int][Math]::Ceiling($bounds.Width)
+        $height = [int][Math]::Ceiling($bounds.Height)
+        if ($width -le 0 -or $height -le 0 -or $width -gt 4096 -or $height -gt 4096) { return }
+        Add-Type -AssemblyName System.Drawing.Common
+        $bitmap = [System.Drawing.Bitmap]::new($width, $height)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.CopyFromScreen(
+            [int] $bounds.X, [int] $bounds.Y, 0, 0,
+            [System.Drawing.Size]::new($width, $height)
+        )
+        $bitmap.Save(
+            (Join-Path $env:RUNNER_TEMP 'installed-personal-desktop-failure.png'),
+            [System.Drawing.Imaging.ImageFormat]::Png
+        )
+        Write-Host 'Captured the owned fixture window after native refusal'
+    } catch {
+        Write-Host 'Owned fixture window image unavailable; original refusal retained'
+    } finally {
+        if ($null -ne $graphics) { $graphics.Dispose() }
+        if ($null -ne $bitmap) { $bitmap.Dispose() }
+    }
+}
+
 function Text([string] $Key, [string] $Locale = 'en') {
     if (!$catalogs.ContainsKey($Locale) -or !$catalogs[$Locale].ContainsKey($Key)) {
         throw 'A required packaged message is unavailable'
@@ -218,7 +251,7 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
         Assert-KeyboardTarget $Process $field
         Write-Host ([ordered]@{
             native_text_clear = 'before_keyboard'
-            keyboard_api = 'SendInput'
+            keyboard_api = 'SendInput_SCANCODE'
             keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
             pressed_modifiers = [NativeDesktopInput]::PressedModifiers()
             initial_length = $before.Length
@@ -580,6 +613,9 @@ try {
         throw 'Installed device identity changed after restart'
     }
     Close-Desktop $process
+} catch {
+    Save-NativeFailureImage $process
+    throw
 } finally {
     if (!$process.HasExited) { Stop-Process -Id $process.Id }
 }
@@ -594,8 +630,8 @@ try {
     installed_personal_workspace_restart = $true
     theme_locale_observations = $personal.Combinations
     native_text_selection_replacements = $script:contextTextReplacements
-    native_text_input_api = 'SendInput'
-    native_combo_input_api = 'SendInput_F4'
+    native_text_input_api = 'SendInput_UNICODE_SCANCODE'
+    native_combo_input_api = 'SendInput_SCANCODE_F4'
     personal_controls = [ordered]@{
         native_vault_initialization = $true
         two_native_offline_contexts = $true

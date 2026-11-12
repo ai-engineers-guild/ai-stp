@@ -79,6 +79,9 @@ public static class NativeDesktopInput
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint count, Input[] inputs, int size);
 
+    [DllImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
+    private static extern uint MapVirtualKey(uint code, uint kind);
+
     public static uint PressedModifiers()
     {
         int[] keys = { 0x10, 0x11, 0x12, 0x5b, 0x5c };
@@ -120,14 +123,25 @@ public static class NativeDesktopInput
         return accepted;
     }
 
+    private static uint PhysicalKey(ushort virtualKey)
+    {
+        uint mapped = MapVirtualKey(virtualKey, 4);
+        uint prefix = mapped & 0xff00;
+        if (mapped == 0 || (prefix != 0 && prefix != 0xe000) || mapped > 0xffff)
+            throw new InvalidOperationException("Native key has no supported physical scan code");
+        ushort scan = (ushort)(mapped & 0xff);
+        uint flags = 0x08u | (prefix == 0xe000 ? 0x01u : 0u);
+        return Send(new[] { Key(0, scan, flags), Key(0, scan, flags | 0x02u) });
+    }
+
     public static uint Backspace()
     {
-        return Send(new[] { Key(0x08, 0, 0), Key(0x08, 0, 0x02) });
+        return PhysicalKey(0x08);
     }
 
     public static uint ToggleComboBox()
     {
-        return Send(new[] { Key(0x73, 0, 0), Key(0x73, 0, 0x02) });
+        return PhysicalKey(0x73);
     }
 
     public static uint TypeText(string value)
