@@ -8,11 +8,14 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import LanguageSelect from "./components/LanguageSelect";
-import { changeLocale, i18n, useLocale } from "./i18n";
+import { changeLocale, i18n, loadCatalog, useLocale } from "./i18n";
 import { preparePreferences, usePreferences } from "./preferences";
 import * as transport from "./transport";
 
-const invoke = vi.hoisted(() => vi.fn());
+const invoke = vi.hoisted(() => {
+  vi.resetModules();
+  return vi.fn();
+});
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => true }));
 const reply = () => ({
   ok: true,
@@ -35,6 +38,7 @@ beforeEach(async () => {
           acknowledgements.push(() => resolve(reply()));
         }),
   );
+  await loadCatalog("en");
   await preparePreferences(transport);
   await changeLocale("en", false);
 });
