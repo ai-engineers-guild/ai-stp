@@ -321,8 +321,17 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
     if ($Previous -cne $Next) {
         $name = [string] $languageConfiguration.languages[$Next].name
         if ($Next -ceq 'kk') { $name += ' · ' + $languageConfiguration.languages[$Next].shortName }
+        Focus-Control $Process $selector
+        $null = Wait-Observation $Process 'visible native language selector' ({
+            if (!$selector.Current.IsOffscreen) { return $true }
+            return $null
+        }.GetNewClosure())
         $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
-        $expand.Expand()
+        [Console]::Error.WriteLine('Native locale ' + $Previous + ' -> ' + $Next +
+            '; initial_state=' + $expand.Current.ExpandCollapseState)
+        if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded) {
+            $expand.Expand()
+        }
         $null = Wait-Observation $Process 'expanded native language selector' ({
             if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) { return $true }
             return $null
