@@ -48,6 +48,12 @@ public static class NativeDesktopInput
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct Point
+    {
+        public int X, Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct GuiThreadInfo
     {
         public uint Size, Flags;
@@ -81,6 +87,44 @@ public static class NativeDesktopInput
 
     [DllImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
     private static extern uint MapVirtualKey(uint code, uint kind);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr window, uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetPhysicalCursorPos(int x, int y);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPhysicalPoint(Point point);
+
+    private static bool WindowOwnedBy(IntPtr root, IntPtr window)
+    {
+        return root != IntPtr.Zero && window != IntPtr.Zero &&
+            (window == root || IsChild(root, window) || GetAncestor(window, 3) == root);
+    }
+
+    public static bool PointerButtonsReleased()
+    {
+        int[] buttons = { 0x01, 0x02, 0x04, 0x05, 0x06 };
+        foreach (int button in buttons)
+            if ((GetAsyncKeyState(button) & 0x8000) != 0)
+                return false;
+        return true;
+    }
+
+    public static uint ClickAt(IntPtr root, int x, int y)
+    {
+        if (!WindowOwnedBy(root, GetForegroundWindow()) || PressedModifiers() != 0 ||
+            !PointerButtonsReleased() ||
+            !SetPhysicalCursorPos(x, y) ||
+            !WindowOwnedBy(root, WindowFromPhysicalPoint(new Point { X = x, Y = y })))
+            throw new InvalidOperationException("Native pointer has no owned target");
+        return Send(new[] {
+            new Input { Payload = new InputPayload { Mouse = new MouseInput { Flags = 0x02 } } },
+            new Input { Payload = new InputPayload { Mouse = new MouseInput { Flags = 0x04 } } }
+        });
+    }
 
     public static uint PressedModifiers()
     {
@@ -123,25 +167,33 @@ public static class NativeDesktopInput
         return accepted;
     }
 
-    private static uint PhysicalKey(ushort virtualKey)
+    private static Input Physical(ushort virtualKey, bool up)
     {
         uint mapped = MapVirtualKey(virtualKey, 4);
         uint prefix = mapped & 0xff00;
         if (mapped == 0 || (prefix != 0 && prefix != 0xe000) || mapped > 0xffff)
             throw new InvalidOperationException("Native key has no supported physical scan code");
         ushort scan = (ushort)(mapped & 0xff);
-        uint flags = 0x08u | (prefix == 0xe000 ? 0x01u : 0u);
-        return Send(new[] { Key(0, scan, flags), Key(0, scan, flags | 0x02u) });
+        uint flags = 0x08u | (prefix == 0xe000 ? 0x01u : 0u) | (up ? 0x02u : 0u);
+        return Key(0, scan, flags);
     }
 
     public static uint Backspace()
     {
-        return PhysicalKey(0x08);
+        return Send(new[] { Physical(0x08, false), Physical(0x08, true) });
     }
 
-    public static uint ToggleComboBox()
+    public static uint Enter()
     {
-        return PhysicalKey(0x73);
+        return Send(new[] { Physical(0x0d, false), Physical(0x0d, true) });
+    }
+
+    public static uint SelectAll()
+    {
+        return Send(new[] {
+            Physical(0x11, false), Physical(0x41, false),
+            Physical(0x41, true), Physical(0x11, true)
+        });
     }
 
     public static uint TypeText(string value)

@@ -94,7 +94,6 @@ $catalogs = @{}
 foreach ($locale in $languageConfiguration.languages.Keys) {
     $catalogs[$locale] = Get-Content -Raw -LiteralPath (Join-Path $catalogRoot ($locale + '.json')) | ConvertFrom-Json -AsHashtable
 }
-Add-Type -AssemblyName System.Windows.Forms
 Add-Type -Path (Join-Path $PSScriptRoot 'native-desktop-input.cs')
 
 # Failure images contain only the disposable fixture's owned foreground window.
@@ -187,6 +186,29 @@ function Focus-Control([System.Diagnostics.Process] $Process, $Element) {
     }.GetNewClosure())
 }
 
+function Click-NativeControl([System.Diagnostics.Process] $Process, $Element) {
+    if (!$Element.Current.IsEnabled) { throw 'Native pointer target is disabled' }
+    $scroll = $null
+    if ($Element.TryGetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern, [ref] $scroll)) {
+        $scroll.ScrollIntoView()
+    }
+    $point = $Element.GetClickablePoint()
+    $hit = [System.Windows.Automation.AutomationElement]::FromPoint($point)
+    $matched = $false
+    for ($depth = 0; $depth -lt 6 -and $null -ne $hit; $depth++) {
+        if ([System.Windows.Automation.Automation]::Compare($hit, $Element)) {
+            $matched = $true
+            break
+        }
+        $hit = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($hit)
+    }
+    if (!$matched) { throw 'Native clickable point does not identify the intended control' }
+    $injected = [NativeDesktopInput]::ClickAt(
+        $Process.MainWindowHandle, [int][Math]::Floor($point.X), [int][Math]::Floor($point.Y)
+    )
+    Write-Host ('Native pointer events accepted: ' + $injected)
+}
+
 function Assert-KeyboardFocus([System.Diagnostics.Process] $Process, $Element) {
     if (!$Element.Current.IsEnabled) { throw 'Native keyboard target is disabled' }
     $keyboardOwned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle)
@@ -232,6 +254,7 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
     if ($Label -cnotmatch '^[A-Za-z0-9 ]{1,120}$') { throw 'Unexpected keyboard fixture text' }
     $field = Wait-Element $Process (Text 'profiles.contextLabel') ([System.Windows.Automation.ControlType]::Edit)
     Focus-Control $Process $field
+    Click-NativeControl $Process $field
     Assert-KeyboardTarget $Process $field
     $before = Read-EditValue $field
     if ($before.Length -gt 0) {
@@ -240,12 +263,14 @@ function Enter-Context([System.Diagnostics.Process] $Process, [string] $Label) {
             $text.SupportedTextSelection -eq [System.Windows.Automation.SupportedTextSelection]::None) {
             throw 'Native context edit cannot expose its text selection'
         }
-        $text.DocumentRange.Select()
+        $injected = [NativeDesktopInput]::SelectAll()
+        Write-Host ('Native selection keyboard events accepted: ' + $injected)
         $null = Wait-Observation $Process 'complete context text selection' ({
             $ranges = @($text.GetSelection())
             if ($ranges.Count -eq 1 -and $null -ne $ranges[0] -and
                 $ranges[0].GetText(65537).TrimEnd([char[]] "`r`n") -ceq $before -and
-                (Read-EditValue $field) -ceq $before) { return $true }
+                (Read-EditValue $field) -ceq $before -and
+                [NativeDesktopInput]::PressedModifiers() -eq 0) { return $true }
             return $null
         }.GetNewClosure())
         Assert-KeyboardTarget $Process $field
@@ -436,12 +461,11 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
         if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed) {
             throw 'Native language selector is not initially collapsed'
         }
-        Assert-KeyboardFocus $Process $selector
-        $injected = [NativeDesktopInput]::ToggleComboBox()
-        Write-Host ('Native combo open keyboard events accepted: ' + $injected)
+        Click-NativeControl $Process $selector
         try {
             $null = Wait-Observation $Process 'expanded native language selector' ({
-                if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) { return $true }
+                if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded -and
+                    [NativeDesktopInput]::PointerButtonsReleased()) { return $true }
                 return $null
             }.GetNewClosure())
         } catch {
@@ -461,18 +485,12 @@ function Select-Language([System.Diagnostics.Process] $Process, [string] $Previo
             )
             return $selector.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
         }.GetNewClosure())
-        $selection = Require-Pattern $option ([System.Windows.Automation.SelectionItemPattern]::Pattern) 'language option'
-        $selection.Select()
+        Click-NativeControl $Process $option
         $selector = Wait-Element $Process (Text 'language.label' $Next) ([System.Windows.Automation.ControlType]::ComboBox)
         $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'language selector'
-        if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded) {
-            Focus-Control $Process $selector
-            Assert-KeyboardFocus $Process $selector
-            $injected = [NativeDesktopInput]::ToggleComboBox()
-            Write-Host ('Native combo close keyboard events accepted: ' + $injected)
-        }
         $null = Wait-Observation $Process 'closed native language selector' ({
-            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed) { return $true }
+            if ($expand.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed -and
+                [NativeDesktopInput]::PointerButtonsReleased()) { return $true }
             return $null
         }.GetNewClosure())
     }
@@ -601,7 +619,9 @@ try {
     Select-Language $process 'ar' 'en'
     $link = Wait-Element $process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink)
     Focus-Control $process $link
-    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+    Assert-KeyboardFocus $process $link
+    $injected = [NativeDesktopInput]::Enter()
+    Write-Host ('Native navigation keyboard events accepted: ' + $injected)
     $null = Wait-Element $process (Text 'profiles.connectionsAndContexts') $null
     $null = Wait-Element $process ('Native personal two' + (Text 'profiles.selectedView')) $null
     if (@((Read-Native @('context', 'list')).contexts).Count -ne 2) {
@@ -631,7 +651,7 @@ try {
     theme_locale_observations = $personal.Combinations
     native_text_selection_replacements = $script:contextTextReplacements
     native_text_input_api = 'SendInput_UNICODE_SCANCODE'
-    native_combo_input_api = 'SendInput_SCANCODE_F4'
+    native_combo_input_api = 'SendInput_POINTER'
     personal_controls = [ordered]@{
         native_vault_initialization = $true
         two_native_offline_contexts = $true
