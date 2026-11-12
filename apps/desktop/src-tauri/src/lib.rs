@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
 mod registry;
+mod window_geometry;
 use registry::RegistryCache;
 
 /// The frontend routes on stable codes; keep the closed set aligned with
@@ -1232,6 +1233,8 @@ pub fn run() {
                 })
                 .build(),
         )
+        // Tauri invokes window-ready plugins in registration order, after restoration above.
+        .plugin(window_geometry::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![

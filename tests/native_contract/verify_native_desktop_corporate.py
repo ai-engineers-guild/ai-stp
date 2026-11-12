@@ -147,6 +147,13 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                 assert personal["installed_personal_workspace_restart"] is True
                 assert len(personal["personal_controls"]) == 10
                 assert all(value is True for value in personal["personal_controls"].values())
+                geometry = personal["normal_window_controls"]
+                assert set(geometry) == {
+                    "first_normal_window_within_work_area",
+                    "oversized_normal_state_restored_within_work_area",
+                    "context_and_preferences_survive_geometry_recovery",
+                }
+                assert all(value is True for value in geometry.values())
                 assert observed["schema_version"] == 1 and observed["source_sha"] == source
                 assert observed["desktop_process_stopped"] is True
                 assert set(observed["controls"]) == CONTROLS
@@ -179,6 +186,7 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                         key: personal[key]
                         for key in ["installer_sha256", "app_sha256", "cli_sha256", "cli_version"]
                     },
+                    "normal_window_controls": geometry,
                     "corporate_profile_controls": observed["controls"],
                     "synthetic_browser_approvals": approvals,
                     "actual_api_postgresql": True,

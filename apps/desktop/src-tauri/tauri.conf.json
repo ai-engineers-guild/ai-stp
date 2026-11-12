@@ -16,6 +16,7 @@
         "title": "ai-stp-desktop",
         "width": 1200,
         "height": 800,
+        "preventOverflow": true,
         "minWidth": 900,
         "minHeight": 600
       }
