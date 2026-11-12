@@ -1,4 +1,4 @@
-"""Bounded local-path resolution inside a confirmed root (SPEC-057 REQ-5718)."""
+"""Bounded local-path resolution inside a confirmed root."""
 
 from __future__ import annotations
 

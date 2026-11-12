@@ -1,4 +1,4 @@
-"""SourceIntent and SourceSnapshot (SPEC-057 REQ-5701)."""
+"""Source intents and exact resolved snapshots."""
 
 from __future__ import annotations
 
@@ -127,7 +127,7 @@ type PackageEvidence = NpmEvidence | PypiEvidence | CratesEvidence | GoEvidence 
 
 
 class SourceSnapshot(BaseModel):
-    """Exact resolved source. Verification axes stay false (ADR-0083)."""
+    """Exact resolved source. Verification axes stay false."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 

@@ -1,8 +1,8 @@
-"""Deterministic JSON Schema export (SPEC-015 REQ-1508/REQ-1509).
+"""Deterministic foundation JSON Schema export.
 
-``schemas/v1`` holds the generated JSON Schema files; this module is their
-only generator. CI regenerates and compares byte for byte, so drift between
-models and committed schemas fails the gate instead of shipping.
+This module exports the registered foundation models. The aggregate contract
+generator owns ``schemas/v1``; CI compares its output byte for byte so drift
+between models and committed schemas fails the gate.
 
 Usage:
     python -m ai_stp_foundation.schemas schemas/v1

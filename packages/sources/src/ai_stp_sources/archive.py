@@ -1,4 +1,4 @@
-"""Bounded archive extraction shared with official upstream (SPEC-057 REQ-5718)."""
+"""Bounded archive extraction shared with official upstream."""
 
 from __future__ import annotations
 

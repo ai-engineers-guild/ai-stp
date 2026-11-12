@@ -1,4 +1,4 @@
-"""Dispatch SourceIntent to the matching adapter (SPEC-057 REQ-5701)."""
+"""Dispatch a source intent to its matching adapter."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ async def resolve_source(
 
 
 def validate_frozen_snapshot(snapshot: SourceSnapshot) -> None:
-    """Reject floating git identity after freeze (REQ-5702)."""
+    """Reject a floating Git identity after freeze."""
     if snapshot.kind == "git":
         reject_floating_commit(snapshot.exact_identity)
         return

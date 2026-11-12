@@ -1,4 +1,4 @@
-"""Typed source-resolution failures (SPEC-057)."""
+"""Typed source-resolution failures."""
 
 from __future__ import annotations
 
