@@ -133,3 +133,38 @@ pathlib.Path(sys.argv[3]).write_text("completed")
     assert codes == [] and marker.read_text() == "completed"
     assert "PRIVATE-CANARY" not in str(refused.value)
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("checkpoint", ["discovery_unavailable", "PRIVATE-CANARY"])
+def test_native_selector_diagnostic_accepts_only_closed_classification(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], checkpoint: str
+) -> None:
+    child = """
+import pathlib,sys
+print("private diagnostic PRIVATE-CANARY",flush=True)
+print("AI_STP_NATIVE_DESKTOP_STAGE_V1 "+sys.argv[1],flush=True)
+print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 123",flush=True)
+if sys.argv[1] == "discovery_unavailable":
+ pathlib.Path(sys.argv[2]).write_text("completed")
+ sys.exit(3)
+assert sys.stdin.readline()==""
+pathlib.Path(sys.argv[2]).write_text("completed")
+"""
+    codes: list[str] = []
+    marker = tmp_path / "completed"
+    expected = (
+        "at discovery_unavailable; controller line 123"
+        if checkpoint == "discovery_unavailable"
+        else "Native fixture checkpoint refused"
+    )
+    with pytest.raises(ValueError, match=expected) as refused:
+        run_owner(
+            [sys.executable, "-u", "-c", child, checkpoint, str(marker)],
+            environment=dict(os.environ),
+            errors=tmp_path / "errors",
+            nonce="a" * 64,
+            approve=codes.append,
+        )
+    assert codes == [] and marker.read_text() == "completed"
+    assert "PRIVATE-CANARY" not in str(refused.value)
+    assert capsys.readouterr().out == ""

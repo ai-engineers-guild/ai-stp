@@ -604,7 +604,51 @@ function Assert-Sidebar([System.Diagnostics.Process] $Process, [string] $Locale)
 
 
 function Select-ProfileOption([System.Diagnostics.Process] $Process, [string] $Key, [string] $Name) {
-    $selector = Wait-Element $Process (Text $Key) ([System.Windows.Automation.ControlType]::ComboBox)
+    try {
+        $selector = Wait-Element $Process (Text $Key) ([System.Windows.Automation.ControlType]::ComboBox)
+    } catch {
+        # Publish only closed classifications; the UI tree and error text stay private.
+        $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
+        $details = $window.FindFirst(
+            [System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.PropertyCondition]::new(
+                [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'error.engineDetails')
+            )
+        )
+        if ($null -ne $details) { Invoke-Control $details }
+        $nodes = $window.FindAll(
+            [System.Windows.Automation.TreeScope]::Descendants,
+            [System.Windows.Automation.Condition]::TrueCondition
+        )
+        if ($nodes.Count -gt 2500) { throw 'Native selector observation exceeds its bound' }
+        $checkpoint = 'profile_selector_absent'
+        foreach ($node in $nodes) {
+            $name = $node.Current.Name
+            if ($name -ceq (Text $Key)) {
+                $checkpoint = if ($node.Current.ControlType -eq [System.Windows.Automation.ControlType]::ComboBox) {
+                    'profile_selector_disabled'
+                } else { 'profile_selector_role' }
+            }
+        }
+        $classifications = [ordered]@{
+            'IPC_THROW' = 'discovery_ipc'
+            'AI_STP_VALIDATION_ERROR' = 'discovery_validation'
+            'AI_STP_NOT_FOUND' = 'discovery_not_found'
+            'AI_STP_PRECONDITION_FAILED' = 'discovery_precondition'
+            'AI_STP_CONFLICT' = 'discovery_conflict'
+            'AI_STP_DEPENDENCY_UNAVAILABLE' = 'discovery_unavailable'
+            'AI_STP_INTERNAL' = 'discovery_internal'
+            (Text 'profiles.noSignInMethodsSupportedByThisEngineAre') = 'discovery_no_provider'
+        }
+        foreach ($node in $nodes) {
+            if ($classifications.Contains($node.Current.Name)) {
+                $checkpoint = $classifications[$node.Current.Name]
+                break
+            }
+        }
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 ' + $checkpoint)
+        throw
+    }
     Focus-Control $Process $selector
     $expand = Require-Pattern $selector ([System.Windows.Automation.ExpandCollapsePattern]::Pattern) 'profile selector'
     if ($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed) {
@@ -700,6 +744,7 @@ function Assert-CorporateSession($Fixture, [string] $Connection) {
 }
 
 function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, [string] $Identity) {
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection')
     Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
     Enter-Context $Process 'Native company connection' 'profiles.connectionLabel' $false
     Enter-Context $Process $Fixture.origin 'profiles.serverOrigin' $false
