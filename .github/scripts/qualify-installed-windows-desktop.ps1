@@ -769,18 +769,15 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
         @($listed.contexts | Where-Object { $_.context.authority.kind -ceq 'local' }).Count -ne 2) {
         throw 'Personal and corporate contexts did not coexist'
     }
-    $heading = Wait-Element $Process 'Native corporate context' $null
-    $ancestor = $heading
-    $button = $null
+    $card = Wait-Element $Process 'Native corporate context' ([System.Windows.Automation.ControlType]::Group) $true
     $condition = [System.Windows.Automation.PropertyCondition]::new(
         [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'profiles.reviewViewSelection')
     )
-    for ($depth = 0; $depth -lt 6 -and $null -ne $ancestor; $depth++) {
-        $button = $ancestor.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
-        if ($null -ne $button) { break }
-        $ancestor = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($ancestor)
-    }
-    if ($null -eq $button) { throw 'Owned corporate context selection was not found' }
+    $button = Wait-Observation $Process 'owned corporate context selection' ({
+        $candidate = $card.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        if ($null -ne $candidate -and $candidate.Current.IsEnabled) { return $candidate }
+        return $null
+    }.GetNewClosure())
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 selection')
     Invoke-Control $button
     Invoke-Control (Wait-Element $Process (Text 'profiles.exactPublicPlan') $null $true)

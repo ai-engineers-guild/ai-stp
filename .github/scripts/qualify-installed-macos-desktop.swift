@@ -624,17 +624,10 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     let listed = try savedContexts(cli)["contexts"] as? [[String: Any]] ?? []
     let local = listed.filter { (($0["context"] as? [String: Any])?["authority"] as? [String: Any])?["kind"] as? String == "local" }
     try check(listed.count == 3 && local.count == 2, "Personal and corporate contexts did not coexist")
-    var ancestor: AXUIElement? = try visible(process, "Native corporate context")
-    var button: AXUIElement?
-    for _ in 0..<6 {
-        guard let node = ancestor else { break }
-        button = match(node, label: try catalogs.text("profiles.reviewViewSelection"), role: kAXButtonRole, enabled: true)
-        if button != nil { break }
-        if let parent = attribute(node, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() {
-            ancestor = (parent as! AXUIElement)
-        } else { ancestor = nil }
+    let card = try visible(process, "Native corporate context", role: kAXGroupRole)
+    let selection = try wait("owned corporate context selection") {
+        match(card, label: try catalogs.text("profiles.reviewViewSelection"), role: kAXButtonRole, enabled: true)
     }
-    guard let selection = button else { throw ProbeFailure("Owned corporate context selection was not found") }
     corporateStage("selection")
     try press(selection)
     try openPublicPlan(process, catalogs)
