@@ -2,7 +2,21 @@
 
 use tauri::{LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow};
 
-pub(super) fn fit_normal_window<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
+pub(super) fn fit_after_restore<R: Runtime>(window: WebviewWindow<R>) {
+    let fit = move || {
+        if fit_normal_window(&window).is_err() {
+            eprintln!("Could not fit the Desktop window inside the display work area");
+        }
+    };
+    // Tao enqueues AppKit restoration with dispatch_async even on the main thread.
+    // Submit after it to the same FIFO queue, rather than racing it through Tao events.
+    #[cfg(target_os = "macos")]
+    dispatch2::DispatchQueue::main().exec_async(fit);
+    #[cfg(not(target_os = "macos"))]
+    drop(tauri::async_runtime::spawn_blocking(fit));
+}
+
+fn fit_normal_window<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
     if window.is_maximized()? || window.is_fullscreen()? {
         return Ok(());
     }
