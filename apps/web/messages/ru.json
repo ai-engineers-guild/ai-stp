@@ -1462,7 +1462,7 @@
     "shortcutsSelfHosted": "P аккаунт · Ctrl/Cmd K каталог",
     "lang": "язык:",
     "llms": "llms.txt",
-    "copyright": "© {year} ai_stp · AGPL-3.0-or-later · {projection}"
+    "copyright": "© {year} ai_stp · Apache-2.0 · {projection}"
   },
   "machineDoc": {
     "stableId": "stable_id",
@@ -2199,7 +2199,7 @@
     "shortcutContact": "C",
     "shortcutProfile": "P",
     "shortcutCatalog": "Ctrl K",
-    "licenseLine": "© {year} ai_stp · AGPL-3.0-or-later"
+    "licenseLine": "© {year} ai_stp · Apache-2.0"
   },
   "regionalServices": {
     "title": "Региональные сервисы",

@@ -18,7 +18,7 @@
       "upstream_project_name": "ai-stp",
       "upstream_maintainer": "AI Engineers Guild",
       "reviewed_description": "The canonical AI STP Agent Skill for managing harness setups, passports, providers, and catalog operations.",
-      "reviewed_license": "AGPL-3.0-or-later",
+      "reviewed_license": "Apache-2.0",
       "harness_id": "claude-code",
       "tags": [
         "devops",
