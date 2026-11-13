@@ -48,7 +48,7 @@ jobs:
         with:
           python-version: '3.15.2'
           bun-version: '1.4.4'
-          node-version: '26.13.0'
+          node-version: '26.13.1'
       - name: Read the same-run qualified native CLI archive
         if: inputs.installed_engine
         id: engine
