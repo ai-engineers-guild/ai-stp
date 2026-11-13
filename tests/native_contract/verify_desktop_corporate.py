@@ -26,6 +26,7 @@ from typing import Any, cast
 import uvicorn
 from alembic import command
 from alembic.config import Config
+from httpx import AsyncClient
 from sqlalchemy import func, select
 from tests.native_contract.verify_checkout import LostAcknowledgements
 from tests.support.api_settings import make_settings, make_test_auth
@@ -33,10 +34,12 @@ from tests.support.corporate_fixture import seed_corporate
 from tests.support.postgres import isolated_database
 
 from ai_stp_api.app import create_app
+from ai_stp_api.session import issue_session
 from ai_stp_api.slices.auth.device_flow import approve_device_authorization
+from ai_stp_foundation.ids import new_id
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
+from ai_stp_platform.models import Account
 from ai_stp_platform.organization_models import (
-    OrganizationMembership,
     ProjectLink,
     ProjectLinkPlan,
     ProjectUnlinkPlan,
@@ -1552,18 +1555,61 @@ async def prove(
                     await db.commit()
 
             async def suspend_second_membership() -> None:
+                # A second administrator suspends the member through the company API, so the
+                # membership and its role bindings change exactly as in production.
                 async with second_app.state.sessionmaker() as db:
-                    await set_tenant_scope(db, second_organization)
-                    membership = await db.scalar(
-                        select(OrganizationMembership).where(
-                            OrganizationMembership.organization_id == second_organization,
-                            OrganizationMembership.account_id == second_account,
-                        )
+                    member = await issue_session(
+                        db, account_id=second_account, device_id=None, ttl_seconds=600
                     )
-                    assert membership is not None and membership.state == "active"
-                    membership.state = "suspended"
-                    membership.revision += 1
+                    administrator = Account(id=new_id("account"), status="active")
+                    db.add(administrator)
                     await db.commit()
+                base = f"/v1/corporate/organizations/{second_organization}"
+                async with AsyncClient(base_url=second_origin, timeout=15, trust_env=False) as api:
+
+                    async def revision(token: str) -> int:
+                        response = await api.get(
+                            f"{base}/context", headers={"Authorization": f"Bearer {token}"}
+                        )
+                        assert response.status_code == 200, response.status_code
+                        return int(response.json()["organization"]["authorization_revision"])
+
+                    added = await api.post(
+                        f"{base}/members",
+                        json={
+                            "schema_version": 1,
+                            "account_id": administrator.id,
+                            "display_name": "Second company administrator",
+                            "role": "superadmin",
+                            "authorization_revision": await revision(member.raw_token),
+                            "idempotency_key": "installed-desktop-second-administrator",
+                        },
+                        headers={"Authorization": f"Bearer {member.raw_token}"},
+                    )
+                    assert added.status_code == 200, added.status_code
+                    async with second_app.state.sessionmaker() as db:
+                        admin = await issue_session(
+                            db, account_id=administrator.id, device_id=None, ttl_seconds=600
+                        )
+                        await db.commit()
+                    auth = {"Authorization": f"Bearer {admin.raw_token}"}
+                    current = await api.get(f"{base}/members/{second_account}", headers=auth)
+                    assert current.status_code == 200, current.status_code
+                    assert current.json()["state"] == "active"
+                    suspended = await api.patch(
+                        f"{base}/members/{second_account}",
+                        json={
+                            "schema_version": 1,
+                            "role": current.json()["role"],
+                            "state": "suspended",
+                            "expected_revision": current.json()["revision"],
+                            "authorization_revision": await revision(admin.raw_token),
+                            "idempotency_key": "installed-desktop-suspend-member",
+                        },
+                        headers=auth,
+                    )
+                    assert suspended.status_code == 200, suspended.status_code
+                    assert suspended.json()["state"] == "suspended"
 
             def suspend_second() -> None:
                 asyncio.run_coroutine_threadsafe(suspend_second_membership(), loop).result(
