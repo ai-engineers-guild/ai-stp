@@ -31,12 +31,25 @@ export function stopBrowserAnalytics(gaMeasurementId = ""): void {
   if (gaMeasurementId) {
     Object.assign(w, { [`ga-disable-${gaMeasurementId}`]: true });
   }
+  // Vendors scope their cookies to the registrable domain (`.example.com`),
+  // which a host-only deletion does not reach.
+  const domains = cookieDomains(location.hostname);
   for (const part of document.cookie.split(";")) {
     const name = part.split("=")[0]?.trim() ?? "";
     if (!name || name === "ai_stp_consent") continue;
     if (/^(_ym_|_ga)/.test(name) || name === "_gid" || name === "_gat") {
-      // biome-ignore lint/suspicious/noDocumentCookie: Consent persistence and vendor-cookie removal must remain synchronous before optional analytics runs; see #1404.
-      document.cookie = `${name}=; Path=/; Max-Age=0`;
+      for (const domain of domains) {
+        const scope = domain ? `; Domain=${domain}` : "";
+        // biome-ignore lint/suspicious/noDocumentCookie: Consent persistence and vendor-cookie removal must remain synchronous before optional analytics runs; see #1404.
+        document.cookie = `${name}=; Path=/; Max-Age=0${scope}`;
+      }
     }
   }
+}
+
+/** The host-only scope followed by every parent domain a page can address. */
+export function cookieDomains(hostname: string): string[] {
+  const labels = hostname.split(".");
+  if (labels.length < 2 || /^[0-9.]+$/.test(hostname) || hostname.includes(":")) return [""];
+  return ["", ...labels.slice(0, -1).map((_, index) => `.${labels.slice(index).join(".")}`)];
 }
