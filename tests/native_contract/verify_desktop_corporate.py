@@ -36,6 +36,7 @@ from ai_stp_api.app import create_app
 from ai_stp_api.slices.auth.device_flow import approve_device_authorization
 from ai_stp_platform.heartbeat_models import InstallationHeartbeat, InstallationHeartbeatEvent
 from ai_stp_platform.organization_models import (
+    OrganizationMembership,
     ProjectLink,
     ProjectLinkPlan,
     ProjectUnlinkPlan,
@@ -650,6 +651,7 @@ def second_company(
     account: str,
     organization: str,
     approve: Callable[[str], None],
+    suspend: Callable[[], None],
 ) -> dict[str, Any]:
     """Join a second company server and switch views without readdressing either."""
 
@@ -729,7 +731,24 @@ def second_company(
     assert contexts[second]["authority"]["organization"]["organization_id"] == organization
     assert contexts[second]["authority"]["account"]["account_id"] == account
     assert contexts[first]["authority"]["organization"]["organization_id"] != organization
+    # The second company suspends this member: its reads stop, the first company's continue.
+    suspend()
+    current = native(binary, environment, ["context", "list"])["selected"]["context_id"]
+    driver.navigate("profiles")
+    driver.selected(current)
+    choose(driver, "Selected context view", second, scope='section[aria-label="Context view"]')
+    driver.selected(second)
+    driver.navigate("corporate", keyboard=True)
+    driver.click(driver.button("Read projects"))
+    driver.wait(
+        lambda: main_text("The request could not be completed"),
+        "suspended membership refusal in the second company",
+    )
+    assert not main_text(SECOND_COMPANY_PROJECT), "a suspended member still read company projects"
+    view(first, "Installed shared project", SECOND_COMPANY_PROJECT)
     return {
+        "suspended_membership_reads_refused": True,
+        "other_company_unaffected_by_suspension": True,
         "second_company_context": second,
         "two_company_servers": True,
         "company_view_switching_rounds": 2,
@@ -752,6 +771,7 @@ def installed_journey(
     second_account: str,
     second_organization: str,
     approve_second: Callable[[str], None],
+    suspend_second: Callable[[], None],
 ) -> dict[str, Any]:
     # Reuse the already qualified persistent HTTP/1 driver and fixed diagnostics.
     helpers = runpy.run_path(
@@ -1438,6 +1458,7 @@ def installed_journey(
             account=second_account,
             organization=second_organization,
             approve=approve_second,
+            suspend=suspend_second,
         )
         return {
             **location_proof,
@@ -1530,6 +1551,25 @@ async def prove(
                     )
                     await db.commit()
 
+            async def suspend_second_membership() -> None:
+                async with second_app.state.sessionmaker() as db:
+                    await set_tenant_scope(db, second_organization)
+                    membership = await db.scalar(
+                        select(OrganizationMembership).where(
+                            OrganizationMembership.organization_id == second_organization,
+                            OrganizationMembership.account_id == second_account,
+                        )
+                    )
+                    assert membership is not None and membership.state == "active"
+                    membership.state = "suspended"
+                    membership.revision += 1
+                    await db.commit()
+
+            def suspend_second() -> None:
+                asyncio.run_coroutine_threadsafe(suspend_second_membership(), loop).result(
+                    timeout=15
+                )
+
             def approve_second(code: str) -> None:
                 asyncio.run_coroutine_threadsafe(approve_second_code(code), loop).result(timeout=15)
 
@@ -1595,6 +1635,7 @@ async def prove(
                     second_account=second_account,
                     second_organization=second_organization,
                     approve_second=approve_second,
+                    suspend_second=suspend_second,
                 )
                 assert faults.lose_next is None
                 # The second company only enrolled and was read: no checkout writes.
