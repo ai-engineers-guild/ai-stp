@@ -55,7 +55,8 @@ def prepare(distribution: Path, root: Path) -> tuple[Path, str]:
     assert url.startswith("https://downloads.cursor.com/lab/" + version + "/")
     archive = root / ("package.zip" if url.endswith(".zip") else "package.tar.gz")
     digest = hashlib.sha256()
-    with urllib.request.urlopen(url, timeout=120) as response, archive.open("xb") as output:
+    request = urllib.request.Request(url, headers={"User-Agent": "curl/8"})
+    with urllib.request.urlopen(request, timeout=120) as response, archive.open("xb") as output:
         while chunk := response.read(1024 * 1024):
             digest.update(chunk)
             output.write(chunk)
