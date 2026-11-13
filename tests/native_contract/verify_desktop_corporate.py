@@ -636,6 +636,107 @@ def installed_locations(
         raise
 
 
+SECOND_COMPANY_PROJECT = "Second company project"
+
+
+def second_company(
+    driver: Any,
+    *,
+    native: Callable[..., dict[str, Any]],
+    binary: Path,
+    environment: dict[str, str],
+    first: str,
+    origin: str,
+    account: str,
+    organization: str,
+    approve: Callable[[str], None],
+) -> dict[str, Any]:
+    """Join a second company server and switch views without readdressing either."""
+
+    def main_text(text: str) -> bool:
+        return bool(
+            driver.read(
+                "return document.querySelector('main').textContent.includes(arguments[0]);", text
+            )
+        )
+
+    driver.navigate("profiles")
+    fill(driver, "Connection label", "Installed second company connection")
+    fill(driver, "Server origin", origin)
+    driver.click(driver.button("Check server sign-in methods"))
+    choose(driver, "Sign-in method", "github")
+    driver.click(driver.button("Review connection creation"))
+
+    def connection_plan(plan: dict[str, Any]) -> None:
+        assert plan["label"] == "Installed second company connection"
+        assert plan["origin"] == origin
+
+    connection = profile_review(driver, connection_plan)["connection_id"]
+    driver.click(driver.find(f'main a[href="#/auth?connection={connection}"]'))
+    driver.click(driver.button("GitHub"))
+    driver.click(driver.button("Start sign-in"))
+    driver.wait(
+        lambda: main_text("Approve this device in your browser"),
+        "second company pending device authorization",
+    )
+    pending = native(binary, environment, ["account", "status", "--connection", connection])[
+        "session"
+    ]
+    assert pending["state"] == "pending"
+    approve(pending["user_code"])
+    driver.click(driver.button("Open browser and confirm"))
+    driver.wait(lambda: main_text("Signed in"), "second company native device poll")
+    session = native(binary, environment, ["account", "status", "--connection", connection])
+    assert session["session"]["account_id"] == account and session["origin"] == origin
+
+    driver.navigate("profiles")
+    fill(driver, "Context label", "Installed second company context")
+    choose(driver, "Context connection", connection)
+    driver.click(driver.button("Read available organizations"))
+    choose(driver, "Organization", organization)
+    driver.click(driver.button("Review context creation"))
+
+    def company_plan(plan: dict[str, Any]) -> None:
+        authority = plan["change"]["context"]["authority"]
+        assert authority["organization"]["organization_id"] == organization
+        assert authority["account"]["account_id"] == account
+
+    second = profile_review(driver, company_plan)["change"]["context"]["context_id"]
+    assert second != first
+
+    def view(context: str, visible: str, hidden: str) -> None:
+        current = native(binary, environment, ["context", "list"])["selected"]["context_id"]
+        driver.navigate("profiles")
+        # Navigation re-reads contexts and disables the switcher until that read
+        # settles on the current view; choose only after it does.
+        driver.selected(current)
+        choose(driver, "Selected context view", context, scope='section[aria-label="Context view"]')
+        driver.selected(context)
+        driver.navigate("corporate", keyboard=True)
+        driver.click(driver.button("Read projects"))
+        driver.wait(lambda: main_text(visible), f"projects of the selected company: {visible}")
+        assert not main_text(hidden), "a company view showed another company's project"
+        assert native(binary, environment, ["context", "list"])["selected"]["context_id"] == context
+
+    for _ in range(2):
+        view(second, SECOND_COMPANY_PROJECT, "Installed shared project")
+        view(first, "Installed shared project", SECOND_COMPANY_PROJECT)
+    contexts = {
+        item["context"]["context_id"]: item["context"]
+        for item in native(binary, environment, ["context", "list"])["contexts"]
+    }
+    assert {first, second} <= contexts.keys()
+    assert contexts[second]["authority"]["organization"]["organization_id"] == organization
+    assert contexts[second]["authority"]["account"]["account_id"] == account
+    assert contexts[first]["authority"]["organization"]["organization_id"] != organization
+    return {
+        "second_company_context": second,
+        "two_company_servers": True,
+        "company_view_switching_rounds": 2,
+        "company_projects_isolated_by_view": True,
+    }
+
+
 def installed_journey(
     *,
     root: Path,
@@ -647,6 +748,10 @@ def installed_journey(
     approve: Callable[[str], None],
     lose_confirmation: Callable[[], None],
     assert_no_heartbeat_reports: Callable[[], None],
+    second_origin: str,
+    second_account: str,
+    second_organization: str,
+    approve_second: Callable[[str], None],
 ) -> dict[str, Any]:
     # Reuse the already qualified persistent HTTP/1 driver and fixed diagnostics.
     helpers = runpy.run_path(
@@ -1323,8 +1428,20 @@ def installed_journey(
         assert canary.stat().st_mode & 0o777 == 0o640
         assert (neighbor / ".env").read_bytes() == b"PRIVATE=installed-nfc-neighbor\n"
         assert (neighbor / ".env").stat().st_mode & 0o777 == 0o640
+        second_proof = second_company(
+            driver,
+            native=native,
+            binary=binary,
+            environment=environment,
+            first=company,
+            origin=second_origin,
+            account=second_account,
+            organization=second_organization,
+            approve=approve_second,
+        )
         return {
             **location_proof,
+            **second_proof,
             "schema_version": 1,
             "evidence_type": "installed_linux_corporate_checkout",
             "consumer_commit": os.environ["GITHUB_SHA"],
@@ -1371,8 +1488,19 @@ def installed_journey(
             driver.close()
 
 
-async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> None:
-    with socket.socket() as listener:
+async def prove(
+    driver_path: Path, out: Path, database_url: str, second_database_url: str, root: Path
+) -> None:
+    with socket.socket() as listener, socket.socket() as second_listener:
+        second_listener.bind(("127.0.0.1", 0))
+        second_origin = f"http://127.0.0.1:{second_listener.getsockname()[1]}"
+        second_app = create_app(
+            make_settings(
+                root / "api-second",
+                database_url=second_database_url,
+                auth=make_test_auth(public_base_url=second_origin),
+            )
+        )
         listener.bind(("127.0.0.1", 0))
         origin = f"http://127.0.0.1:{listener.getsockname()[1]}"
         app = create_app(
@@ -1381,12 +1509,29 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
             )
         )
         faults = LostAcknowledgements(app)
-        async with app.router.lifespan_context(app):
+        async with (
+            app.router.lifespan_context(app),
+            second_app.router.lifespan_context(second_app),
+        ):
             server = uvicorn.Server(
                 uvicorn.Config(faults, lifespan="off", access_log=False, log_level="error")
             )
+            second_server = uvicorn.Server(
+                uvicorn.Config(second_app, lifespan="off", access_log=False, log_level="error")
+            )
             serving = asyncio.create_task(server.serve(sockets=[listener]))
+            second_serving = asyncio.create_task(second_server.serve(sockets=[second_listener]))
             loop = asyncio.get_running_loop()
+
+            async def approve_second_code(code: str) -> None:
+                async with second_app.state.sessionmaker() as db:
+                    await approve_device_authorization(
+                        db, user_code=code, account_id=second_account
+                    )
+                    await db.commit()
+
+            def approve_second(code: str) -> None:
+                asyncio.run_coroutine_threadsafe(approve_second_code(code), loop).result(timeout=15)
 
             async def approve_code(code: str) -> None:
                 async with app.state.sessionmaker() as db:
@@ -1421,12 +1566,20 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
 
             try:
                 async with asyncio.timeout(15):
-                    while not server.started:
-                        if serving.done():
-                            await serving
-                            raise AssertionError("fixture API stopped before readiness")
+                    while not (server.started and second_server.started):
+                        for task in (serving, second_serving):
+                            if task.done():
+                                await task
+                                raise AssertionError("fixture API stopped before readiness")
                         await asyncio.sleep(0.01)
                 account, organization, project = await seed_corporate(app, origin)
+                second_account, second_organization, _ = await seed_corporate(
+                    second_app,
+                    second_origin,
+                    company="Second fixture company",
+                    project_name=SECOND_COMPANY_PROJECT,
+                    project_key="second-project",
+                )
                 proof = await asyncio.to_thread(
                     installed_journey,
                     root=root,
@@ -1438,8 +1591,16 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                     approve=approve,
                     lose_confirmation=lose_confirmation,
                     assert_no_heartbeat_reports=assert_no_heartbeat_reports,
+                    second_origin=second_origin,
+                    second_account=second_account,
+                    second_organization=second_organization,
+                    approve_second=approve_second,
                 )
                 assert faults.lose_next is None
+                # The second company only enrolled and was read: no checkout writes.
+                async with second_app.state.sessionmaker() as db:
+                    for model in [ProjectLinkPlan, ProjectLink, ProjectUnlinkPlan]:
+                        assert await db.scalar(select(func.count()).select_from(model)) == 0
                 assert faults.writes == [
                     f"/v1/organizations/{organization}/project-link-plans",
                     "/v1/projects/links",
@@ -1502,7 +1663,9 @@ async def prove(driver_path: Path, out: Path, database_url: str, root: Path) -> 
                 )
             finally:
                 server.should_exit = True
+                second_server.should_exit = True
                 await asyncio.wait_for(serving, timeout=30)
+                await asyncio.wait_for(second_serving, timeout=30)
 
 
 def main() -> None:
@@ -1516,13 +1679,13 @@ def main() -> None:
     temporary = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
     assert root.is_relative_to(temporary) and args.out.resolve().is_relative_to(temporary)
     saved = os.environ.get("AI_STP_DB_URL")
-    with isolated_database(
-        "AI_STP_TEST_DB_URL is required for installed corporate qualification"
-    ) as url:
+    reason = "AI_STP_TEST_DB_URL is required for installed corporate qualification"
+    with isolated_database(reason) as url, isolated_database(reason) as second_url:
         try:
-            os.environ["AI_STP_DB_URL"] = url
-            command.upgrade(Config("alembic.ini"), "head")
-            asyncio.run(prove(args.driver.resolve(strict=True), args.out, url, root))
+            for database in (second_url, url):
+                os.environ["AI_STP_DB_URL"] = database
+                command.upgrade(Config("alembic.ini"), "head")
+            asyncio.run(prove(args.driver.resolve(strict=True), args.out, url, second_url, root))
         finally:
             if saved is None:
                 os.environ.pop("AI_STP_DB_URL", None)
