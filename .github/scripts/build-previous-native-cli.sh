@@ -6,6 +6,12 @@ set -euo pipefail
 # Keep source-dependent artifacts isolated by immutable commit. Cargo's ordinary
 # registry/download cache remains shared on the runner.
 previous_epoch="${1:-58}"
+binary_name=ai-stp
+runner_temp="${RUNNER_TEMP:?}"
+if [[ "${RUNNER_OS:?}" == Windows ]]; then
+  binary_name=ai-stp.exe
+  runner_temp="$(cygpath -u "${runner_temp}")"
+fi
 case "${previous_epoch}" in
   58)
     previous_commit=0f2589f40e7ebc3155a305965b1056fb6df63581
@@ -19,13 +25,21 @@ case "${previous_epoch}" in
     ;;
   *) echo "Only the two explicit qualified writer epochs are supported." >&2; exit 2 ;;
 esac
-previous_root="${RUNNER_TEMP:?}/ai-stp-previous-native-${previous_epoch}-source"
+previous_root="${runner_temp}/ai-stp-previous-native-${previous_epoch}-source"
 producer_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-producer_recipe="$(
-  (cd "${producer_directory}" && sha256sum build-previous-native-cli.sh previous-native-cache.py) |
-    sha256sum | cut -d ' ' -f 1
+producer_recipe="$(python3 - "${producer_directory}" <<'PYHASH'
+import hashlib
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+digest = hashlib.sha256()
+for name in ("build-previous-native-cli.sh", "previous-native-cache.py"):
+    digest.update(name.encode() + b"\0" + hashlib.sha256((root / name).read_bytes()).digest())
+print(digest.hexdigest())
+PYHASH
 )"
-cached_root="${RUNNER_TEMP}/ai-stp-previous-native-binaries/${previous_commit}"
+cached_root="${runner_temp}/ai-stp-previous-native-binaries/${previous_commit}"
 test ! -e "${previous_root}"
 git fetch --no-tags origin "${previous_commit}"
 test "$(git rev-parse FETCH_HEAD)" = "${previous_commit}"
@@ -34,14 +48,21 @@ mkdir -p "${previous_root}"
 git archive --format=tar "${previous_commit}" apps/cli |
   tar --extract --directory="${previous_root}"
 cmp apps/cli/rust-toolchain.toml "${previous_root}/apps/cli/rust-toolchain.toml"
-export CARGO_TARGET_DIR="${RUNNER_TEMP}/ai-stp-previous-native-${previous_commit}-target"
-export CARGO_BUILD_BUILD_DIR="${RUNNER_TEMP}/ai-stp-previous-native-${previous_commit}-build"
+export CARGO_TARGET_DIR="${runner_temp}/ai-stp-previous-native-${previous_commit}-target"
+export CARGO_BUILD_BUILD_DIR="${runner_temp}/ai-stp-previous-native-${previous_commit}-build"
+if [[ "${RUNNER_OS}" == Windows ]]; then
+  CARGO_TARGET_DIR="$(cygpath -m "${CARGO_TARGET_DIR}")"
+  CARGO_BUILD_BUILD_DIR="$(cygpath -m "${CARGO_BUILD_BUILD_DIR}")"
+fi
 cd "${previous_root}/apps/cli"
 compiler="$(rustc --version --verbose)"
 if [[ -e "${cached_root}" || -L "${cached_root}" ]]; then
   cache_mode=verify
 else
   previous_binary="$(cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary)"
+  if [[ "${RUNNER_OS}" == Windows ]]; then
+    previous_binary="$(cygpath -u "${previous_binary}")"
+  fi
   test -x "${previous_binary}"
   case "${previous_binary}" in
     /*) ;;
@@ -49,8 +70,8 @@ else
   esac
   mkdir -p "${cached_root%/*}"
   mkdir "${cached_root}"
-  cp "${previous_binary}" "${cached_root}/ai-stp"
-  chmod 755 "${cached_root}/ai-stp"
+  cp "${previous_binary}" "${cached_root}/${binary_name}"
+  chmod 755 "${cached_root}/${binary_name}"
   cache_mode=create
 fi
 # The record identifies bytes, not acceptance. Only the owning source job saves
@@ -58,11 +79,14 @@ fi
 python3 "${producer_directory}/previous-native-cache.py" \
   "${cached_root}" "${previous_commit}" "${previous_tree}" \
   "${producer_recipe}" "${compiler}" "${cache_mode}"
-previous_binary="${cached_root}/ai-stp"
+previous_binary="${cached_root}/${binary_name}"
 mkdir "${previous_root}/installed"
-cp "${previous_binary}" "${previous_root}/installed/ai-stp"
-cmp "${previous_binary}" "${previous_root}/installed/ai-stp"
-previous_binary="${previous_root}/installed/ai-stp"
+cp "${previous_binary}" "${previous_root}/installed/${binary_name}"
+cmp "${previous_binary}" "${previous_root}/installed/${binary_name}"
+previous_binary="${previous_root}/installed/${binary_name}"
+if [[ "${RUNNER_OS}" == Windows ]]; then
+  previous_binary="$(cygpath -m "${previous_binary}")"
+fi
 python3 - "${previous_binary}" "${previous_epoch}" "${previous_root}" <<'PY'
 import json
 import pathlib
@@ -96,7 +120,7 @@ print(f"Verified previous writer {epoch} command boundary: {metadata['registry_d
 PY
 if [[ "${previous_epoch}" == 59 ]]; then
   test -x "${AI_STP_TEST_PREVIOUS_CLI_BINARY:?}"
-  if cmp --silent "${previous_binary}" "${AI_STP_TEST_PREVIOUS_CLI_BINARY}"; then
+  if cmp -s "${previous_binary}" "${AI_STP_TEST_PREVIOUS_CLI_BINARY}"; then
     echo "Independent previous writers unexpectedly have identical bytes." >&2
     exit 1
   fi
@@ -105,5 +129,4 @@ fi
   printf '%s_BINARY=%s\n' "${variable}" "${previous_binary}"
   printf '%s_SOURCE=%s\n' "${variable}" "${previous_commit}"
 } >> "${GITHUB_ENV:?}"
-sha256sum "${previous_binary}"
 du -sk "${cached_root}"

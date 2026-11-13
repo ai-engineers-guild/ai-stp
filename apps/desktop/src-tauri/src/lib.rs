@@ -1,11 +1,15 @@
 use ai_stp_desktop_core::{
-    CliLocator, CliRunner, CmdResult, CommandRegistry, MachineHelp, RunError, UiPreferences,
+    CliLocator, CliRunner, CmdResult, CommandRegistry, RunError, UiPreferences,
 };
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::Manager;
+
+mod registry;
+mod window_geometry;
+use registry::RegistryCache;
 
 /// The frontend routes on stable codes; keep the closed set aligned with
 /// the CLI's own (`AI_STP_NOT_FOUND`, `AI_STP_TIMEOUT_UNCONFIRMED`, …).
@@ -26,9 +30,9 @@ fn error_code_for(e: &RunError) -> &'static str {
 struct AppState {
     bundled_cli: Option<PathBuf>,
     runner: Mutex<Option<CliRunner>>,
-    /// Cached descriptors + when the digest was last verified live. The
-    /// lock guards the Option only — never held across a subprocess spawn.
-    registry: Mutex<Option<(CommandRegistry, Instant)>>,
+    /// Immutable descriptor snapshots; digest verification and reloads run
+    /// outside the cache lock.
+    registry: RegistryCache,
     /// Two mutating runs in flight could interleave writes against the same
     /// target or the CLI's own journal — every mutating command holds this
     /// for the whole run so mutations are ordered, not concurrent. Read
@@ -37,18 +41,12 @@ struct AppState {
     preference_lock: Mutex<()>,
 }
 
-/// Digest re-verification interval: `capabilities` is a subprocess spawn,
-/// so checking it on every gated call doubles spawn cost. The digest only
-/// changes when the CLI binary is replaced mid-session — a 30 s TTL bounds
-/// staleness well inside any realistic upgrade race.
-const REGISTRY_TTL: Duration = Duration::from_secs(30);
-
 impl AppState {
     fn new(bundled_cli: Option<PathBuf>) -> Self {
         Self {
             bundled_cli,
             runner: Mutex::new(None),
-            registry: Mutex::new(None),
+            registry: RegistryCache::default(),
             mutation_lock: Mutex::new(()),
             preference_lock: Mutex::new(()),
         }
@@ -76,64 +74,8 @@ impl AppState {
         Ok(r)
     }
 
-    /// Command registry, refreshed whenever the CLI's `registry_digest`
-    /// changes (CLI upgrades invalidate cached descriptors).
-    fn command_registry(&self) -> Result<CommandRegistry, RunError> {
-        let runner = self.runner()?;
-        let cached = self
-            .registry
-            .lock()
-            .map_err(|_| RunError::Internal("state poisoned".into()))?
-            .clone();
-        if let Some((reg, checked_at)) = cached {
-            if checked_at.elapsed() < REGISTRY_TTL {
-                // A cache hit is not a verification. Moving the timestamp
-                // here would keep an actively used registry fresh forever.
-                return Ok(reg);
-            }
-            // Cheap freshness probe outside the lock: `capabilities`
-            // carries the live digest.
-            let live = match runner.run(&["capabilities".into()]) {
-                Ok(env) => {
-                    env.ok
-                        && env
-                            .data
-                            .as_ref()
-                            .and_then(|d| d.get("registry_digest"))
-                            .and_then(|d| d.as_str())
-                            == Some(reg.registry_digest.as_str())
-                }
-                Err(_) => false,
-            };
-            if live {
-                let mut guard = self
-                    .registry
-                    .lock()
-                    .map_err(|_| RunError::Internal("state poisoned".into()))?;
-                *guard = Some((reg.clone(), Instant::now()));
-                return Ok(reg);
-            }
-        }
-        let env = runner.run(&["help".into(), "--agent".into()])?;
-        if !env.ok {
-            return Err(RunError::Internal(
-                env.error
-                    .map(|e| e.message)
-                    .unwrap_or_else(|| "help --agent failed".into()),
-            ));
-        }
-        let help: MachineHelp = serde_json::from_value(
-            env.data
-                .ok_or_else(|| RunError::Internal("help --agent: empty data".into()))?,
-        )
-        .map_err(|e| RunError::Internal(format!("machine-help parse: {e}")))?;
-        let reg = CommandRegistry::from_help(&help);
-        *self
-            .registry
-            .lock()
-            .map_err(|_| RunError::Internal("state poisoned".into()))? =
-            Some((reg.clone(), Instant::now()));
-        Ok(reg)
+    fn command_registry(&self) -> Result<Arc<CommandRegistry>, RunError> {
+        self.registry.get(&self.runner()?)
     }
 }
 
@@ -1268,6 +1210,9 @@ pub fn run() {
             // if its bundled engine is missing. Development may use an override.
             let bundled = (!cfg!(debug_assertions) || bundled.is_file()).then_some(bundled);
             app.manage(Arc::new(AppState::new(bundled)));
+            if let Some(window) = app.get_webview_window("main") {
+                window_geometry::fit_after_restore(window);
+            }
             Ok(())
         })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -1361,33 +1306,6 @@ mod tests {
             PublicPlanFile::bounded(&serde_json::json!({"value":"x".repeat(16384)}), 16384)
                 .is_err()
         );
-    }
-
-    #[test]
-    fn registry_reads_do_not_postpone_verification() {
-        let st = AppState::new(None);
-        let help: MachineHelp =
-            serde_json::from_str(include_str!("../../core/tests/fixtures/machine-help.json"))
-                .unwrap();
-        let reg = CommandRegistry::from_help(&help);
-        let checked_at = Instant::now() - Duration::from_secs(1);
-        *st.registry.lock().unwrap() = Some((reg.clone(), checked_at));
-        // An empty executable cannot spawn. Fresh reads need no subprocess;
-        // once expired, a failed probe must not return the stale registry.
-        *st.runner.lock().unwrap() = Some(CliRunner {
-            executable: PathBuf::new(),
-            env: Vec::new(),
-            timeout: Duration::from_secs(1),
-        });
-        for _ in 0..3 {
-            assert_eq!(
-                st.command_registry().unwrap().registry_digest,
-                reg.registry_digest
-            );
-            assert_eq!(st.registry.lock().unwrap().as_ref().unwrap().1, checked_at);
-        }
-        st.registry.lock().unwrap().as_mut().unwrap().1 = Instant::now() - REGISTRY_TTL;
-        assert!(st.command_registry().is_err());
     }
 
     /// Real-CLI smoke tests for the shell's sync core. Skipped unless a real

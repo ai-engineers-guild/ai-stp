@@ -49,7 +49,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-harness-program-status",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "What stands under one prefix, read from the disk and from the journal.\n\nThe standing report the program lifecycle owes, and the only one\n(`ADR-0122`). `toolchain harnesses` answers a different question — what is\nvisible on this machine — and the two vocabularies are kept disjoint so no\nword carries two subjects.\n\nTwo independent sources, deliberately: the journal says what this\ninstallation did, the filesystem says what is there now. Reporting only the\nfirst would have called a verified operation a success on an empty prefix,\nwhich is exactly what happened once — a provider unpacked into a sandbox's\nown tmpfs, verified it where every check was true, and the files died with\nthe namespace. `lost` exists to make that one glance rather than an\ninvestigation.\n\n`version` comes from the journal and never from running the program.\nAsking a binary its version would execute a foreign executable from a\ncommand declared `read`, which is the same reason `doctor` only checks that\n`gh` is present.",
+  "description": "A historical program-prefix observation from its journal and filesystem.\n\nThe journal records the original operation; filesystem absence is reported as\nlost. version comes from the journal without executing the observed program.",
   "properties": {
     "entry_point": {
       "default": "",

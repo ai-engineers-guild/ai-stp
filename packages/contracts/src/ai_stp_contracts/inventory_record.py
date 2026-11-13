@@ -1,4 +1,4 @@
-"""Generated record of the standard inventory (SPEC-060 REQ-6005, REQ-6006).
+"""Generated record of the standard inventory.
 
 `ai-stp version` and `ai-stp contract inventory` report the contract digest.
 Computing it renders the JSON Schema of every exported model and digests each

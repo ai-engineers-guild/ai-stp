@@ -97,9 +97,25 @@ struct Prepared {
     scope: Scope,
     projection_kind: String,
     provider_kind: String,
+    projection_format: String,
 }
 
-fn capture(request: &Request, owner: &Identity) -> Result<Prepared> {
+fn current_format(request: &Request) -> &'static str {
+    if request.harness_id == "opencode" && request.component_type == "skill" {
+        artifact::PATH_IDENTITY_FORMAT
+    } else {
+        artifact::FORMAT
+    }
+}
+
+fn capture(request: &Request, owner: &Identity, format: &str) -> Result<Prepared> {
+    if format != artifact::FORMAT
+        && !(format == artifact::PATH_IDENTITY_FORMAT
+            && request.harness_id == "opencode"
+            && request.component_type == "skill")
+    {
+        return Err(invalid());
+    }
     if !request.directory.is_absolute()
         || request.name.trim() != request.name
         || request.name.is_empty()
@@ -176,12 +192,15 @@ fn capture(request: &Request, owner: &Identity) -> Result<Prepared> {
         }
     }
     let profile = surfaces::profile(&request.harness_id, scope)?;
-    let identity = json!({"format":"ai-stp-native-author/1", "owner_id":owner.account_id,
+    let mut identity = json!({"format":"ai-stp-native-author/1", "owner_id":owner.account_id,
         "harness_id":request.harness_id,"component_type":request.component_type,
         "name":request.name,"license_spdx":request.license_spdx,"source_digest":source_digest,
         "profile_id":profile["profile_id"],"profile_digest":profile["digest"],
         "scope":scope,"projection_kind":projection_kind,"provider_kind":provider_kind,
         "paths":members.iter().map(|v| &v.path).collect::<Vec<_>>()});
+    if format == artifact::PATH_IDENTITY_FORMAT {
+        identity["projection_format"] = format.into();
+    }
     Ok(Prepared {
         snapshot: captured["snapshot"].clone(),
         source_digest,
@@ -190,6 +209,7 @@ fn capture(request: &Request, owner: &Identity) -> Result<Prepared> {
         scope,
         projection_kind,
         provider_kind,
+        projection_format: format.into(),
     })
 }
 
@@ -207,6 +227,7 @@ fn component(
     at: &str,
 ) -> Result<(Value, Vec<u8>)> {
     let names = native_identity::projection_names(
+        &prepared.projection_format,
         &request.component_type,
         &request.harness_id,
         &prepared.files,
@@ -217,6 +238,7 @@ fn component(
         "ownership":"whole","ownership_key":null,"write_semantics":"replace","withdrawal_semantics":"remove_path"})))
         .collect::<Result<Vec<_>>>()?;
     native_identity::verify_files(
+        &prepared.projection_format,
         &request.component_type,
         &request.harness_id,
         &members,
@@ -226,14 +248,19 @@ fn component(
     let reference =
         json!({"digest":digest::bytes("ai-stp:artifact:v1",&bytes)?,"size_bytes":bytes.len()});
     let profile = surfaces::profile(&request.harness_id, prepared.scope)?;
+    let versions = if prepared.projection_format == artifact::PATH_IDENTITY_FORMAT {
+        json!([native_identity::OPENCODE_SKILL_VERSION])
+    } else {
+        json!([])
+    };
     let adaptation = passport::versions::seal_adaptation(&json!({
     "harness_id":request.harness_id,"implementation_mode":"native","source_artifact":null,"transform":null,
     "logical_component_type":request.component_type,"scope_adaptations":[{
-        "scope":prepared.scope,"projection_format":artifact::FORMAT,"projection_artifact":reference,
+        "scope":prepared.scope,"projection_format":prepared.projection_format,"projection_artifact":reference,
             "provider_component_kind":prepared.provider_kind,"projection_kind":prepared.projection_kind,
         "required_surface":{"profile_id":profile["profile_id"],"profile_digest":profile["digest"],"bundle_format":"ai-stp-bundle/2"},
         "permissions":{"filesystem":[],"network":[],"process":[]},"members":members,
-        "supported_harness_versions":[],"supported_os":[],"supported_arch":[],
+        "supported_harness_versions":versions,"supported_os":[],"supported_arch":[],
         "technical_support":"experimental","technical_support_reason":"locally authored embedded component","semantic_losses":[]
     }]}))?;
     if !provider::supports_profile(profile, &adaptation["scope_adaptations"][0]) {
@@ -323,7 +350,7 @@ fn existing(connection: &Connection, prepared: &Prepared) -> Result<Option<(Valu
 pub fn plan(store: &mut Store, request: Request, identity: Identity, at: &str) -> Result<Plan> {
     identity.validate()?;
     let expires_at = expiry(at)?;
-    let prepared = capture(&request, &identity)?;
+    let prepared = capture(&request, &identity, current_format(&request))?;
     let (component, setup, minted) =
         if let Some((component, setup)) = existing(&store.connection, &prepared)? {
             (component, setup, false)
@@ -398,7 +425,10 @@ pub fn apply(
             "the author plan expired before effects; cancel and start from current source",
         ));
     }
-    let prepared = capture(&plan.request, identity)?;
+    let format = plan.component["adaptations"][0]["scope_adaptations"][0]["projection_format"]
+        .as_str()
+        .ok_or_else(invalid)?;
+    let prepared = capture(&plan.request, identity, format)?;
     if prepared.source_digest != plan.source_digest {
         return Err(Failure::precondition(
             "the author source changed after planning",
@@ -429,4 +459,69 @@ pub fn apply(
             params![plan.operation_id,plan.action,at,at,expected]).map_err(database)?;
         Ok(outcome(plan))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn retained_opencode_author_plan_keeps_its_original_names_and_identity()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let temporary = tempfile::tempdir()?;
+        let root = temporary.path().canonicalize()?;
+        let source = root.join("source");
+        fs::create_dir(&source)?;
+        fs::write(
+            source.join("SKILL.md"),
+            "---\nname: Display name\n---\nControlled fixture.\n",
+        )?;
+        let identity = Identity {
+            account_id: format!("account_{}", ulid::Ulid::generate()),
+            device_id: format!("device_{}", ulid::Ulid::generate()),
+        };
+        let request = Request {
+            directory: source,
+            harness_id: "opencode".into(),
+            component_type: "skill".into(),
+            name: "path-name".into(),
+            license_spdx: "MIT".into(),
+        };
+        let at = "2026-11-12T00:00:00.000Z";
+        let prepared = capture(&request, &identity, artifact::FORMAT)?;
+        assert!(prepared.identity.get("projection_format").is_none());
+        let (component, bytes) = component(&request, &prepared, &identity, at)?;
+        assert_eq!(
+            component["adaptations"][0]["scope_adaptations"][0]["members"][0]["native_ids"],
+            json!(["Display name"])
+        );
+        let (setup, _) = setup(&request, &prepared, &identity, at, &component, &bytes)?;
+        let held = Plan {
+            schema_version: 1,
+            action: "author.local".into(),
+            operation_id: format!("operation_{}", ulid::Ulid::generate()),
+            created_at: at.into(),
+            expires_at: expiry(at)?,
+            identity: identity.clone(),
+            request: request.clone(),
+            source_digest: prepared.source_digest,
+            component,
+            setup,
+            minted: true,
+        };
+        let exact = held.digest()?;
+        let mut store = Store::open(&root, true)?;
+        let accepted = apply(&mut store, &held, &exact, &identity, at)?;
+        assert_eq!(apply(&mut store, &held, &exact, &identity, at)?, accepted);
+        let fresh = plan(&mut store, request, identity.clone(), at)?;
+        assert_ne!(fresh.component["stable_id"], held.component["stable_id"]);
+        let scope = &fresh.component["adaptations"][0]["scope_adaptations"][0];
+        assert_eq!(scope["projection_format"], artifact::PATH_IDENTITY_FORMAT);
+        assert_eq!(scope["members"][0]["native_ids"], json!(["path-name"]));
+        assert_eq!(scope["supported_harness_versions"], json!(["2.2.7"]));
+        apply(&mut store, &fresh, &fresh.digest()?, &identity, at)?;
+        assert_eq!(apply(&mut store, &held, &exact, &identity, at)?, accepted);
+        Ok(())
+    }
 }

@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 pytestmark = pytest.mark.platform
 
@@ -207,9 +210,17 @@ def test_worker_safety_dockerfile_enables_external_cli() -> None:
     assert "AI_STP_OSV_OFFLINE_DIR" in text
     assert "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY" in text
     assert "install_scanners.sh" in text
-    assert "snapshot.debian.org/archive/debian/20260927T000000Z" in text
+    assert "ARG DEBIAN_SNAPSHOT=" in text
+    assert "snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT}" in text
     assert "requirements.lock" in text
-    assert text.count("FROM python:3.12.15-slim@sha256:") == 1
+    bases = re.findall(
+        r"^FROM python:(\d+\.\d+\.\d+)-slim@sha256:[0-9a-f]{64} AS base$", text, re.M
+    )
+    assert len(bases) == 1
+    version = Version(bases[0])
+    for manifest in ("pyproject.toml", "scripts/safety/cisco/pyproject.toml"):
+        project = tomllib.loads(_read(manifest))["project"]
+        assert version in SpecifierSet(project["requires-python"])
     # Required skill engines + govulncheck (not optional extras).
     assert "golang.org/x/vuln/cmd/govulncheck" in text
     assert "go-tools" in text
@@ -218,12 +229,14 @@ def test_worker_safety_dockerfile_enables_external_cli() -> None:
 def test_install_scanners_requires_govulncheck_and_skill_engines() -> None:
     script = _read("scripts/safety/install_scanners.sh")
     pins = _read("scripts/safety/versions.env")
-    assert "SKILL_SCANNER_VERSION" in pins
-    assert "cisco-ai-skill-scanner" in pins
+    assert "skillspector" not in script
+    assert "SKILLSPECTOR" not in pins
+    assert "cisco-ai-skill-scanner" in _read("scripts/safety/cisco/pyproject.toml")
     assert "govulncheck missing and go not available" in script
     assert "skill-scanner" in script
     assert "--require-hashes" in script
-    assert "SKILL_SCANNER_WHEEL_SHA256" in pins
+    assert 'uv sync --project "${CISCO_ROOT}" --locked --no-dev' in script
+    assert "sha256:" in _read("scripts/safety/cisco/uv.lock")
     # Final gate: required tools must exist or install fails.
     assert "required tool missing after install" in script
 

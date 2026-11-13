@@ -1,0 +1,42 @@
+name: native-vendor
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Diagnostic CLI archive producer; empty runs metadata discovery only
+        type: string
+        default: ''
+      engine_source:
+        description: Exact source SHA of that diagnostic CLI archive
+        type: string
+        default: ''
+  pull_request:
+    paths:
+      - .github/workflows/native-vendor*.yml
+      - .github/workflows/source.yml
+      - .github/ci.just
+      - .github/codex-*.json
+      - tests/native_vendor/**
+
+permissions:
+  contents: read
+
+jobs:
+  discovery:
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      (inputs.source_run_id == '' && inputs.engine_source == '')
+    uses: ./.github/workflows/native-vendor-checks.yml
+  diagnostic:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.source_run_id != '' || inputs.engine_source != '')
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/native-vendor-checks.yml
+    with:
+      installed_engine: true
+      source_run_id: ${{ inputs.source_run_id }}
+      engine_source: ${{ inputs.engine_source }}

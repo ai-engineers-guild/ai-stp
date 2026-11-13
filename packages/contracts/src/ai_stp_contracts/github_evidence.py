@@ -1,4 +1,4 @@
-"""Local GitHub repository lifecycle evidence (SPEC-044)."""
+"""Local GitHub repository lifecycle evidence."""
 
 from typing import Annotated, Literal
 

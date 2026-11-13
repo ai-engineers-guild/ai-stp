@@ -1,13 +1,13 @@
-"""Component and setup version passports (docs/contracts/component-setup-passports.md).
+"""Component and setup version passports.
 
 Immutable snapshots extending the passport envelope with version identity:
 exact source and artifact, closed component taxonomy, split dependencies,
 declared access needs, conflicts, permissions and license. A setup belongs
-to exactly one harness and has no variant axis (ADR-0014) — the model
+to exactly one harness and has no variant axis — the model
 rejects a ``variant_id`` even through the preserved-fields channel.
 
 Mutable lifecycle state (deprecated/blocked/hidden) deliberately lives
-outside these hashed bytes per SPEC-005: it never changes the snapshot.
+outside these hashed bytes and never changes the snapshot.
 """
 
 import re
@@ -33,8 +33,7 @@ from ai_stp_foundation.refs import ComponentRef, SetupRef, Version
 from ai_stp_passports.envelope import PassportEnvelope
 from ai_stp_passports.markdown import validate_safe_markdown
 
-# Tag IDs follow the vocabulary form (docs/contracts/tag-vocabulary.md);
-# 1..10 tags per version (ADR-0024).
+# Each version accepts one to ten canonical tag identifiers.
 TAG_PATTERN: Final[str] = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 MAX_TAGS: Final[int] = 10
 MAX_TAG_LENGTH: Final[int] = 32
@@ -76,11 +75,9 @@ type PermissionClaim = Annotated[
     str, Field(min_length=1, max_length=1024, pattern=r"^[^\x00-\x1f]+$")
 ]
 
-#: The closed component taxonomy (AGENTS.md, "Canonical terms"). Named so
-#: the catalog wire contract reuses this one owner instead of restating the
-#: values, which would be two normative copies free to drift apart.
-#: `cli` is a standalone executable (ADR-0155). `command` remains a named
-#: slash invocation. `marketplace` is packaging, never a kind (ADR-0015).
+#: Closed component taxonomy shared with catalog wire models.
+#: `cli` is a standalone executable. `command` remains a named
+#: slash invocation. `marketplace` is packaging, never a kind.
 type ComponentType = Literal[
     "instruction",
     "skill",
@@ -97,7 +94,7 @@ COMPONENT_TYPES: Final[tuple[ComponentType, ...]] = cast(
 )
 
 #: How a component is packaged natively for its harness. `marketplace` is a
-#: packaging projection, never a component kind (ADR-0015).
+#: packaging projection, never a component kind.
 type ProjectionKind = Literal["marketplace", "plugin", "native_files", "package"]
 
 _TRAVERSAL_RE: Final[re.Pattern[str]] = re.compile(r"(^|/)\.\.(/|$)")
@@ -271,13 +268,26 @@ class ScopeAdaptation(BaseModel):
                         "required": ["technical_support_reason"],
                         "properties": {"technical_support_reason": {"type": "string"}},
                     },
-                }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "projection_format": {"const": "ai-stp-adaptation-projection/2"}
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "provider_component_kind": {"const": "skill"},
+                            "projection_kind": {"const": "native_files"},
+                        }
+                    },
+                },
             ]
         },
     )
 
     scope: TargetScope
-    projection_format: Literal["ai-stp-adaptation-projection/1"]
+    projection_format: Literal["ai-stp-adaptation-projection/1", "ai-stp-adaptation-projection/2"]
     projection_artifact: NonEmptyArtifactRef
     provider_component_kind: ComponentType
     projection_kind: ProjectionKind
@@ -301,6 +311,10 @@ class ScopeAdaptation(BaseModel):
 
     @model_validator(mode="after")
     def _paths_are_unique(self) -> "ScopeAdaptation":
+        if self.projection_format == "ai-stp-adaptation-projection/2" and (
+            self.provider_component_kind != "skill" or self.projection_kind != "native_files"
+        ):
+            raise ValueError("projection/2 requires the native skill surface")
         paths = [member.path for member in self.members]
         if len(paths) != len(set(paths)):
             raise ValueError("projected member paths must be unique within a scope")
@@ -353,7 +367,28 @@ class ComponentAdaptation(BaseModel):
                         "properties": {"transform": {"type": "object"}},
                     },
                     "else": {"properties": {"transform": {"type": "null"}}},
-                }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "scope_adaptations": {
+                                "contains": {
+                                    "properties": {
+                                        "projection_format": {
+                                            "const": "ai-stp-adaptation-projection/2"
+                                        }
+                                    },
+                                }
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "harness_id": {"const": "opencode"},
+                            "logical_component_type": {"const": "skill"},
+                        }
+                    },
+                },
             ]
         },
     )
@@ -375,6 +410,11 @@ class ComponentAdaptation(BaseModel):
             raise ValueError("a derived adaptation requires an exact transform")
         if self.implementation_mode == "native" and self.transform is not None:
             raise ValueError("a native adaptation has no transform")
+        if any(
+            item.projection_format == "ai-stp-adaptation-projection/2"
+            for item in self.scope_adaptations
+        ) and (self.harness_id != "opencode" or self.logical_component_type != "skill"):
+            raise ValueError("projection/2 requires OpenCode skill path identities")
         payload = cast(dict[str, JsonValue], self.model_dump(mode="json"))
         held = payload.pop("adaptation_id")
         if held != adaptation_id(payload):
@@ -534,10 +574,8 @@ class SetupVersionPassport(_VersionPassportBase):
     kind: Literal["setup"] = "setup"  # pyright: ignore[reportIncompatibleVariableOverride]
     harness_id: HarnessId
     purpose: str
-    #: Optional, and `ADR-0130` says why: a role is a claim about content that no
-    #: vendor page can source, so a required field forced whoever imported a
-    #: setup to invent one. Three of the four places that fill it already put
-    #: something that is not a role there.
+    #: An optional role is an author's claim about content, not a fact derived
+    #: from a vendor page or invented during import.
     target_role: str | None = None
     #: The published axis the setups of one harness differ along — `minimal`,
     #: `baseline`, `full-auto`, `nddev-builder` — taken from `setup.json`'s own
@@ -547,8 +585,7 @@ class SetupVersionPassport(_VersionPassportBase):
     #: **`full-auto` here is not `execution_profile` below.** One word, two
     #: independent axes: a posture describes the payload composition; all
     #: shipped postures share task autonomy. The execution profile is about how
-    #: this CLI runs. Reading either as the other is the mistake `AGENTS.md`
-    #: names about the three automation axes.
+    #: this CLI runs.
     posture: str | None = None
     supported_tasks: list[str] = Field(default_factory=list)
     #: May be empty, and that is a composition rather than an absence. A setup
@@ -556,10 +593,6 @@ class SetupVersionPassport(_VersionPassportBase):
     #: installing it projects nothing and leaves the target *managed*, so a file
     #: appearing later is drift. Removal leaves the target unmanaged and watches
     #: nothing, which is a different state and keeps its own verb.
-    #:
-    #: The bound used to be one, stated in this field and in no normative
-    #: document — the kind of rule that is only discovered by being hit. See
-    #: `ADR-0124` and `REQ-630`.
     components: list[ComponentRef]
     ported_from: SetupRef | None = None
     related_setup_ids: list[Annotated[str, Field(pattern=stable_id_pattern("setup"))]] = Field(
@@ -588,7 +621,7 @@ class SetupVersionPassport(_VersionPassportBase):
     def _no_variant_axis(self) -> "SetupVersionPassport":
         extras = self.model_extra or {}
         if "variant_id" in extras:
-            raise ValueError("a setup has no variant axis (ADR-0014)")
+            raise ValueError("a setup has no variant axis")
         return self
 
     @model_serializer(mode="wrap")

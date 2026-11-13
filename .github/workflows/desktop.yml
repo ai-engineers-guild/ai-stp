@@ -15,6 +15,27 @@ on:
         description: Build diagnostic packages without application acceptance or release permission
         type: boolean
         default: false
+      diagnostic_native_corporate:
+        description: Diagnose actual API/PostgreSQL native CLI journeys without GUI acceptance
+        type: boolean
+        default: false
+      diagnostic_source_run_id:
+        description: Reuse an exact successful current Dev qualification for native-owner diagnosis
+        type: string
+        default: ''
+      diagnostic_app_source:
+        description: Exact qualified application SHA for native-owner diagnosis
+        type: string
+        default: ''
+      diagnostic_platform:
+        description: Native diagnostic platform; ordinary qualification still runs all three OSes
+        type: choice
+        options: [all, macOS, Windows]
+        default: all
+      diagnostic_source_run_attempt:
+        description: Exact qualified producer attempt; empty selects attempt 1
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -30,6 +51,10 @@ env:
 
 jobs:
   desktop:
+    if: >-
+      !inputs.diagnostic_native_corporate &&
+      inputs.diagnostic_source_run_id == '' && inputs.diagnostic_app_source == '' &&
+      inputs.diagnostic_source_run_attempt == ''
     name: desktop-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -38,7 +63,7 @@ jobs:
       matrix:
         # Linux bundles use the selected Ubuntu 26.04/glibc baseline. Native
         # installed acceptance must use these exact packaged bytes.
-        os: [ubuntu-26.04, macos-15, windows-2025]
+        os: [ubuntu-26.04, macos-26, windows-2025]
     steps:
       - name: Confine package-only diagnosis to its explicit manual workflow
         if: inputs.packages_only
@@ -52,7 +77,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           python-version: '3.15.2'
           node-version: ${{ env.NODE_VERSION }}
@@ -62,19 +87,21 @@ jobs:
           components: clippy,rustfmt
       - name: Prepare the exact native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           manifest: .github/nextest-${{ runner.os }}.json
           directory: ${{ runner.temp }}/ai-stp-native-test-tools
       - name: Expose this job's prepared native test runner
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-native-test-tools
       - name: Refresh the Linux package index
         if: runner.os == 'Linux'
         timeout-minutes: 5
-        run: sudo apt-get update
+        run: |
+          bash .github/scripts/observe-native-package-network.sh before-index
+          bash .github/scripts/native-apt.sh update
       - name: Install WebKitGTK dependencies (Linux)
         if: runner.os == 'Linux'
         # A measured cold Azure mirror transfer took 28 min for 69.4 MB. Keep
@@ -82,7 +109,7 @@ jobs:
         timeout-minutes: 35
         run: |
           set -euo pipefail
-          sudo apt-get install -y --no-install-recommends \
+          bash .github/scripts/native-apt.sh install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf dbus-daemon gnome-keyring libglib2.0-bin \
             webkitgtk-webdriver xvfb xauth
@@ -108,20 +135,20 @@ jobs:
           bun install --frozen-lockfile
       - name: Qualify Desktop through the shared project commands
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: desktop-check
       - name: Prepare the exact Linux packaging tools
         if: runner.os == 'Linux'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           manifest: .github/tauri-tools.json
           directory: ${{ runner.temp }}/ai-stp-tauri-cache/tauri
       - name: Prepare the exact Windows packaging assets
         if: runner.os == 'Windows'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           manifest: .github/tauri-tools-windows.json
           directory: ${{ runner.temp }}/ai-stp-tauri-windows
@@ -135,18 +162,18 @@ jobs:
         env:
           XDG_CACHE_HOME: ${{ runner.temp }}/ai-stp-tauri-cache
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-desktop-tauri-build
       - name: Verify the macOS disk image
         if: runner.os == 'macOS'
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-desktop-verify-the-macos-disk-image
       - name: Probe the packaged CLI resource tree
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-desktop-probe-the-packaged-cli-resource-tree
       - name: Retain built Linux bytes before installed diagnosis
@@ -177,14 +204,14 @@ jobs:
       - name: Three installed Linux Desktop journeys with bundled CLI and native vault
         if: runner.os == 'Linux' && !inputs.packages_only
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: >-
             ci-desktop-three-installed-linux-desktop-journeys-with-bundled-cli-and-native-vault
-      - name: Prepare uv for the Linux corporate API fixture
-        if: runner.os == 'Linux' && !inputs.packages_only
+      - name: Prepare uv for the installed corporate API fixture
+        if: ${{ !inputs.packages_only }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           uv-version: '0.13.7'
       - name: Isolate the corporate API fixture on Linux
@@ -202,7 +229,7 @@ jobs:
         env:
           AI_STP_TEST_DB_URL: postgresql+asyncpg://ai_stp:ai_stp_dev@127.0.0.1:15434/ai_stp
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-desktop-installed-corporate-onboarding-lost-reply-and-original-binding-recovery
       - name: Retain the public installed corporate checkout result
@@ -224,14 +251,14 @@ jobs:
       - name: Prepare the exact installed performance baseline
         if: runner.os == 'Linux' && !inputs.packages_only
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           manifest: .github/desktop-performance-baseline.json
           directory: ${{ runner.temp }}/desktop-performance-baseline
       - name: Compare installed startup and repeated navigation on the same worker
         if: runner.os == 'Linux' && !inputs.packages_only
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: desktop-performance
       - name: Retain the exact same-worker performance observations
@@ -252,13 +279,62 @@ jobs:
           python -m release_scripts.desktop_artifacts seal
           --directory apps/desktop/src-tauri/target/release/bundle
           --source "${SOURCE_SHA}" --platform "${PLATFORM}"
-      - name: Qualify personal workspace on installed macOS and Windows
+      - name: Isolate the native corporate API environment
         if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
-        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "UV_PYTHON=$(python -c 'import sys; print(sys.executable)')"
+            echo "UV_PROJECT_ENVIRONMENT=${{ runner.temp }}/ai-stp-native-desktop-corporate"
+            echo "UV_CACHE_DIR=${{ runner.temp }}/uv-cache"
+          } >> "${GITHUB_ENV}"
+      - name: Prepare the pinned official macOS PostgreSQL distribution
+        if: runner.os == 'macOS' && !inputs.packages_only
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
-          recipe: ci-desktop-installed-personal-workspace
+          manifest: .github/postgresql-macOS.json
+          directory: ${{ runner.temp }}/postgresql-sdk
+      - name: Prepare the actual native corporate API fixture
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-native-corporate-prepare
+      - name: Qualify installed personal and corporate profiles on macOS and Windows
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        timeout-minutes: 12
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
+        with:
+          recipe: ci-desktop-installed-native-corporate-profiles
+      - name: Retain installed native corporate profile results
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-native-corporate-desktop-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-native-corporate-desktop.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain bounded native window geometry after refusal
+        if: failure() && (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-native-window-geometry-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-native-window-geometry.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Retain the owned Windows fixture window after refusal
+        if: failure() && runner.os == 'Windows' && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-personal-desktop-failure-windows
+          path: ${{ runner.temp }}/installed-personal-desktop-failure.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Retain installed macOS and Windows personal results
         if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -313,3 +389,86 @@ jobs:
           name: desktop-preflight-intent-${{ matrix.os }}
           path: ${{ runner.temp }}/desktop-preflight.json
           if-no-files-found: error
+
+  native-diagnostic:
+    if: >-
+      github.event_name == 'workflow_dispatch' && !inputs.diagnostic_native_corporate &&
+      (inputs.diagnostic_source_run_id != '' || inputs.diagnostic_app_source != '' ||
+      inputs.diagnostic_source_run_attempt != '')
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: >-
+          ${{ fromJSON(
+          inputs.diagnostic_platform == 'Windows' && '["windows-2025"]' ||
+          inputs.diagnostic_platform == 'macOS' && '["macos-26"]' ||
+          '["macos-26","windows-2025"]'
+          ) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Prepare the declared hosted SDK
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          python-version: '3.15.2'
+      - name: Admit the exact current Dev qualification
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_DESKTOP_DIAGNOSTIC_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_DESKTOP_DIAGNOSTIC_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
+        with:
+          recipe: ci-desktop-admit-native-diagnostic
+      - name: Read the exact qualified platform package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ai-stp-desktop-${{ matrix.os }}
+          run-id: ${{ inputs.diagnostic_source_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/qualified-desktop
+      - name: Exercise the installed application with current native owners
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+        with:
+          recipe: ci-desktop-installed-personal-workspace
+      - name: Bind diagnostic evidence to its distinct fixture and application
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
+          AI_STP_DESKTOP_DIAGNOSTIC_RUN: ${{ inputs.diagnostic_source_run_id }}
+          AI_STP_DESKTOP_DIAGNOSTIC_ATTEMPT: ${{ inputs.diagnostic_source_run_attempt || '1' }}
+        with:
+          recipe: ci-desktop-retain-native-diagnostic
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: desktop-native-diagnostic-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-personal-desktop.json
+          if-no-files-found: error
+          retention-days: 7
+
+  native-corporate-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_native_corporate
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    uses: ./.github/workflows/native-corporate-checks.yml
+    with:
+      diagnostic_only: true
+      diagnostic_platform: ${{ inputs.diagnostic_platform }}
+      diagnostic_source_run_id: ${{ inputs.diagnostic_source_run_id }}
+      diagnostic_app_source: ${{ inputs.diagnostic_app_source }}
+      diagnostic_source_run_attempt: ${{ inputs.diagnostic_source_run_attempt || '1' }}

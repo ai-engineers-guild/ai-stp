@@ -1,4 +1,4 @@
-"""Publication plan and validation wire payloads (SPEC-026, SPEC-007)."""
+"""Publication plan and validation wire payloads."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def _artifact_inventory(value: list[str]) -> list[str]:
 
 
 class AuthorAttestation(ContractModel):
-    """Full closed author attestation on the /v1 wire (ADR-0092)."""
+    """Full closed author attestation on the /v1 wire."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, json_schema_extra=strict_request_object)
 

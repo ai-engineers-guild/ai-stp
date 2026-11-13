@@ -72,11 +72,10 @@ class InstallationView(ContractModel):
     preserved_setup_id: str | None = None
 
     #: Declared by the exact SetupVersion before apply. It is a requirement,
-    #: never proof that the provider target has completed it (`ADR-0052`).
+    #: never proof that the provider target has completed it.
     required_authorization: Literal["none", "user_account", "external_service"] = "none"
 
-    #: What the plan says it will do, enumerated. `REQ-805` makes a plan's
-    #: effects part of what the user is approving, not a summary of them.
+    #: The complete enumerated effects covered by the reviewed plan.
     effects: list[str] = []
 
     #: What the selected setup is and what it says about itself, at the point
@@ -399,9 +398,7 @@ class TargetBackup(ContractModel):
     """One provider-owned copy of a target, and what the target held when it was taken.
 
     A reference and never bytes. The provider owns the copy; recording it here
-    would give one recovery two owners, and only one of them can restore
-    (`REQ-814`).
-    """
+    would give one recovery two owners, and only one of them can restore."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -523,13 +520,9 @@ class PreservedSetupsView(ContractModel):
 
 
 class TargetBackups(ContractModel):
-    """Every provider-owned copy this pair can restore from, oldest first.
+    """Provider-owned target copies, oldest first.
 
-    The read half that `SPEC-012` assumed and no command answered: a `BackupRef`
-    appeared once, in the answer to `install apply`, and an agent that did not
-    keep that stdout could not name the copy again. Restoring is still an
-    ordinary plan with an ordinary approval; this only says which copies exist.
-    """
+    This read lists recovery references. Restoration requires its own exact reviewed plan."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

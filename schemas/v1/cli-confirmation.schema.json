@@ -35,7 +35,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-confirmation",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The single object a confirmation froze (`REQ-623`).\n\n`created` separates \"this call made it\" from \"this call found it already\nmade\". `REQ-624` makes a repeat a success rather than a conflict, and a\ncaller still has to be able to tell the two apart.",
+  "description": "The exact object frozen by confirmation.\n\ncreated distinguishes a new result from a successful replay of the same decision.",
   "properties": {
     "created": {
       "title": "Created",

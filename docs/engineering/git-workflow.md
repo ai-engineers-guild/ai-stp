@@ -39,6 +39,108 @@ one when its source, compiler or automation changes. Missing or unknown owners
 refuse selection. The WASIp2 experiment executes one identical component on
 Linux, macOS and Windows; it does not enable a production provider backend.
 Only successful push-to-Dev owners retain native dependency caches.
+Linux package fixtures use the registered OSU Ubuntu archive mirror over HTTPS
+with the distribution signing key. The project APT wrapper selects only its
+job-local source file; it leaves runner sources, resolver and trust unchanged.
+Index retrieval refuses partial failures before package installation.
+
+The vendor-discovery owner reads the vendor's local configuration API with an
+isolated profile and integrity-pinned official distribution. The three native jobs share the
+Codex/Grok/Pi/Claude/OpenCode SDK preparation rather than allocating a job per vendor. Codex controls cover
+scope discovery, distinct same-name skills, reload, malformed-input refusal and
+configuration precedence. Grok controls cover project trust, scope and instruction
+discovery, skill precedence, removal and MCP configuration fallback. Grok packages
+use a separate frozen Bun lock with installation scripts disabled; only the native
+payload is decompressed. Pi uses its separate frozen official npm distribution,
+without installation scripts, and the declared Node runtime. Its metadata RPC
+checks untrusted project exclusion, trusted scopes, project shadowing, removal,
+malformed skills and empty ephemeral sessions. Only the new fixture project may
+receive the vendor's per-process approval flag. Codex and Grok verify unchanged
+binary bytes; Pi verifies its unchanged JavaScript entry and records its lock digest.
+Claude uses the official native npm payload with scripts disabled and sends only
+the SDK initialize request. It verifies skill/agent discovery, their different precedence
+and removal, and actual owned SessionStart command-hook dispatch without a user
+prompt. Claude qualification requires a disposable hosted user even for metadata,
+because initialization executes configured hooks. Source paths are not inferred
+from its name/description-only API. Hook dispatch has its own proof kind; skill
+invocation and product usage ingestion remain separate.
+OpenCode 2.x uses a private loopback server with a stdin ownership lease and
+read-only plugin/skill endpoints. Its skills use path identifiers; declared names
+are display metadata. The fixture refuses inherited managed/ancestor sources,
+qualifies global/user/project discovery and removal fallback, then recovers the
+original engine removal after the owned server exits. This does not qualify 1.x
+identity rules or runtime invocation.
+Proof kind is vendor_configuration_read; installation
+effects, runtime invocation and current authority retain their respective owners.
+On Windows, the Codex user-skill fixture owns one temporary child of the disposable
+runner native profile and verifies the vendor-reported file identity. Existing
+profile files are preserved. Grok and Pi use redirected fixture homes on every OS.
+
+Full source qualification makes this owner depend on the same-run CLI archives.
+Each reader verifies its platform inventory, checksum files and source-bound archive
+manifest before executing the extracted engine. Installed controls use only a
+disposable hosted OS user; HOME/XDG redirection does not isolate native custody.
+The public engine authors, plans, prepares, applies and removes a controlled setup
+while another context is selected. Codex, Pi, Claude and OpenCode verify refusal with an active reader,
+then resume the original operation after reader exit. Grok verifies instruction
+metadata before and after removal. The nested proof kind is
+native_engine_vendor_configuration_read. Runtime invocation remains not_observed.
+PR discovery without same-run CLI archives records installed checks as not_selected.
+The manual vendor diagnostic may select an explicit same-repository archive run
+and exact engine source. Its proof separates fixture and engine identities and
+marks diagnostic_only; it has no delivery authority. Full source callers cannot
+select another producer. Windows refusals record read-only ACL/attribute summaries
+of the new synthetic fixture directories; they never repair existing permissions.
+
+The manual Desktop native diagnostic reuses installers only from the
+exact successful full-qualification attempt of current Dev. It runs the current
+native accessibility owners on those installed bytes without rebuilding the app.
+The retained proof separates application and fixture source, identifies the
+producer attempt and records `diagnostic_only`. These artifacts do not replace
+same-source installed acceptance or authorize delivery.
+
+The mandatory `native-corporate-checks.yml` owner exercises ownership, corporate
+and checkout/retirement journeys against the actual API and pinned native
+PostgreSQL on macOS and Windows, using the archived CLI from the same source run.
+It retains OS-vault and historical schema58/59 source-writer and immutable released
+schema60/61 consumer controls. Every applicable owner must succeed; the Source
+qualification counts this job directly. The explicit `diagnostic_native_corporate`
+Desktop mode reuses that owner with an admitted current Dev archive, preserves the
+fixture/application source distinction, and cannot save historical build caches or
+authorize release. Browser approval remains a synthetic fixture; this evidence
+does not qualify live corporate SSO or the Desktop corporate GUI.
+On macOS, the OS-vault journey retains the historical executable's actual
+credential-store refusal and verifies unchanged registry bytes/server counts.
+An independent file-store journey runs all historical schema controls. The proof
+identifies both stores; historical cross-executable Keychain access is not qualified.
+Windows retains the complete OS-vault journey. No fixture changes Keychain access
+or rewrites historical executable bytes.
+
+The ordinary macOS/Windows Desktop owner uses one installed application for
+personal initialization, keyboard/appearance/context restart controls and the
+corporate profile journey. It creates a connection and corporate context through
+native accessibility controls, checks exact public plans before confirmation,
+retains the original pending device confirmation across navigation, and checks
+personal coexistence and original identities after restart against actual
+API/PostgreSQL. The approval broker accepts one bounded synthetic device approval;
+private process output and authentication values are not published. Refusals
+retain closed checkpoints and bounded controller source locations. Windows
+failure images are restricted to the owned personal window or the first
+pre-authentication selector, guarded by an empty saved-connection list.
+Authentication and pending-confirmation windows are never captured. The
+separate public corporate-profile proof identifies installed bytes and the
+source/run; it does not qualify live SSO or corporate checkout GUI. Native
+corporate CLI/history and installed Linux checkout evidence retain their own
+owners and scope.
+
+The installed ABBA owner retains both end-to-end navigation and an independent
+WebView observation from the trusted navigation click through usable content,
+loaded fonts and two paint frames. The nonnegative residual includes automation
+and control preparation; it is not an isolated IPC cost. WebView startup uses its
+own performance time origin. Report schema 2 records the observer hash and raw
+stage samples. Both packages use the same observer on the same worker; historical
+schema-1 measurements retain their original definition. These observations do
+not establish a performance budget or causal speedup.
 
 ## Integration and delivery
 

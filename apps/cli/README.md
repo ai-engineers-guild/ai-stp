@@ -62,8 +62,8 @@ exact workflow identities belong to the GitHub release and its source PR.
 
 ## Install and update
 
-Choose the archive for your platform from
-[CLI 0.3.0](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.3.0).
+Choose a `cli-v<version>` archive for your platform from
+[GitHub Releases](https://github.com/ai-engineers-guild/ai-stp/releases).
 Verify it as described above, then run the extracted executable outside its
 intended installation directory:
 
@@ -138,6 +138,12 @@ legacy writers. Exact credential readback precedes retirement of the old slots.
 Resume the retained plan after interruption, including after admission expiry.
 Settled legacy tasks are read-only. Native services can upgrade the registry as
 needed. Inspect readable versions with `ai-stp capabilities --json`.
+
+Newly authored OpenCode skills use their destination folder as the native ID;
+frontmatter names are display metadata. Installation currently requires an
+observed OpenCode 2.2.7. Other or unobserved versions refuse before configuration
+writes. Retained projections and saved author plans keep their recorded identity
+rules and exact immutable objects.
 
 ## Contexts and recovery
 

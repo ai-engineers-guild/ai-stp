@@ -46,9 +46,7 @@ class CatalogSearchResult(ContractModel):
 
     items: list[ComponentSummary | SetupSummary]
 
-    #: Results from the `experimental` lane, in their own section. `ADR-0016`
-    #: keeps them out of the main list: an experimental candidate that appeared
-    #: among authoritative ones would have been silently promoted.
+    #: Experimental results occupy their own section and never join the authoritative list.
     experimental: list[ComponentSummary | SetupSummary]
 
     #: Absent when there is no further page. Opaque: a client echoes it back and

@@ -1,0 +1,16 @@
+[project]
+name = "ai-stp-safety-cisco"
+version = "0.0.0"
+requires-python = ">=3.14,<3.15"
+dependencies = ["cisco-ai-skill-scanner==2.3.2"]
+
+[tool.uv]
+package = false
+exclude-newer = "3 days"
+environments = [
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+
+[tool.uv.workspace]
+members = []

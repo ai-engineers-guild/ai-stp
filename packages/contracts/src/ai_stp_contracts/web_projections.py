@@ -1,4 +1,4 @@
-"""Generated web projections of Python-owned contracts (SPEC-047 REQ-4701).
+"""Generated web projections of Python-owned contracts.
 
 CLI copy templates and the deep-link corpus have one owner:
 ``ai_stp_contracts``. Web consumes a generated TypeScript artifact. A

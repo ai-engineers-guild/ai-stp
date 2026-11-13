@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, cast
 from httpx import AsyncClient, Response
 from sqlalchemy import select
 from tests.native_contract.verify_ownership import native, native_result
+from tests.support.native_files import file_protection
 
 from ai_stp_api.session import issue_session
 from ai_stp_foundation.canonical import JsonValue
@@ -204,6 +205,7 @@ async def qualify(
         )
 
     path = await checkout("binding-retirement-original")
+    original_protection = file_protection(path / ".env")
     source, adoption, original_receipt = await bind(path)
     link_id = original_receipt["effect"]["link"]["link_id"]
     unchanged = rows()
@@ -783,7 +785,7 @@ async def qualify(
     assert rows() == future and faults.network_requests == network
     assert (await run("context", "list"))["selected"] == selected
     assert (path / ".env").read_bytes() == b"PRIVATE=retirement-unowned-canary\n"
-    assert (path / ".env").stat().st_mode & 0o777 == 0o640
+    assert file_protection(path / ".env") == original_protection
     assert changed_source.read_text() == "// owned native retirement fixture\n"
     print(
         json.dumps(

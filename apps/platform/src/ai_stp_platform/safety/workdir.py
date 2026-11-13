@@ -109,5 +109,16 @@ def env_no_network() -> dict[str, str]:
         "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY",
     }
     env = {key: value for key, value in os.environ.items() if key.upper() in allowed}
-    env["AI_STP_SAFETY_NETWORK"] = "deny"
+    env.update(
+        {
+            "AI_STP_SAFETY_NETWORK": "deny",
+            "CGO_ENABLED": "0",
+            "GOFLAGS": "-mod=readonly",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "GOTELEMETRY": "off",
+        }
+    )
     return env

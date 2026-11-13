@@ -50,19 +50,10 @@ class PublicationSetMemberView(ContractModel):
 
 
 class PublicationSetView(ContractModel):
-    """Every plan one setup's publication needs, as a single decision.
+    """The exact plans needed to publish one setup and its pinned components.
 
-    A setup cannot be published before the components it pins are, so a person
-    publishing one had to publish each component first and confirm each hash
-    separately. Locally the two are already one act — `setup import register`
-    commits the component passports and the setup graph together or not at all —
-    and this carries that same rule across the publication boundary
-    (`ADR-0114`).
-
-    The guarantee that survives is the one that matters: publication still takes
-    an explicit confirmation of an exact hash. `set_digest` covers every plan in
-    order, so confirming it is confirming all of them and nothing else.
-    """
+    Components are confirmed before the setup. Explicit confirmation covers the
+    ordered plans through set_digest; published members are retained on resume."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -93,7 +84,7 @@ class PublicationSetView(ContractModel):
 
 
 class ComponentPromotionPlan(ContractModel):
-    """Ordinary publication plan produced from one embedded component (REQ-5714)."""
+    """Ordinary publication plan produced from one embedded component."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

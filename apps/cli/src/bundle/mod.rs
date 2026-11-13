@@ -393,6 +393,7 @@ fn projected(
         .as_array()
         .ok_or_else(|| invalid("projection members are missing"))?;
     crate::authoring::native_identity::verify_files(
+        text(scope, "projection_format")?,
         text(component, "component_type")?,
         harness,
         declared,

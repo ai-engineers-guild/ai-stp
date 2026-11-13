@@ -75,7 +75,7 @@
     },
     "TrustedBuildAttestation": {
       "additionalProperties": true,
-      "description": "One repository whose attested builds this machine will bind (`ADR-0121`).\n\nReported with the signer workflow, not just the repository: the rule is\nsatisfied by an attestation naming that exact workflow, so a report giving\nonly the repository would describe a looser rule than the one enforced.",
+      "description": "One repository whose attested builds this machine will bind.\n\nReported with the signer workflow, not just the repository: the rule is\nsatisfied by an attestation naming that exact workflow, so a report giving\nonly the repository would describe a looser rule than the one enforced.",
       "properties": {
         "repository": {
           "minLength": 1,
@@ -110,7 +110,7 @@
     },
     "TrustedIndexPublisher": {
       "additionalProperties": true,
-      "description": "One PyPI project whose PEP 740 publisher this machine will bind (`ADR-0141`).",
+      "description": "One PyPI project whose PEP 740 publisher this machine will bind.",
       "properties": {
         "environment": {
           "minLength": 1,
@@ -159,7 +159,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-provider-trust",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "What this machine will accept from a provider, and why (`SPEC-008` REQ-811).\n\nThe policy is reported as it is pinned, not as a manifest describes itself.\nAn empty `allowed_keys` accepts nothing and is the correct state before the\nowner pins a real signing key — an invented key would be a trust anchor\nnobody chose.",
+  "description": "What this machine will accept from a provider, and why.\n\nThe policy is reported as it is pinned, not as a manifest describes itself.\nAn empty `allowed_keys` accepts nothing and is the correct state before the\nowner pins a real signing key — an invented key would be a trust anchor\nnobody chose.",
   "properties": {
     "accepted": {
       "anyOf": [

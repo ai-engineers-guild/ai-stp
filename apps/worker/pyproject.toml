@@ -7,7 +7,7 @@ dependencies = [
   "ai-stp-contracts",
   "ai-stp-platform",
   "httpx>=0.28",
-  "pydantic>=2.14.1",
+  "pydantic>=2.14.3",
   "pydantic-settings>=2.16.1",
   "sqlalchemy[asyncio]>=2.1.6",
 ]

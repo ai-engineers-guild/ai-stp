@@ -1,4 +1,4 @@
-"""GitHub ref resolution and bounded archive download (SPEC-057 REQ-5702)."""
+"""GitHub ref resolution and bounded archive download."""
 
 from __future__ import annotations
 

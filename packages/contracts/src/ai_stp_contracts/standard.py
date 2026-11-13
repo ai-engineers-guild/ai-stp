@@ -7,7 +7,6 @@ that discriminator. The coordinated family is therefore a separate identity
 (`ai-stp-standard/1`) with a contract digest over the inventory.
 
 Field owner: this module and `schemas/v1/cli-standard-inventory.schema.json`.
-Meaning: `docs/contracts/standard-family.md`. Requirements: SPEC-060.
 """
 
 from __future__ import annotations

@@ -1,8 +1,8 @@
-"""Exact references (docs/contracts/canonical-data.md, SPEC-015 REQ-1506).
+"""Exact references.
 
 A stored reference is structured and exact: stable ID, version and passport
 digest. Only a component reference may carry an optional native realization;
-a setup reference has no variant axis (ADR-0014). Floating branches, tags,
+a setup reference has no variant axis. Floating branches, tags,
 ranges and ``latest`` are not representable.
 
 Every wire constraint is expressed as a regex pattern so the generated JSON

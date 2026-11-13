@@ -138,24 +138,8 @@ ci-integration-web-documentation-markdown-syntax:
 # Integration native native formatting all target analysis and library units.
 [group('ci')]
 [private]
-[script('bash')]
 ci-integration-native-native-formatting-all-target-analysis-and-library-units:
-    set -euo pipefail
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- resources --check
-    cargo fmt --manifest-path apps/cli/Cargo.toml --check
-    cargo fmt --manifest-path apps/cli/xtask/Cargo.toml --check
-    cargo clippy --locked --manifest-path apps/cli/xtask/Cargo.toml \
-      --all-targets -- -D warnings
-    cargo nextest run --locked --manifest-path apps/cli/xtask/Cargo.toml
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
-      cargo clippy --locked --all-targets -- -D warnings
-    cargo run --quiet --locked --manifest-path apps/cli/xtask/Cargo.toml -- build \
-      cargo nextest run --locked --lib
-    cargo fmt --manifest-path apps/desktop/core/Cargo.toml --check
-    cargo clippy --locked --manifest-path apps/desktop/core/Cargo.toml \
-      --all-targets -- -D warnings
-    cargo nextest run --locked --manifest-path apps/desktop/core/Cargo.toml
-    cargo test --locked --manifest-path apps/desktop/core/Cargo.toml --doc
+    bash .github/scripts/check-native-integration.sh
 
 # Integration native existing native vault and independent cli processes.
 [group('ci')]
@@ -203,15 +187,8 @@ ci-cli-native-boundary-checks:
 # Cli existing consumers and real sqlite backup.
 [group('ci')]
 [private]
-[script('bash')]
 ci-cli-existing-consumers-and-real-sqlite-backup:
-    set -euo pipefail
-    binary="$(
-      cd apps/cli &&
-        cargo run --quiet --locked --manifest-path xtask/Cargo.toml -- cli-binary
-    )"
-    printf 'AI_STP_TEST_CLI_BINARY=%s\n' "$binary" >> "${GITHUB_ENV}"
-    uv run --no-sync python tests/native_contract/verify.py "$binary"
+    bash .github/scripts/qualify-native-consumers.sh
 
 # Cli build the immutable previous schema58 native writer.
 [group('ci')]
@@ -406,12 +383,8 @@ ci-desktop-tauri-build:
 # Desktop verify the macos disk image.
 [group('ci')]
 [private]
-[script('bash')]
 ci-desktop-verify-the-macos-disk-image:
-    set -euo pipefail
-    images=(apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg)
-    test "${#images[@]}" -eq 1 && test -f "${images[0]}"
-    /usr/bin/hdiutil verify "${images[0]}"
+    bash .github/scripts/verify-desktop-dmg.sh
 
 # Desktop probe the packaged cli resource tree.
 [group('ci')]
@@ -424,26 +397,25 @@ ci-desktop-probe-the-packaged-cli-resource-tree:
 # Installed desktop personal workspace on the two native GUI owners.
 [group('ci')]
 [private]
-[script('bash')]
 ci-desktop-installed-personal-workspace:
-    set -euo pipefail
-    bundle="apps/desktop/src-tauri/target/release/bundle"
-    output="${RUNNER_TEMP}/installed-personal-desktop.json"
-    case "${RUNNER_OS}" in
-      macOS)
-        bash .github/scripts/qualify-installed-macos-desktop.sh \
-          "${bundle}" "${GITHUB_SHA}" "${output}"
-        ;;
-      Windows)
-        powershell.exe -NoProfile -NonInteractive -File \
-          .github/scripts/qualify-installed-windows-desktop.ps1 \
-          -Bundle "$(cygpath -aw "${bundle}")" -Source "${GITHUB_SHA}" \
-          -Output "$(cygpath -aw "${output}")"
-        ;;
-      *)
-        exit 2
-        ;;
-    esac
+    bash .github/scripts/qualify-installed-native-desktop.sh
+
+# Preserve the installed personal journey and qualify native corporate profile GUI.
+[group('ci')]
+[private]
+ci-desktop-installed-native-corporate-profiles:
+    uv run --no-sync python -m tests.native_contract.verify_native_desktop_corporate
+
+# Current Dev admission and distinct evidence for manual native-owner diagnosis.
+[group('ci')]
+[private]
+ci-desktop-admit-native-diagnostic:
+    python -m release_scripts.desktop_native_diagnostic admit
+
+[group('ci')]
+[private]
+ci-desktop-retain-native-diagnostic:
+    python -m release_scripts.desktop_native_diagnostic retain
 
 # Desktop three installed linux desktop journeys with bundled cli and native vault.
 [group('ci')]
@@ -534,3 +506,91 @@ ci-python-dependencies:
     set -euo pipefail
     just back-dependencies
     uv run --offline --no-sync pytest --no-cov -q tests/contract/test_python_dependencies.py
+
+# Actual scanner-image behavior belongs to disposable native Linux runners.
+[group('ci')]
+[private]
+[script('bash')]
+ci-safety-runtime-build:
+    set -euo pipefail
+    test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
+    [[ "${AI_STP_SAFETY_RUNTIME_SOURCE}" =~ ^[0-9a-f]{40}$ ]]
+    case "${AI_STP_SAFETY_RUNTIME_ARCH}" in amd64|arm64) ;; *) exit 1 ;; esac
+    docker buildx build --load --progress=plain \
+      --platform "linux/${AI_STP_SAFETY_RUNTIME_ARCH}" \
+      --target worker-safety --file deploy/docker/Dockerfile.app \
+      --tag "${AI_STP_SAFETY_RUNTIME_IMAGE}" \
+      --label "org.opencontainers.image.revision=${AI_STP_SAFETY_RUNTIME_SOURCE}" \
+      --cache-from "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH}" \
+      --cache-to "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH},mode=max" .
+
+[group('ci')]
+[private]
+[script('bash')]
+ci-safety-runtime-test:
+    set -euo pipefail
+    test "${GITHUB_ACTIONS}" = true
+    test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
+    test -n "${AI_STP_SAFETY_RUNTIME_PROOF_DIR}"
+    # This profile is loaded only in the disposable runner, never a contour host.
+    sudo apparmor_parser --skip-cache -r deploy/apparmor/ai-stp-worker
+    trap 'sudo apparmor_parser --remove deploy/apparmor/ai-stp-worker' EXIT
+    just setup-python
+    just back-test-fast tests/scenario/platform/test_safety_image_runtime.py
+
+[group('ci')]
+[private]
+ci-native-vendor-codex:
+    python -m tests.native_vendor.codex --manifest "${AI_STP_CODEX_MANIFEST}" --tools "${AI_STP_CODEX_TOOLS}" --proof "${AI_STP_CODEX_PROOF}"
+
+[group('ci')]
+[private]
+ci-native-vendor-grok:
+    python -m tests.native_vendor.grok --distribution tests/native_vendor/grok-distribution --proof "${AI_STP_GROK_PROOF}"
+
+[group('ci')]
+[private]
+ci-native-vendor-pi:
+    python -m tests.native_vendor.pi --distribution tests/native_vendor/pi-distribution --proof "${AI_STP_PI_PROOF}"
+
+[group('ci')]
+[private]
+ci-native-vendor-claude:
+    python -m tests.native_vendor.claude --distribution tests/native_vendor/claude-distribution --proof "${AI_STP_CLAUDE_PROOF}"
+
+# Native Cursor MCP discovery, approval, loading and project shadowing without an account.
+[group('ci')]
+[private]
+ci-native-vendor-cursor:
+    python -m tests.native_vendor.cursor --distribution tests/native_vendor/cursor-distribution --proof "${AI_STP_CURSOR_PROOF}"
+
+# Native Antigravity skill discovery and project shadowing through its ACP server.
+[group('ci')]
+[private]
+ci-native-vendor-antigravity:
+    python -m tests.native_vendor.antigravity --distribution tests/native_vendor/antigravity-distribution --proof "${AI_STP_ANTIGRAVITY_PROOF}"
+
+# Native OpenCode read-only skills and original installed removal recovery.
+[group('ci')]
+[private]
+[script('bash')]
+ci-native-vendor-opencode:
+    python -m tests.native_vendor.opencode --distribution tests/native_vendor/opencode-distribution --proof "${AI_STP_OPENCODE_PROOF}"
+
+# Prepare actual API dependencies for the disposable native corporate consumer.
+[group('ci')]
+[private]
+ci-native-corporate-prepare:
+    uv sync --locked --group dev
+
+# Admit actual native PostgreSQL startup/authentication before historical builds.
+[group('ci')]
+[private]
+ci-native-corporate-postgresql-preflight:
+    uv run --no-sync python -m tests.support.native_postgres
+
+# Exercise archived native CLI ownership and corporate journeys with PostgreSQL.
+[group('ci')]
+[private]
+ci-native-corporate:
+    uv run --no-sync python -m tests.native_contract.verify_native_corporate

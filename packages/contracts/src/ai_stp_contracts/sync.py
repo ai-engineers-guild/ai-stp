@@ -1,4 +1,4 @@
-"""Private revision-sync wire payloads (SPEC-025, docs/contracts/sync-event.md).
+"""Private revision-sync wire payloads.
 
 Push and pull are the only server surfaces for the account-scoped revision
 ledger. Receipt state lives in the response body; a typed conflict is not a
@@ -28,7 +28,7 @@ from ai_stp_foundation.canonical import JsonValue
 from ai_stp_foundation.digests import DIGEST_PATTERN
 from ai_stp_foundation.revisions import REVISION_ID_PATTERN
 
-#: Closed allowlist for #179 (SPEC-025 REQ-2501, sync-event.md).
+#: Closed revision-sync entity allowlist.
 type SyncEntityKind = Literal[
     "developer_passport",
     "device_summary",
@@ -63,7 +63,7 @@ class SyncEvent(ContractModel):
     """One push event: a candidate revision and its idempotency key.
 
     ``device_id`` must match the session-bound active device; the server never
-    trusts a different device claim (REQ-2508). ``payload`` is the allowlisted
+    trusts a different device claim. ``payload`` is the allowlisted
     revision document body; tombstone may send an empty object.
     """
 
@@ -108,7 +108,7 @@ class SyncConflictInfo(ContractModel):
 
 
 class SyncEventReceipt(ContractModel):
-    """Durable outcome of one event (SPEC-009 receipt states)."""
+    """Durable outcome of one event."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

@@ -1,4 +1,4 @@
-"""Canonical logical and harness-invariant digests (ADR-0162, ADR-0165).
+"""Canonical logical and harness-invariant digests.
 
 Component logical identity and setup harness invariants are shared by the CLI
 and the platform. Both hash the same declared inputs in dedicated domains so

@@ -61,7 +61,7 @@ test_dist := env_var_or_default("AI_STP_TEST_DIST", "load")
 # (Python 3.12+ sys.monitoring) traces with far less interpreter overhead.
 # Exported so a focused run sees the same backend as the gate. pyproject pins
 # `core = "sysmon"` and must not list greenlet under concurrency — that pair
-# made coverage fall back to ctrace with a warning per worker (ADR-0117).
+# made coverage fall back to ctrace with a warning per worker.
 export COVERAGE_CORE := env_var_or_default("AI_STP_TEST_COVERAGE_CORE", "sysmon")
 
 # A missing bun must fail the recipe, not skip the step. The version is
@@ -405,7 +405,7 @@ back-static: back-dependencies
     {{ run }} python -m release_scripts.update_component_fixture --check
     {{ py }} {{ scripts }}/skill_projections.py --check
 
-# Coverage is printed, not a fail-under (ADR-0147). The second call reads
+# Coverage is printed, not a fail-under. The second call reads
 # the data pytest-cov wrote so the local log matches CI's combined report.
 [doc('Full test suite with coverage report')]
 [group('back')]
@@ -413,11 +413,7 @@ back-test:
     {{ run }} python -m pytest {{ if test_workers == "0" { "" } else { "-n " + test_workers } }} --dist={{ test_dist }}
     {{ run }} python -m coverage report --precision=2
 
-# Iteration run without coverage. Collecting coverage costs about a third of
-# gate time (ADR-0104, unpublished, measured 325 s with it versus 252 s
-# without; `ADR-0117` publishes the no-repeated-work rule), and in the
-# edit-run loop it answers no question a failing test would not. It is not
-# the gate: no threshold is checked here or should be.
+# Focused iteration without coverage; the full suite owns coverage thresholds.
 [arg('args', help='extra pytest arguments')]
 [doc('Iteration run without coverage')]
 [group('back')]

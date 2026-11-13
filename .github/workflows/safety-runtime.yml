@@ -1,0 +1,80 @@
+name: safety-runtime
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/safety-runtime.yml
+      - .github/ci.just
+      - deploy/docker/Dockerfile.app
+      - deploy/apparmor/ai-stp-worker
+      - scripts/safety/**
+      - apps/platform/src/ai_stp_platform/safety/**
+      - tests/fixtures/safety_runtime/**
+      - tests/scenario/platform/test_safety_image_runtime.py
+      - pyproject.toml
+      - uv.lock
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safety-runtime-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  runtime:
+    name: native-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-26.04
+            arch: amd64
+          - runner: ubuntu-26.04-arm
+            arch: arm64
+    env:
+      AI_STP_SAFETY_RUNTIME_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+      AI_STP_SAFETY_RUNTIME_IMAGE: >-
+        ${{ format('ai-stp-safety-qualified:{0}-{1}',
+        github.event.pull_request.head.sha || github.sha, matrix.arch) }}
+      AI_STP_SAFETY_RUNTIME_ARCH: ${{ matrix.arch }}
+      AI_STP_TEST_WORKERS: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Isolate the image qualification environment
+        shell: bash
+        run: |
+          printf '%s\n' \
+            "AI_STP_SAFETY_RUNTIME_PROOF_DIR=$RUNNER_TEMP/safety-runtime-proof" \
+            "UV_PROJECT_ENVIRONMENT=$RUNNER_TEMP/safety-runtime-tests" \
+            "UV_CACHE_DIR=$RUNNER_TEMP/safety-runtime-uv" >> "$GITHUB_ENV"
+      - name: Prepare the declared hosted SDKs
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          python-version: '3.15.2'
+          uv-version: '0.13.7'
+      - name: Build the exact native scanner image with shared layers
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-safety-runtime-build
+      - name: Qualify actual native reports and mandatory isolation
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-safety-runtime-test
+      - name: Retain exact-source native runtime proof
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: safety-runtime-${{ matrix.arch }}
+          path: ${{ runner.temp }}/safety-runtime-proof/*.json
+          if-no-files-found: error
+          retention-days: 7

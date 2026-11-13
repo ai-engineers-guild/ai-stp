@@ -1,4 +1,4 @@
-"""Closed safe-Markdown profile for immutable version descriptions (SPEC-029)."""
+"""Closed safe-Markdown profile for immutable version descriptions."""
 
 from __future__ import annotations
 

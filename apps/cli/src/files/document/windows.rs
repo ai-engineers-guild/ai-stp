@@ -15,6 +15,7 @@ pub(crate) fn private(handle: &impl AsHandle, directory: bool) -> Result<()> {
     let system = OwnedSid::from_string("S-1-5-18").map_err(|_| refused())?;
     let administrators = OwnedSid::from_string("S-1-5-32-544").map_err(|_| refused())?;
     let creator = OwnedSid::from_string("S-1-3-0").map_err(|_| refused())?;
+    let owner_rights = OwnedSid::from_string("S-1-3-4").map_err(|_| refused())?;
     // File/directory handles are kernel handles. This safe query binds the
     // owner and DACL to the open object instead of reopening an ambient path.
     let descriptor =
@@ -30,10 +31,12 @@ pub(crate) fn private(handle: &impl AsHandle, directory: bool) -> Result<()> {
     }
     for ace in acl.allowed_aces() {
         // Reject unknown flags and all non-allow ACEs (validated by the crate).
+        // Owner Rights applies to the already validated owner of this object.
         // Creator Owner is safe only as an inherit-only directory template:
         // each resulting child is checked again before writing any content.
         if ace.flags() & !0x1f != 0
             || !(trusted.iter().any(|sid| ace.trustee_matches(sid))
+                || ace.trustee_matches(&owner_rights)
                 || (directory && ace.flags() & 0x08 != 0 && ace.trustee_matches(&creator)))
         {
             return Err(refused());
@@ -48,6 +51,48 @@ mod tests {
     use crate::files::{document, tree};
     use cap_std::fs::Dir;
     use win_custody::SecurityDescriptor;
+
+    #[test]
+    fn inherited_owner_rights_remains_private_and_shared_acl_refuses()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let root = tempfile::tempdir()?;
+        // Change only this test's new fixture. Owner Rights remains an ACE;
+        // the object owner must independently pass the trusted-owner check.
+        let private_acl = "D:P(A;OICI;FA;;;OW)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
+        SecurityDescriptor::from_sddl(private_acl)?.apply_to_tree(root.path(), true)?;
+        let directory = Dir::open_ambient_dir(root.path(), cap_std::ambient_authority())?;
+        private(&directory, true)?;
+        let (output, identity) = tree::destination(&root.path().join("owner-rights.json"))?;
+        let digest = crate::digest::bytes("ai-stp:plan:v1", b"Owner Rights fixture")?;
+        document::unused(&output, &identity)?;
+        assert!(!document::publish(&output, &identity, b"signed", &digest)?);
+        let file =
+            crate::files::open_regular(&directory, std::path::Path::new("owner-rights.json"))?;
+        private(&file, false)?;
+        let owner_rights = OwnedSid::from_string("S-1-3-4")?;
+        assert!(
+            ObjectSecurityDescriptor::query_file(std::path::Path::new(&output))?
+                .dacl()?
+                .allowed_aces()
+                .any(|ace| ace.trustee_matches(&owner_rights)),
+            "the private checker must preserve Owner Rights rather than replacing the ACL"
+        );
+        drop(file);
+        let shared = "D:P(A;;FA;;;OW)(A;;FA;;;SY)(A;;FA;;;BA)(A;;FR;;;WD)";
+        SecurityDescriptor::from_sddl(shared)?
+            .apply_to_tree(std::path::Path::new(&output), true)?;
+        assert!(document::publish(&output, &identity, b"never written", &digest).is_err());
+        assert_eq!(std::fs::read(&output)?, b"signed");
+        let everyone = OwnedSid::from_string("S-1-1-0")?;
+        assert!(
+            ObjectSecurityDescriptor::query_file(std::path::Path::new(&output))?
+                .dacl()?
+                .allowed_aces()
+                .any(|ace| ace.trustee_matches(&everyone)),
+            "shared ACL refusal must preserve the original descriptor"
+        );
+        Ok(())
+    }
 
     #[test]
     fn inherited_private_document_and_shared_acl_refusal()

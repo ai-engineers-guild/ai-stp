@@ -5,16 +5,20 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import platform
 import sqlite3
 from collections.abc import Awaitable, Callable
 from contextlib import closing
 from datetime import datetime, timedelta, tzinfo
+from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 from unittest.mock import patch
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from tests.native_contract.verify_ownership import native_result
+from tests.support.native_files import FileProtection, file_protection
 
 from ai_stp_api.session import AuthContext
 from ai_stp_api.slices.context import service as context_service
@@ -47,7 +51,9 @@ async def qualify(
     context: str,
     connection: str,
     foreign_context: str,
+    historical_consumers: bool = True,
 ) -> None:
+    protections: dict[Path, FileProtection] = {}
     registry = state / "ai-stp-v2-state" / "registry.sqlite3"
 
     def reservations() -> list[tuple[Any, ...]]:
@@ -90,6 +96,7 @@ async def qualify(
         path.mkdir()
         (path / ".env").write_bytes(b"PRIVATE=retirement-unowned-canary\n")
         (path / ".env").chmod(0o640)
+        protections[path] = file_protection(path / ".env")
         for arguments in (
             ["init", "--initial-branch=main"],
             ["commit", "--allow-empty", "-m", "native retirement fixture"],
@@ -356,7 +363,7 @@ async def qualify(
     assert (await run("account", "connections", "recovery", "list"))["recoveries"] == old_recoveries
     for path in (unknown, expiring):
         assert (path / ".env").read_bytes() == b"PRIVATE=retirement-unowned-canary\n"
-        assert (path / ".env").stat().st_mode & 0o777 == 0o640
+        assert file_protection(path / ".env") == protections[path]
     assert await counts() == (before_counts[0] + 3, before_counts[1] + 1)
     assert len(faults.writes) == before_writes + 5
 
@@ -420,6 +427,39 @@ async def qualify(
         ),
         flush=True,
     )
+    if not historical_consumers:
+        # Preserve the observed historical executable's OS-vault refusal.
+        # The independent macOS file-store journey owns full historical controls.
+        assert platform.system() == "Darwin"
+        previous = Path(os.environ["AI_STP_TEST_PREVIOUS_CLI_BINARY"])
+        assert os.environ["AI_STP_TEST_PREVIOUS_CLI_SOURCE"] == (
+            "0f2589f40e7ebc3155a305965b1056fb6df63581"
+        )
+        before = sha256(registry.read_bytes()).hexdigest()
+        before_counts = await counts()
+        status, stdout, stderr = await native_result(
+            previous, home, ["context", "list", "--state-dir", str(state)]
+        )
+        assert status != 0 and not stderr
+        error = ErrorEnvelope.model_validate_json(stdout)
+        assert error.error.code == "AI_STP_DEPENDENCY_UNAVAILABLE"
+        assert error.error.retryable is True
+        assert sha256(registry.read_bytes()).hexdigest() == before
+        assert await counts() == before_counts
+        print(
+            json.dumps(
+                {
+                    "native_historical_keychain_boundary": "refused",
+                    "previous_source_sha": os.environ["AI_STP_TEST_PREVIOUS_CLI_SOURCE"],
+                    "registry_bytes_preserved": True,
+                    "server_counts_preserved": True,
+                    "historical_os_vault_compatibility_qualified": False,
+                }
+            ),
+            flush=True,
+        )
+        return
+
     from tests.native_contract.verify_checkout_unlink import qualify as qualify_unlink
 
     await qualify_unlink(

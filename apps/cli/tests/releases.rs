@@ -61,9 +61,18 @@ fn embedded_author_is_atomic_exact_and_replayable_without_source() -> Result<(),
             .ok_or("released provider declaration absent")?;
         let provider = ai_stp_cli::provider::Info::parse(&canonical::bytes(declaration)?)?;
         let scope = &plan.component["adaptations"][0]["scope_adaptations"][0];
-        assert!(
-            provider.supports_scope(serde_json::from_value(scope["scope"].clone())?, scope),
-            "new {harness} authoring does not match the released provider surface"
+        let target_scope = serde_json::from_value(scope["scope"].clone())?;
+        assert_eq!(
+            provider.supports_scope(target_scope, scope),
+            harness != "opencode"
+        );
+        assert_eq!(
+            scope["projection_format"],
+            if harness == "opencode" {
+                artifact::PATH_IDENTITY_FORMAT
+            } else {
+                artifact::FORMAT
+            }
         );
         assert!(!embedded::kinds(harness)?.iter().any(|kind| kind == "cli"));
         assert_eq!(counts(&mut store)?, before, "planning wrote state");

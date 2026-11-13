@@ -1,4 +1,4 @@
-"""Canonical setup-definition bytes (SPEC-057 REQ-5705, REQ-5706, REQ-5718).
+"""Canonical setup-definition bytes with exact embedded native projections.
 
 Version 1 remains the catalog-only document. Version 2 adds a bounded embedded
 index only when that index is non-empty.
@@ -39,6 +39,7 @@ from ai_stp_passports import (
     verify_revision_id,
 )
 from ai_stp_passports.versions import ComponentType, ProjectionKind, TargetScope
+from ai_stp_sources import opencode_identity
 from ai_stp_sources.archive import MAX_ARCHIVE_BYTES, reject_secret_name
 from ai_stp_sources.errors import (
     CATALOG_COLLISION,
@@ -365,7 +366,13 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
     }
     if len(contents) != len(source_files):
         raise SourceError(INVALID_SOURCE, "embedded managed paths must be unique")
-    native_ids = identities(draft.harness_id, draft.component_type, contents)
+    path_ids = (draft.harness_id, draft.component_type) == ("opencode", "skill")
+    projection_format = (
+        opencode_identity.PROJECTION_FORMAT if path_ids else "ai-stp-adaptation-projection/1"
+    )
+    native_ids = identities(
+        draft.harness_id, draft.component_type, contents, projection_format=projection_format
+    )
     members: list[JsonValue] = [
         {
             "path": path,
@@ -387,7 +394,7 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
     ]
     scope_document: dict[str, JsonValue] = {
         "scope": draft.target_scope,
-        "projection_format": "ai-stp-adaptation-projection/1",
+        "projection_format": projection_format,
         "projection_artifact": {"digest": "sha256:" + "0" * 64, "size_bytes": 1},
         "provider_component_kind": draft.component_type,
         "projection_kind": draft.projection_kind,
@@ -398,7 +405,9 @@ def _projection(draft: EmbeddedDraft) -> tuple[bytes, JsonValue]:
         },
         "permissions": (draft.permissions or Permissions()).model_dump(mode="json"),
         "members": members,
-        "supported_harness_versions": [],
+        "supported_harness_versions": cast(JsonValue, opencode_identity.HARNESS_VERSIONS)
+        if path_ids
+        else [],
         "supported_os": [],
         "supported_arch": [],
         "technical_support": "experimental",

@@ -28,6 +28,7 @@ pub(super) struct Composition {
     chosen: Vec<Value>,
     converted: Vec<Value>,
     conflicts: Option<Vec<Failure>>,
+    opencode_path_ids: bool,
 }
 
 struct Exclusion {
@@ -258,6 +259,8 @@ impl Composition {
         let losses = scope["semantic_losses"]
             .as_array()
             .ok_or_else(|| invalid("semantic losses missing"))?;
+        self.opencode_path_ids |=
+            scope["projection_format"] == crate::projection::artifact::PATH_IDENTITY_FORMAT;
         let mut paths = scope["members"]
             .as_array()
             .ok_or_else(|| invalid("members missing"))?
@@ -292,6 +295,7 @@ impl Composition {
             "codex" => &["skill"],
             "antigravity" | "cursor" => &["agent", "skill"],
             "pi" | "grok-build" => &["skill", "command"],
+            "opencode" if self.opencode_path_ids => &["skill"],
             _ => &[],
         };
         for kind in kinds {

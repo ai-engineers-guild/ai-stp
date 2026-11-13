@@ -101,6 +101,7 @@ class QualificationTests(unittest.TestCase):
         self.assertTrue(all(job.get("continue-on-error") != "true" for job in jobs.values()))
         for job, filename in [
             ("desktop", "desktop.yml"),
+            ("native-corporate", "native-corporate-checks.yml"),
             ("analysis", "codeql.yml"),
             ("archives", "cli-archives.yml"),
             ("wasi-confinement", "wasi-confinement.yml"),
@@ -112,6 +113,9 @@ class QualificationTests(unittest.TestCase):
             self.assertNotIn("push", events)
             self.assertNotIn("pull_request", events)
         self.assertIn("schedule", workflow("codeql.yml")["on"])
+        corporate = jobs["native-corporate"]
+        self.assertEqual(corporate["needs"], "archives")
+        self.assertNotIn("with", corporate)
 
     def test_pr_eligibility_and_full_dev_have_distinct_complete_owners(self) -> None:
         source = workflow("source.yml")
@@ -159,7 +163,7 @@ class QualificationTests(unittest.TestCase):
                         job["strategy"],
                         {
                             "fail-fast": "false",
-                            "matrix": {"os": ["ubuntu-26.04", "macos-latest", "windows-latest"]},
+                            "matrix": {"os": ["ubuntu-26.04", "macos-26", "windows-latest"]},
                         },
                     )
                     self.assertEqual(job["name"], "integration-native-${{ matrix.os }}")

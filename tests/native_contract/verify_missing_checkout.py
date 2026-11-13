@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import platform
 import sqlite3
 from collections.abc import Awaitable, Callable
 from contextlib import closing
@@ -105,7 +106,14 @@ async def qualify(
     previous_source = os.environ["AI_STP_TEST_PREVIOUS_MISSING_CHECKOUT_CLI_SOURCE"]
     previous_digest = sha256(previous.read_bytes()).hexdigest()
     assert previous_source == "1327533ccbfb8d1aa92ccdd346790246f8eac28c"
-    assert previous_digest == "047f806ba78dce3cab36caaa109a9c0209af7678ba4a5abbe8a4ab7aff150491"
+    assert (
+        previous_digest
+        == {
+            "Linux": "047f806ba78dce3cab36caaa109a9c0209af7678ba4a5abbe8a4ab7aff150491",
+            "Darwin": "cdde99bc09b501a1fe3f407ab0b89c543172b80e44568319cba9ef3bc40fb065",
+            "Windows": "0848823a3b6c2e8772b8ff770470f2793e9d7c43cacd687e03998c96f5637dd9",
+        }[platform.system()]
+    )
     positive = await native(
         previous,
         home,

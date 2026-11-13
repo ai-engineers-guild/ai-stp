@@ -34,19 +34,20 @@ def _manifest() -> ArtifactManifest:
 
 
 def test_offline_db_has_data_detects_all_zip(tmp_path: Path) -> None:
-    pack = tmp_path / "osv-scanner" / "PyPI"
+    pack = tmp_path / "osv-scalibr" / "PyPI"
     pack.mkdir(parents=True)
     (pack / "all.zip").write_bytes(b"zip")
+    (tmp_path / ".ai_stp_osv_refreshed_at").write_text("fixture")
     assert osv_adapter.offline_db_has_data(tmp_path) is True
     empty = tmp_path / "empty"
     empty.mkdir()
     (empty / "README").write_text("x", encoding="utf-8")
     assert osv_adapter.offline_db_has_data(empty) is False
 
-    legacy = tmp_path / "legacy" / "osv-scanner" / "Go"
+    legacy = tmp_path / "legacy" / "osv-scalibr" / "Go"
     legacy.mkdir(parents=True)
     (legacy / "vulns.zip").write_bytes(b"zip")
-    assert osv_adapter.offline_db_has_data(tmp_path / "legacy") is True
+    assert osv_adapter.offline_db_has_data(tmp_path / "legacy") is False
 
 
 def test_resolve_offline_cache_uses_configured_then_existing_default(
@@ -96,9 +97,10 @@ def test_present_tool_empty_offline_dir_is_offline_db_missing(
 def test_offline_scan_sets_cache_env_and_does_not_pass_dir_as_scan_target(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    pack = tmp_path / "osv-scanner" / "npm"
+    pack = tmp_path / "osv-scalibr" / "npm"
     pack.mkdir(parents=True)
     (pack / "all.zip").write_bytes(b"zip")
+    (tmp_path / ".ai_stp_osv_refreshed_at").write_text("fixture")
     monkeypatch.setenv("AI_STP_OSV_OFFLINE_DIR", str(tmp_path))
     monkeypatch.setattr(osv_adapter, "which", lambda _n: "/opt/safety-bin/osv-scanner")
 
@@ -116,14 +118,10 @@ def test_offline_scan_sets_cache_env_and_does_not_pass_dir_as_scan_target(
     assert out.result == "passed"
     assert captured, "expected run_cli invocation"
     argv = captured[0]
-    # Offline dir must not appear as a scan path after --offline-vulnerabilities.
+    assert "--offline" in argv
+    assert "--no-resolve" in argv
+    # The cache is an environment input, never another scan target.
     assert str(tmp_path) not in argv or argv[-1] == str(tree) or "-r" in argv
-    if "--offline-vulnerabilities" in argv:
-        idx = argv.index("--offline-vulnerabilities")
-        # Next token must not be the offline dir path
-        if idx + 1 < len(argv):
-            assert argv[idx + 1] != str(tmp_path)
-            assert argv[idx + 1] != str(tmp_path.resolve())
     assert os.environ.get("OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY") == str(tmp_path.resolve())
     assert out.detail.get("offline") is True
     assert out.detail.get("cache_env_name") == "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"
@@ -132,9 +130,10 @@ def test_offline_scan_sets_cache_env_and_does_not_pass_dir_as_scan_target(
 @pytest.mark.parametrize(
     ("responses", "expected_result", "expected_reason"),
     [
-        ([(127, "", "missing", 1), (127, "", "missing", 2)], "not_run", "tool_missing"),
+        ([(127, "", "missing:osv-scanner", 1)], "not_run", "tool_missing"),
+        ([(127, "", "input extraction failed", 1)], "degraded", "tool_error"),
         (
-            [(1, "", "no offline database found", 3)],
+            [(127, "", "no offline database found", 3)],
             "not_run",
             "offline_db_unavailable",
         ),
@@ -148,9 +147,10 @@ def test_offline_scan_failure_semantics_are_fail_closed(
     expected_result: str,
     expected_reason: str | None,
 ) -> None:
-    pack = tmp_path / "osv-scanner" / "PyPI"
+    pack = tmp_path / "osv-scalibr" / "PyPI"
     pack.mkdir(parents=True)
     (pack / "all.zip").write_bytes(b"zip")
+    (tmp_path / ".ai_stp_osv_refreshed_at").write_text("fixture")
     tree = tmp_path / "tree"
     tree.mkdir()
     monkeypatch.setenv("AI_STP_OSV_OFFLINE_DIR", str(tmp_path))
@@ -168,5 +168,45 @@ def test_offline_scan_failure_semantics_are_fail_closed(
     assert out.result == expected_result
     if expected_reason is None:
         assert out.findings and out.findings[0].rule_id == "osv"
+        assert out.severity_max == "medium"
     else:
         assert out.detail["reason"] == expected_reason
+
+
+@pytest.mark.parametrize(
+    ("database", "expected_reason"),
+    [
+        ("missing", "offline_db_missing"),
+        ("unstamped", "offline_db_unavailable"),
+        ("stale", "offline_db_stale"),
+        ("retired", "offline_db_missing"),
+    ],
+)
+def test_unavailable_database_never_starts_a_network_scan(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    database: str,
+    expected_reason: str,
+) -> None:
+    cache = tmp_path / "cache"
+    tree = tmp_path / "artifact"
+    tree.mkdir()
+    if database != "missing":
+        prefix = "osv-scanner" if database == "retired" else "osv-scalibr"
+        pack = cache / prefix / "PyPI"
+        pack.mkdir(parents=True)
+        (pack / "all.zip").write_bytes(b"fixture")
+    if database in {"stale", "retired"}:
+        stamp = cache / ".ai_stp_osv_refreshed_at"
+        stamp.write_text("fixture")
+        os.utime(stamp, (1, 1))
+    monkeypatch.setenv("AI_STP_OSV_OFFLINE_DIR", str(cache))
+    monkeypatch.setattr(osv_adapter, "which", lambda _name: "/opt/safety-bin/osv-scanner")
+
+    def refuse_execution(*_args: object, **_kwargs: object) -> tuple[int, str, str, int]:
+        pytest.fail("An unavailable offline database must not start OSV.")
+
+    monkeypatch.setattr(osv_adapter, "run_cli", refuse_execution)
+    outcome = osv_adapter.run(tree, _manifest(), _spec())
+    assert outcome.result == "not_run"
+    assert outcome.detail["reason"] == expected_reason

@@ -1,4 +1,4 @@
-"""Exact per-harness component adaptation manifests (ADR-0143)."""
+"""Exact per-harness component adaptation manifests and versioned native identities."""
 
 from copy import deepcopy
 
@@ -272,3 +272,27 @@ def test_scope_rejects_paths_that_collide_on_case_insensitive_targets() -> None:
 
     with pytest.raises(ValidationError, match="collide by case"):
         seal_adaptation(document)
+
+
+def test_opencode_path_identity_format_is_bound_to_its_native_skill_surface() -> None:
+    manifest = _manifest()
+    manifest.update(
+        harness_id="opencode",
+        implementation_mode="native",
+        transform=None,
+        logical_component_type="skill",
+    )
+    scopes = manifest["scope_adaptations"]
+    assert isinstance(scopes, list) and isinstance(scopes[0], dict)
+    scopes[0].update(
+        projection_format="ai-stp-adaptation-projection/2", provider_component_kind="skill"
+    )
+    accepted = seal_adaptation(manifest).model_dump(mode="json")
+    assert _schema_accepts(accepted)
+    for field, value in [("harness_id", "codex"), ("logical_component_type", "agent")]:
+        invalid = deepcopy(manifest)
+        invalid[field] = value
+        with pytest.raises(ValidationError, match="OpenCode skill path identities"):
+            seal_adaptation(invalid)
+        invalid["adaptation_id"] = accepted["adaptation_id"]
+        assert not _schema_accepts(invalid)

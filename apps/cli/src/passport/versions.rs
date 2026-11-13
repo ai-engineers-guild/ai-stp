@@ -129,6 +129,14 @@ fn validate_adaptation(adaptation: &Value) -> Result<()> {
     let scopes = array(&adaptation["scope_adaptations"])?;
     unique(scopes, "scope")?;
     for scope in scopes {
+        if scope["projection_format"] == crate::projection::artifact::PATH_IDENTITY_FORMAT
+            && (adaptation["harness_id"] != "opencode"
+                || adaptation["logical_component_type"] != "skill"
+                || scope["provider_component_kind"] != "skill"
+                || scope["projection_kind"] != "native_files")
+        {
+            return Err(invalid());
+        }
         scope_invariants(scope)?;
     }
     let payload = adaptation_payload(adaptation)?;

@@ -1,4 +1,4 @@
-"""Bounded HTTPS GETs for registry adapters (SPEC-057 REQ-5718)."""
+"""Bounded HTTPS GETs for registry adapters."""
 
 from __future__ import annotations
 

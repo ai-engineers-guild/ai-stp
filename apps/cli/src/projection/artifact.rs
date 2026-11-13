@@ -13,6 +13,8 @@ use crate::{
 };
 
 pub const FORMAT: &str = "ai-stp-adaptation-projection/1";
+/// Per-file path identities for qualified OpenCode skills; ZIP encoding is unchanged.
+pub const PATH_IDENTITY_FORMAT: &str = "ai-stp-adaptation-projection/2";
 const LIMITS: Limits = Limits {
     entries: 8192,
     file_bytes: 64 * 1024 * 1024,

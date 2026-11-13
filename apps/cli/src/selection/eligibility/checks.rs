@@ -24,11 +24,32 @@ fn limits(report: &mut Assessment, document: &Value, target: &Target) {
         }
     }
     let versions = strings(&document["supported_harness_versions"]);
-    if !versions.is_empty() && !versions.contains(target.harness_version.as_str()) {
+    let codec_version = (document["projection_format"]
+        == crate::projection::artifact::PATH_IDENTITY_FORMAT)
+        .then_some(crate::authoring::native_identity::OPENCODE_SKILL_VERSION);
+    let codec_mismatch = codec_version.is_some_and(|version| version != target.harness_version);
+    if codec_mismatch || !versions.is_empty() && !versions.contains(target.harness_version.as_str())
+    {
         let unknown = target.harness_version.is_empty() || target.harness_version == "unknown";
-        report.refuse("compatibility",if unknown {"harness_version_unknown"} else {"harness_version_unsupported"},
-            "the observed version does not match an exact supported harness version",
-            json!({"declared":versions.into_iter().collect::<Vec<_>>().join(", "),"target":if unknown {"none"} else {&target.harness_version}}));
+        let mut details = json!({"declared":versions.into_iter().collect::<Vec<_>>().join(", "),
+            "target":if unknown {"none"} else {&target.harness_version}});
+        if let Some(version) = codec_version {
+            details["qualified_identity_reader"] = version.into();
+        }
+        report.refuse(
+            "compatibility",
+            if unknown {
+                "harness_version_unknown"
+            } else {
+                "harness_version_unsupported"
+            },
+            if codec_mismatch {
+                "this skill projection requires OpenCode 2.2.7"
+            } else {
+                "the observed version does not match an exact supported harness version"
+            },
+            details,
+        );
     }
 }
 
@@ -219,5 +240,47 @@ pub(super) fn notes(report: &mut Assessment, document: &Value, target: &Target) 
             "this object requires credential configuration",
             json!({"stable_id":document["stable_id"]}),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_identity_reader_cannot_be_widened_by_an_author_version_claim() {
+        let mut target = Target {
+            harness_id: "opencode".into(),
+            scope: crate::projection::Scope::Global,
+            os: "linux".into(),
+            arch: "x86_64".into(),
+            harness_version: String::new(),
+            owner_id: "account_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+            capabilities: BTreeSet::new(),
+            permissions: BTreeSet::new(),
+            entitlements: BTreeSet::new(),
+            env_present: BTreeSet::new(),
+            grants: BTreeSet::new(),
+            accessible_passport_digests: BTreeSet::new(),
+            access_context_digest: None,
+            pinned_passport_digests: BTreeSet::new(),
+            owned_passport_digests: BTreeSet::new(),
+            for_redistribution: false,
+        };
+        for declared in [vec![], vec!["1.18.34"], vec!["2.2.7"], vec!["2.2.8"]] {
+            let document = json!({"projection_format":crate::projection::artifact::PATH_IDENTITY_FORMAT,
+                "supported_harness_versions":declared});
+            for version in ["", "unknown", "1.18.34", "2.2.8", "2.2.7"] {
+                target.harness_version = version.into();
+                let mut report = Assessment {
+                    refusals: Vec::new(),
+                    notes: Vec::new(),
+                };
+                limits(&mut report, &document, &target);
+                let accepted =
+                    version == "2.2.7" && (declared.is_empty() || declared.contains(&version));
+                assert_eq!(report.refusals.is_empty(), accepted);
+            }
+        }
     }
 }

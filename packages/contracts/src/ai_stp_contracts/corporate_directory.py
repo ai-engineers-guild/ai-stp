@@ -1,4 +1,4 @@
-"""Authorized directory cards and named facets (SPEC-083 REQ-8311/8315)."""
+"""Authorized directory cards and named facets."""
 
 import re
 from typing import Annotated, Literal, Self

@@ -1,4 +1,4 @@
-"""Coordinate-plus-digest catalog replacement is suggestion-only (REQ-5715)."""
+"""Coordinate-plus-digest catalog replacement is suggestion-only."""
 
 from __future__ import annotations
 

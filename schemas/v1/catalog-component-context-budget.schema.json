@@ -91,7 +91,7 @@
   "$id": "urn:ai-stp:schema:v1:catalog-component-context-budget",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Context estimate of one visible exact component (SPEC-049).",
+  "description": "Context estimate of one visible exact component.",
   "properties": {
     "component_type": {
       "title": "Component Type",

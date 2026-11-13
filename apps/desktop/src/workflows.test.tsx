@@ -218,6 +218,72 @@ it("discards a previous account response even after returning to the same connec
   expect(screen.getByText("current-personal")).toBeTruthy();
 });
 
+it("mounts ready connection choices without replacing entered context text or focus", async () => {
+  let complete!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
+    path === "account connections list"
+      ? new Promise((resolve) => {
+          complete = resolve;
+        })
+      : ok({ contexts: [] }),
+  );
+  mount(<ProfilesPage />);
+  expect(
+    screen.queryByRole("combobox", { name: "Context connection" }),
+  ).toBeNull();
+  const field = screen.getByLabelText("Context label");
+  field.focus();
+  fireEvent.change(field, {
+    target: { value: "Waiting context" },
+  });
+  await act(async () =>
+    complete(
+      ok({
+        connections: [
+          {
+            connection_id: "connection_fixture",
+            label: "Fixture company",
+            origin: "https://company.example.test",
+            provider: "github",
+            state: "ready",
+          },
+        ],
+      }),
+    ),
+  );
+  const selector = screen.getByRole("combobox", { name: "Context connection" });
+  expect(selector).toHaveProperty("disabled", false);
+  expect(screen.getByLabelText("Context label")).toBe(field);
+  expect(document.activeElement).toBe(field);
+  expect(
+    screen.getByRole("option", {
+      name: "Fixture company · https://company.example.test",
+    }),
+  ).toHaveProperty("value", "connection_fixture");
+  expect(screen.getByLabelText("Context label")).toHaveProperty(
+    "value",
+    "Waiting context",
+  );
+});
+
+it("keeps unknown connection choices unavailable after a failed local read", async () => {
+  vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
+    path === "account connections list"
+      ? {
+          ...ok(),
+          ok: false,
+          error: "Fixture connection read unavailable",
+          error_code: "AI_STP_DEPENDENCY_UNAVAILABLE",
+        }
+      : ok({ contexts: [] }),
+  );
+  mount(<ProfilesPage />);
+  await screen.findByRole("alert");
+  expect(
+    screen.queryByRole("combobox", { name: "Context connection" }),
+  ).toBeNull();
+});
+
 it("plans a context from the existing account without creating a new enrollment", async () => {
   const organization = "organization_01ARZ3NDEKTSV4RRFFQ69G5FAV";
   vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
@@ -242,9 +308,10 @@ it("plans a context from the existing account without creating a new enrollment"
     ok({ plan: { schema_version: 1 }, plan_digest: "sha256:legacy" }),
   );
   mount(<ProfilesPage />);
-  fireEvent.change(screen.getByLabelText("Context connection"), {
-    target: { value: "legacy-account" },
-  });
+  fireEvent.change(
+    await screen.findByRole("combobox", { name: "Context connection" }),
+    { target: { value: "legacy-account" } },
+  );
   fireEvent.click(
     screen.getByRole("button", { name: "Read available organizations" }),
   );

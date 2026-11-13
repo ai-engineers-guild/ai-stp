@@ -1,9 +1,7 @@
-"""The bounded second-level index of a project (`SPEC-004` REQ-403 to REQ-406).
+"""Bounded project file inventory.
 
-What this is *not* is as load-bearing as what it is. `REQ-411` excludes the call
-graph, vector representations, private symbol bodies, a global semantic graph and
-deep data-flow analysis. This reads names, sizes and shapes — it is an inventory,
-not an understanding, and the difference is what keeps it cheap and safe.
+Reads names, sizes and file shapes without building a call graph, vectors,
+private symbol bodies or deep data-flow analysis.
 
 Three rules decide every path:
 
@@ -13,13 +11,13 @@ and would accept `..` and a symlink pointing anywhere. `Path.walk` also lists a
 symlinked directory among *files* rather than descending into it, so one that
 points outside would arrive here as something to index.
 
-**Exclusion.** `REQ-406` names secrets, binary content, version-control internals,
-vendor, cache and generated directories. A file is excluded with a reason rather
+**Exclusion.** Secret names, binary content, version-control internals,
+vendor, cache and generated directories are excluded. A file is excluded with a reason rather
 than silently dropped, because "why is this not in my index" is a question the
 caller will have.
 
-**Bounds.** `REQ-405` makes size, depth and time limits mandatory, and hitting one
-produces a typed partial state rather than a short answer that looks complete.
+**Bounds.** Size, depth and time limits are mandatory. Reaching one produces a
+typed partial state that identifies the limit.
 """
 
 import hashlib
@@ -79,8 +77,7 @@ def _resolved(path: Path) -> Path:
 #: than invented — every tool a user already trusts agrees on it.
 BINARY_PROBE_BYTES: Final[int] = 8000
 
-#: Above this a file is inventoried but not read. `REQ-405` requires a size
-#: bound; without one a single generated blob decides how long indexing takes.
+#: Above this bound a file is inventoried without reading its contents.
 MAX_FILE_BYTES: Final[int] = 1 * 1024 * 1024
 
 #: How deep the tree is walked, counted from the root.
@@ -95,8 +92,7 @@ MAX_SECONDS: Final[float] = 20.0
 
 #: Files whose *name* says they hold a credential. Content is never inspected to
 #: decide this: reading a file to find out whether it holds a secret is the one
-#: thing that must not happen. `ADR-0058` keeps credentials out of this CLI, and
-#: `SPEC-004` REQ-406 keeps them out of the index.
+#: thing that must not happen. Credential names are excluded before content reads.
 SECRET_NAMES: Final[frozenset[str]] = frozenset(
     {
         ".env",
@@ -160,8 +156,7 @@ LOCK_NAMES: Final[frozenset[str]] = frozenset(
     }
 )
 
-#: Surfaces an agent reads. `REQ-403` asks for them by name, and they are the
-#: reason a coding agent can be told anything about a project at all.
+#: Explicit agent instruction and configuration filenames.
 AGENT_SURFACE_NAMES: Final[frozenset[str]] = frozenset(
     {"AGENTS.md", "CLAUDE.md", "CLAUDE.local.md", "SKILL.md", ".mcp.json"}
 )
@@ -172,8 +167,7 @@ CONFIG_SUFFIXES: Final[frozenset[str]] = frozenset(
     {".toml", ".yaml", ".yml", ".json", ".ini", ".cfg", ".properties"}
 )
 
-#: The five language groups `REQ-404` bounds the symbol index to. Here they only
-#: classify a file; the adapters that read them are a separate concern.
+#: Five language groups used to classify source files.
 SOURCE_SUFFIXES: Final[dict[str, str]] = {
     ".py": "python",
     ".pyi": "python",

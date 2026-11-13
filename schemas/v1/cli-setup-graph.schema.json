@@ -58,7 +58,7 @@
     },
     "GraphReference": {
       "additionalProperties": true,
-      "description": "One exact edge inside a closure (`docs/contracts/setup-graph.md`).\n\nAll three fields are required together. A digest without a version cannot be\nlooked up and a version without a digest cannot be verified, so either alone\nwould be half a statement the resolver could still act on.",
+      "description": "One exact edge inside a closure.\n\nAll three fields are required together. A digest without a version cannot be\nlooked up and a version without a digest cannot be verified, so either alone\nwould be half a statement the resolver could still act on.",
       "properties": {
         "passport_digest": {
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -139,7 +139,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-setup-graph",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The exact dependency closure of a composition (`SPEC-006` REQ-605).\n\n`nodes` is empty whenever `resolved` is false, and that is deliberate:\n`REQ-608` says an unresolved closure blocks, and returning the part that did\nresolve would read as \"almost composed\". A composition missing a dependency\nis not composed at all.",
+  "description": "The exact dependency closure of a composition.\n\nUnresolved closures have no nodes; a partial graph is not an installable composition.",
   "properties": {
     "max_depth": {
       "minimum": 1,

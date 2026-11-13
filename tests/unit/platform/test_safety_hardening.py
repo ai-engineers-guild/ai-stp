@@ -218,7 +218,7 @@ def test_osv_fresh_stamp(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     monkeypatch.setenv("AI_STP_OSV_OFFLINE_DIR", str(tmp_path))
     monkeypatch.setenv("AI_STP_OSV_MAX_AGE_HOURS", "36")
     monkeypatch.setenv("AI_STP_OSV_REQUIRE_FRESH", "1")
-    pack = tmp_path / "osv-scanner" / "PyPI"
+    pack = tmp_path / "osv-scalibr" / "PyPI"
     pack.mkdir(parents=True)
     (pack / "all.zip").write_bytes(b"data")
     stamp = tmp_path / ".ai_stp_osv_refreshed_at"
@@ -244,7 +244,7 @@ def test_osv_invalid_max_age_and_stale_or_empty_stamp_fail_closed(
     assert empty["reason"] == "no_files"
     assert empty["fresh"] is False
 
-    pack = tmp_path / "osv-scanner" / "Go"
+    pack = tmp_path / "osv-scalibr" / "Go"
     pack.mkdir(parents=True)
     (pack / "all.zip").write_bytes(b"zip")
     stale_time = time.time() - (48 * 3600)

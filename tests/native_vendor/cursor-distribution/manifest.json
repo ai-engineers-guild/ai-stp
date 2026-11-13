@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "vendor": "cursor",
+  "version": "2026.11.11-b912975",
+  "packages": {
+    "Linux": {
+      "url": "https://downloads.cursor.com/lab/2026.11.11-b912975/linux/x64/agent-cli-package.tar.gz",
+      "sha256": "be01f42ad334f81d05a9992fcf060a52cc746f52cc451e849eb652146a6e3c91",
+      "size": 176703341
+    },
+    "Darwin": {
+      "url": "https://downloads.cursor.com/lab/2026.11.11-b912975/darwin/arm64/agent-cli-package.tar.gz",
+      "sha256": "2c60b58fb7d9a54c7cb9460f0cbb10d451d4af025d4451f252e5f1d956f8c66f",
+      "size": 175088185
+    },
+    "Windows": {
+      "url": "https://downloads.cursor.com/lab/2026.11.11-b912975/windows/x64/agent-cli-package.zip",
+      "sha256": "0ea5e57da6af09f4717397c22d1c31c3bc18e40a1453b89f643069b86d28ba59",
+      "size": 80000441
+    }
+  }
+}

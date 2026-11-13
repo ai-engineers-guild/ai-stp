@@ -11,7 +11,7 @@
   "$id": "urn:ai-stp:schema:v1:owner-lifecycle-request",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "POST a lifecycle transition on an exact owned version (`SPEC-007`).\n\n`deprecated` was declared in the state vocabulary, listed in three models\nand offered by a CLI hint, and written by nothing: the staff route accepts\nonly `block`, `hide` and `restore`, and every owner version route was a\nread. Two successive plans carried \"deprecate the old corpus\" as pending\nwork against a verb that did not exist.\n\nThe author holds this one because deprecation is a statement about the\nobject's own future rather than about its acceptability, and because the\nevidence that motivates it — `SPEC-044` archive observation — already\nreaches the author as a proposal.",
+  "description": "Lifecycle transition on an exact owned version.\n\nOwners deprecate or undo deprecation of their versions. Staff moderation\nuses separate actions with an explicit reason and audit event.",
   "properties": {
     "action": {
       "$ref": "#/$defs/OwnerLifecycleAction"

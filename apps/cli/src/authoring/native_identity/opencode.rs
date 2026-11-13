@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use super::invalid;
 use crate::{authoring::frontmatter, error::Result};
 
-fn local_path<'a>(kind: &str, path: &'a str) -> Result<&'a str> {
+pub(super) fn local_path<'a>(kind: &str, path: &'a str) -> Result<&'a str> {
     let path = path
         .strip_prefix(".opencode/")
         .or_else(|| path.strip_prefix(".agents/"))

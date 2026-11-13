@@ -1,4 +1,4 @@
-"""Machine output envelope (docs/contracts/cli-json.md).
+"""Machine output envelope.
 
 Machine mode prints exactly one JSON object. A warning never flips ``ok``;
 a partial mutating operation returns an error envelope with an operation ID

@@ -1,4 +1,4 @@
-"""Passport envelope and facts (docs/contracts/passport-envelope.md).
+"""Passport envelope and facts.
 
 Owns the five passport kinds, the fact model with its two independent axes
 and the content-addressed revision sealing of mutable passports. Persisted

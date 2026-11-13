@@ -1,4 +1,4 @@
-"""Shared source contracts and GitHub/package/local resolvers (SPEC-057, ADR-0139)."""
+"""Shared source contracts and GitHub/package/local resolvers."""
 
 from ai_stp_sources.catalog_match import (
     CatalogMatchInput,

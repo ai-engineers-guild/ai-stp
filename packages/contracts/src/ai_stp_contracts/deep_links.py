@@ -1,4 +1,4 @@
-"""Canonical CLI/web deep links (SPEC-030, ADR-0064).
+"""Canonical CLI/web deep links.
 
 The link is a pure projection of typed identity.  It deliberately performs no
 catalogue lookup: checking existence here would make an offline orientation

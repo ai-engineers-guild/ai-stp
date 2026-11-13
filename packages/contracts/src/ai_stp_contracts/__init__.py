@@ -4,7 +4,7 @@ This package is the single owner of the machine boundary between the two
 Sprint-1 tracks: neither may invent a field, route or error semantic outside
 it. The models here are the generator of ``schemas/v1`` and of the OpenAPI
 document, so the FastAPI application must satisfy them rather than produce
-them (docs/engineering/schema-evolution.md, SPEC-015 REQ-1508).
+them.
 
 The names below load on first use, not with the package. Every
 ``ai_stp_contracts.<module>`` import runs this file first, and importing the

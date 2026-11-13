@@ -21,7 +21,11 @@ test "$(shasum -a 256 "${installer}" | cut -d ' ' -f 1)" = "${expected}"
 fixture=$(mktemp -d "${RUNNER_TEMP}/ai-stp-installed-macos.XXXXXX")
 cleanup() {
   if test -f "${fixture}/mounted"; then hdiutil detach "${fixture}/mount" >/dev/null; fi
-  rm -rf "${fixture}"
+  if test -f "${fixture}/personal-journey.json"; then
+    rm -rf "${fixture}"
+  else
+    echo "Retained refused native fixture until disposable runner teardown" >&2
+  fi
 }
 trap cleanup EXIT
 mkdir -m 700 "${fixture}/mount" "${fixture}/data" "${fixture}/config" "${fixture}/cache"
@@ -37,11 +41,14 @@ test -x "${app}" && test -x "${cli}"
 export XDG_DATA_HOME="${fixture}/data"
 export XDG_CONFIG_HOME="${fixture}/config"
 export XDG_CACHE_HOME="${fixture}/cache"
-version=$(swift .github/scripts/qualify-installed-macos-desktop.swift "${app}" "${cli}")
-[[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-jq -n --arg source "${source}" --arg installer "${expected}" --arg version "${version}" \
+swift .github/scripts/qualify-installed-macos-desktop.swift "${app}" "${cli}" apps/desktop/src/locales "${fixture}/personal-journey.json"
+journey=$(cat "${fixture}/personal-journey.json")
+jq -e '.cli_version | test("^[0-9]+[.][0-9]+[.][0-9]+$")' <<<"${journey}" >/dev/null
+jq -n --arg source "${source}" --arg installer "${expected}" --argjson journey "${journey}" \
   --arg app "$(shasum -a 256 "${app}" | cut -d ' ' -f 1)" \
   --arg cli "$(shasum -a 256 "${cli}" | cut -d ' ' -f 1)" \
-  '{schema_version:1,source_sha:$source,installer_sha256:$installer,app_sha256:$app,
-    cli_sha256:$cli,cli_version:$version,installed_personal_workspace_restart:true,
+  '{schema_version:2,source_sha:$source,installer_sha256:$installer,app_sha256:$app,
+    cli_sha256:$cli,cli_version:$journey.cli_version,installed_personal_workspace_restart:true,
+    personal_controls:$journey.personal_controls,theme_locale_observations:$journey.theme_locale_observations,
+    normal_window_controls:$journey.normal_window_controls,
     corporate_acceptance:false,release_authorized:false}' > "${output}"

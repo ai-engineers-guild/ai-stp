@@ -1,18 +1,9 @@
-"""Account and device payloads (issue #71, SPEC-002, docs/contracts/device-passport.md).
+"""Account and device wire payloads.
 
-The device summary here is the **only** representation of a device's environment
-that leaves the machine. `device-passport.md` closes its composition to five
-facts, and the passport itself — which additionally holds observed environment
-facts and detector source paths — is never an API payload (SPEC-010 REQ-1013).
-That is why this module declares a summary type of its own instead of reusing or
-narrowing the passport: a narrowed passport would still carry the passport's
-shape, and the next added passport field would silently join the wire.
-
-The account read is deliberately thin for Sprint 1: an identifier, when it was
-created, and which providers are linked. No email address appears, on either the
-account or an identity — knowing an address is not an authorization (SPEC-002
-security section) and an address the caller already knows is not worth putting
-on a route that exists to answer "who am I".
+Device summaries expose a closed set of environment facts. Local detector
+paths and full device passports stay outside API payloads. Account and
+provider identities omit email addresses; matching an address alone does not
+grant authority.
 """
 
 from typing import Annotated, Literal
@@ -36,7 +27,7 @@ from ai_stp_foundation.identity import HANDLE_PATTERN, normalize_handle, submitt
 
 #: A device is either accepted for cloud work or it is not. Revocation is
 #: forward-acting: it stops future sync and attestation and leaves local reads
-#: and already-received bytes alone (SPEC-002 REQ-205).
+#: and already-received bytes alone.
 type DeviceState = Literal["active", "revoked"]
 
 
@@ -44,7 +35,7 @@ class DetectedHarness(ContractModel):
     """One harness observed on the device, with the version that was observed.
 
     Only the supported harnesses are itemised. An unknown harness stays a
-    local observation and never leaves the machine (SPEC-011 REQ-1109): it
+    local observation and never leaves the machine: it
     creates no managed object, so listing it here would put an environment fact
     on the wire for something the platform cannot act on.
     """
@@ -150,7 +141,7 @@ class DeviceRevokeResponse(ContractModel):
 
     Revocation is forward-acting and reported as such: the record survives, the
     summary is marked revoked rather than deleted, and the device keeps its
-    local data (SPEC-002 REQ-205, REQ-215).
+    local data.
     """
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
@@ -165,7 +156,7 @@ class LinkedIdentity(ContractModel):
 
     No address: an identity is named by its provider and when it was linked. The
     address belongs to the provider and adding it here would put personal data
-    on a route that does not need it (SPEC-013). Optional avatar_url is a
+    on a route that does not need it. Optional avatar_url is a
     provider-hosted HTTPS image URL, not an email or long-lived token.
     """
 
@@ -182,7 +173,7 @@ class LinkedIdentity(ContractModel):
 class AccountProfile(ContractModel):
     """The current account, as the caller who holds it sees it.
 
-    Separate from `PublicProfile` (ADR-0023, ADR-0010), which is an authored
+    Separate from `PublicProfile`, which is an authored
     public object and is not derived from this one.
     """
 

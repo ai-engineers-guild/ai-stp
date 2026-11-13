@@ -23,7 +23,7 @@
   "$id": "urn:ai-stp:schema:v1:auth-oauth-callback-result",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "The outcome of the browser half, as the web surface reads it.\n\n`conflict` is a first-class outcome rather than an error: SPEC-002 REQ-202\nforbids silently merging two populated accounts, so the user has to be told\nand asked rather than have a merge happen behind them.",
+  "description": "The outcome of the browser half, as the web surface reads it.\n\n`conflict` is an explicit outcome for two populated accounts. Sign-in\nnever merges them implicitly.",
   "properties": {
     "account_id": {
       "anyOf": [

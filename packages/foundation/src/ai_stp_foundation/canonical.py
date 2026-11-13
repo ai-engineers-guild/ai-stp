@@ -1,4 +1,4 @@
-"""Canonical JSON bytes (SPEC-015 REQ-1503/REQ-1504).
+"""Canonical JSON bytes.
 
 Structured contracts serialize as UTF-8 JSON per RFC 8785 after NFC
 normalization of every string. Byte-order marks inside strings, non-finite
@@ -6,7 +6,7 @@ numbers and key collisions introduced by normalization are rejected before
 hashing; nothing is silently repaired.
 
 Untrusted incoming bytes enter through :func:`from_json_bytes`, which applies
-the byte-level REQ-1504 rejections — BOM prefix, invalid UTF-8, duplicate
+byte-level rejections — BOM prefix, invalid UTF-8, duplicate
 object keys before any normalization, non-finite literals — so full input
 validation is ``canonize(from_json_bytes(data))``.
 """
@@ -86,7 +86,7 @@ def _rejecting_constant(name: str) -> JsonValue:
 
 
 def from_json_bytes(data: bytes) -> JsonValue:
-    """Parse untrusted JSON bytes with the byte-level REQ-1504 rejections.
+    """Parse untrusted JSON bytes with byte-level rejections.
 
     A UTF-8 BOM prefix, invalid UTF-8, duplicate object keys before any
     normalization and the non-standard ``NaN``/``Infinity`` literals fail

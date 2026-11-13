@@ -23,6 +23,7 @@ jobs:
   verify:
     permissions:
       contents: read
+      actions: read
       security-events: write
     uses: ./.github/workflows/source.yml
     with:

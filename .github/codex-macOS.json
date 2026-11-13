@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "tool": "codex",
+  "version": "0.167.1",
+  "source": "https://github.com/openai/codex/releases/download/rust-v0.167.1/codex-aarch64-apple-darwin.tar.gz",
+  "assets": [
+    {
+      "repository": "openai/codex",
+      "asset": 733016220,
+      "size": 108643084,
+      "sha256": "4c97fbdafba21e172254107939489691195f34712cf0cb31293e5e21be8f5bfa",
+      "file": "codex.tar.gz"
+    }
+  ]
+}

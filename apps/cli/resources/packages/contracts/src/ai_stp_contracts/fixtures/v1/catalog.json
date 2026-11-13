@@ -129,7 +129,7 @@
       "case_id": "searchComponents.experimentalOnConsent",
       "operation_id": "searchComponents",
       "kind": "positive",
-      "why": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
+      "why": "With consent experimental candidates have their own section, separate from items. Both sections are empty in this fixture.",
       "request": {
         "query": {
           "q": "pytest",
@@ -447,7 +447,7 @@
       "case_id": "readComponentVersion.published",
       "operation_id": "readComponentVersion",
       "kind": "positive",
-      "why": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
+      "why": "The passport is the description of the version; its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
       "request": {
         "path_params": {
           "stable_id": "component_01JQZK7B8N4M6P2R9T5V0X3Y7Z",

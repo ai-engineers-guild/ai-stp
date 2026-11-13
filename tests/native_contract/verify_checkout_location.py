@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import platform
 import sqlite3
 from collections.abc import Awaitable, Callable
 from contextlib import closing
@@ -239,7 +240,14 @@ async def qualify(
         "3221fe08dc70630987c81997ede5af6454c988d2"
     )
     previous_digest = sha256(previous.read_bytes()).hexdigest()
-    assert previous_digest == "5c19e71a6c21bac22decc19e717628d2564572465609914d30cede49625c103a"
+    assert (
+        previous_digest
+        == {
+            "Linux": "5c19e71a6c21bac22decc19e717628d2564572465609914d30cede49625c103a",
+            "Darwin": "fe8a84c2fc384aef1b6d8125a74f837c41e38257a70dcf7720d4e61227713ca3",
+            "Windows": "135ac94b080da60570d73bc52e78a77453b0472efeca90e03050068730874261",
+        }[platform.system()]
+    )
     positive = await native(
         previous,
         home,

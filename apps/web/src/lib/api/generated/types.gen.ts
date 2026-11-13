@@ -111,7 +111,7 @@ export type AccountPrivacyUpdate = {
  *
  * The current account, as the caller who holds it sees it.
  *
- * Separate from `PublicProfile` (ADR-0023, ADR-0010), which is an authored
+ * Separate from `PublicProfile`, which is an authored
  * public object and is not derived from this one.
  */
 export type AccountProfile = {
@@ -493,7 +493,7 @@ export type AuthProvidersResponse = {
 /**
  * AuthorAttestation
  *
- * Full closed author attestation on the /v1 wire (ADR-0092).
+ * Full closed author attestation on the /v1 wire.
  */
 export type AuthorAttestation = {
   /**
@@ -825,7 +825,7 @@ export type CatalogSupport = {
 /**
  * CatalogSupportEvidence
  *
- * Safe public summary of one provider support check (SPEC-033, ADR-0072).
+ * Safe public summary of one provider support check.
  */
 export type CatalogSupportEvidence = {
   architecture: SupportArchitecture;
@@ -868,12 +868,9 @@ export type CatalogSupportEvidence = {
 /**
  * CatalogTrust
  *
- * Why a published version may appear in results, and on whose evidence.
+ * The independent author and component verification observations.
  *
- * The two verification flags are independent axes (ADR-0016) and neither may
- * be computed from the other. `authoritative` additionally requires both, and
- * that implication is enforced below — enforcing it is not the same as
- * deriving one axis from the other, and a client must still read the flags.
+ * authoritative requires both flags; neither flag is derived from the other.
  */
 export type CatalogTrust = {
   /**
@@ -1169,7 +1166,7 @@ export type ComponentArtifactQuery = {
 /**
  * ComponentContextBudget
  *
- * Context estimate of one visible exact component (SPEC-049).
+ * Context estimate of one visible exact component.
  */
 export type ComponentContextBudget = {
   /**
@@ -1270,7 +1267,7 @@ export type ComponentListResponse = {
 /**
  * ComponentMediaItem
  *
- * Safe public component media projection (SPEC-035).
+ * Safe public component media projection.
  */
 export type ComponentMediaItem = {
   /**
@@ -1450,14 +1447,10 @@ export type ComponentSearchRequest = {
 /**
  * ComponentSummary
  *
- * Search-result card for a component.
+ * A component object with facts from its latest offered version.
  *
- * Naming is mechanical rather than a judgement call: a field without a prefix
- * identifies the **object**, and every `latest_` field is a fact of its latest
- * offered **version**, copied from that version's passport. There is no
- * object-level passport (ADR-0012), so a card cannot carry an object-level
- * `name` or `tags` however stable they look in practice — and a test ties
- * every `latest_` field back to a real passport field so the rule cannot rot.
+ * Unprefixed fields identify the object; latest_ fields come from that version's
+ * passport. Objects have no separate passport, name or tags.
  */
 export type ComponentSummary = {
   /**
@@ -1675,11 +1668,9 @@ export type ComponentVersionPassport = {
 /**
  * ComponentVersionResponse
  *
- * Exact read of one immutable component version.
+ * An exact immutable component version and its passport digest.
  *
- * The passport is the description of the version (ADR-0012): there is no
- * separate manifest entity. `passport_digest` is served alongside it so the
- * client can verify the bytes it cached independently of the transport.
+ * The passport is the version description; the digest permits independent byte verification.
  */
 export type ComponentVersionResponse = {
   checks: SafetyChecksSummary | null;
@@ -2058,7 +2049,7 @@ export type ContinuationActor = (typeof ContinuationActor)[keyof typeof Continua
 /**
  * CorporateAssignmentPlan
  *
- * The deterministic install/update plan for one context (ADR-0197).
+ * The deterministic install/update plan for one context.
  *
  * Items are sorted by object kind and stable identity; the response carries
  * no wall-clock field so identical policy and materialized inputs produce an
@@ -2171,7 +2162,7 @@ export type CorporateAssignmentPlanItem = {
 /**
  * CorporateAssignmentPlanRequest
  *
- * Evaluate the deterministic install/update plan for one context (ADR-0197).
+ * Evaluate the deterministic install/update plan for one context.
  *
  * The request names the authenticated employee context, the optional project
  * and technology coordinates, the target harness, and the exact coordinates
@@ -4634,7 +4625,7 @@ export type CorporateMemberList = {
 /**
  * CorporateMemberPrivateGrant
  *
- * Read-only projection of a private major-line AccessGrant (SPEC-002) for
+ * Read-only projection of a private major-line AccessGrant for
  * the employee-access view — never a source of corporate permissions.
  */
 export type CorporateMemberPrivateGrant = {
@@ -4807,7 +4798,7 @@ export type CorporateMembershipAssignmentRequest = {
  * CorporateMembershipPolicy
  *
  * Email-domain allowlist for joining the organization, plus the people
- * visibility policy (ADR-0230).
+ * visibility policy.
  */
 export type CorporateMembershipPolicy = {
   /**
@@ -7089,7 +7080,7 @@ export type DescriptionExcerpt = string;
  * One harness observed on the device, with the version that was observed.
  *
  * Only the supported harnesses are itemised. An unknown harness stays a
- * local observation and never leaves the machine (SPEC-011 REQ-1109): it
+ * local observation and never leaves the machine: it
  * creates no managed object, so listing it here would put an environment fact
  * on the wire for something the platform cannot act on.
  */
@@ -7361,7 +7352,7 @@ export type DeviceRevokeRequest = {
  *
  * Revocation is forward-acting and reported as such: the record survives, the
  * summary is marked revoked rather than deleted, and the device keeps its
- * local data (SPEC-002 REQ-205, REQ-215).
+ * local data.
  */
 export type DeviceRevokeResponse = {
   device: DeviceRecord;
@@ -8381,7 +8372,7 @@ export type GitHubInstallation = {
 /**
  * GitHubMetadata
  *
- * Best-effort on-demand stars and archive state (SPEC-049).
+ * Best-effort on-demand stars and archive state.
  */
 export type GitHubMetadata = {
   /**
@@ -9941,7 +9932,7 @@ export type LikedCatalogItem = {
  *
  * No address: an identity is named by its provider and when it was linked. The
  * address belongs to the provider and adding it here would put personal data
- * on a route that does not need it (SPEC-013). Optional avatar_url is a
+ * on a route that does not need it. Optional avatar_url is a
  * provider-hosted HTTPS image URL, not an email or long-lived token.
  */
 export type LinkedIdentity = {
@@ -9996,9 +9987,8 @@ export type NonEmptyArtifactRef = {
  *
  * The outcome of the browser half, as the web surface reads it.
  *
- * `conflict` is a first-class outcome rather than an error: SPEC-002 REQ-202
- * forbids silently merging two populated accounts, so the user has to be told
- * and asked rather than have a merge happen behind them.
+ * `conflict` is an explicit outcome for two populated accounts. Sign-in
+ * never merges them implicitly.
  */
 export type OAuthCallbackResult = {
   account_id: AccountId | null;
@@ -10111,18 +10101,10 @@ export type OwnerLifecycleAction = (typeof OwnerLifecycleAction)[keyof typeof Ow
 /**
  * OwnerLifecycleRequest
  *
- * POST a lifecycle transition on an exact owned version (`SPEC-007`).
+ * Lifecycle transition on an exact owned version.
  *
- * `deprecated` was declared in the state vocabulary, listed in three models
- * and offered by a CLI hint, and written by nothing: the staff route accepts
- * only `block`, `hide` and `restore`, and every owner version route was a
- * read. Two successive plans carried "deprecate the old corpus" as pending
- * work against a verb that did not exist.
- *
- * The author holds this one because deprecation is a statement about the
- * object's own future rather than about its acceptability, and because the
- * evidence that motivates it — `SPEC-044` archive observation — already
- * reaches the author as a proposal.
+ * Owners deprecate or undo deprecation of their versions. Staff moderation
+ * uses separate actions with an explicit reason and audit event.
  */
 export type OwnerLifecycleRequest = {
   action: OwnerLifecycleAction;
@@ -10739,7 +10721,7 @@ export type OwnershipRevisionView = {
 /**
  * PageInfo
  *
- * Cursor pagination state (docs/contracts/http-api.md).
+ * Cursor pagination state.
  *
  * No total is exposed. Reporting one would let a caller detect objects it is
  * not allowed to read, so a hidden or deleted object leaks through neither a
@@ -13327,7 +13309,7 @@ export type ScopeAdaptation = unknown & {
   /**
    * Projection Format
    */
-  projection_format: "ai-stp-adaptation-projection/1";
+  projection_format: "ai-stp-adaptation-projection/1" | "ai-stp-adaptation-projection/2";
   projection_kind: ProjectionKind;
   provider_component_kind: ComponentType;
   required_surface: ProviderSurfaceRef;
@@ -13899,7 +13881,7 @@ export type SetupCompositionMember = {
 /**
  * SetupContextBudget
  *
- * Absolute context estimate of one visible exact setup (SPEC-049).
+ * Absolute context estimate of one visible exact setup.
  */
 export type SetupContextBudget = {
   /**
@@ -14308,11 +14290,9 @@ export type SetupSearchRequest = {
 /**
  * SetupSummary
  *
- * Search-result card for a setup. A setup has no variant axis (ADR-0014).
+ * A setup object with facts from its latest offered version.
  *
- * `latest_harness_id` keeps the prefix even though a setup belongs to one
- * harness from creation: the value is still read out of the version passport,
- * and one rule with no exceptions is cheaper to verify than a rule with one.
+ * Setups have no variant axis. latest_harness_id comes from the version passport.
  */
 export type SetupSummary = {
   family_id: FamilyId | null;
@@ -14991,7 +14971,7 @@ export type SyncEntityKind = (typeof SyncEntityKind)[keyof typeof SyncEntityKind
  * One push event: a candidate revision and its idempotency key.
  *
  * ``device_id`` must match the session-bound active device; the server never
- * trusts a different device claim (REQ-2508). ``payload`` is the allowlisted
+ * trusts a different device claim. ``payload`` is the allowlisted
  * revision document body; tombstone may send an empty object.
  */
 export type SyncEvent = {
@@ -15025,7 +15005,7 @@ export type SyncEvent = {
 /**
  * SyncEventReceipt
  *
- * Durable outcome of one event (SPEC-009 receipt states).
+ * Durable outcome of one event.
  */
 export type SyncEventReceipt = {
   conflict: SyncConflictInfo | null;

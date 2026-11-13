@@ -192,7 +192,7 @@
       },
       "AccountProfile": {
         "additionalProperties": true,
-        "description": "The current account, as the caller who holds it sees it.\n\nSeparate from `PublicProfile` (ADR-0023, ADR-0010), which is an authored\npublic object and is not derived from this one.",
+        "description": "The current account, as the caller who holds it sees it.\n\nSeparate from `PublicProfile`, which is an authored\npublic object and is not derived from this one.",
         "properties": {
           "account_id": {
             "$ref": "#/components/schemas/AccountId"
@@ -978,7 +978,7 @@
       },
       "AuthorAttestation": {
         "additionalProperties": false,
-        "description": "Full closed author attestation on the /v1 wire (ADR-0092).",
+        "description": "Full closed author attestation on the /v1 wire.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -1665,7 +1665,7 @@
       },
       "CatalogSupportEvidence": {
         "additionalProperties": true,
-        "description": "Safe public summary of one provider support check (SPEC-033, ADR-0072).",
+        "description": "Safe public summary of one provider support check.",
         "properties": {
           "architecture": {
             "$ref": "#/components/schemas/SupportArchitecture"
@@ -1754,7 +1754,7 @@
       },
       "CatalogTrust": {
         "additionalProperties": true,
-        "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+        "description": "The independent author and component verification observations.\n\nauthoritative requires both flags; neither flag is derived from the other.",
         "properties": {
           "author_verified": {
             "title": "Author Verified",
@@ -2230,6 +2230,31 @@
                 "transform"
               ]
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "scope_adaptations": {
+                  "contains": {
+                    "properties": {
+                      "projection_format": {
+                        "const": "ai-stp-adaptation-projection/2"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "harness_id": {
+                  "const": "opencode"
+                },
+                "logical_component_type": {
+                  "const": "skill"
+                }
+              }
+            }
           }
         ],
         "description": "One immutable harness-native implementation of a logical component.",
@@ -2313,7 +2338,7 @@
       },
       "ComponentContextBudget": {
         "additionalProperties": true,
-        "description": "Context estimate of one visible exact component (SPEC-049).",
+        "description": "Context estimate of one visible exact component.",
         "properties": {
           "component_type": {
             "title": "Component Type",
@@ -2538,7 +2563,7 @@
       },
       "ComponentMediaItem": {
         "additionalProperties": true,
-        "description": "Safe public component media projection (SPEC-035).",
+        "description": "Safe public component media projection.",
         "properties": {
           "alt": {
             "maxLength": 240,
@@ -2987,7 +3012,7 @@
       },
       "ComponentSummary": {
         "additionalProperties": true,
-        "description": "Search-result card for a component.\n\nNaming is mechanical rather than a judgement call: a field without a prefix\nidentifies the **object**, and every `latest_` field is a fact of its latest\noffered **version**, copied from that version's passport. There is no\nobject-level passport (ADR-0012), so a card cannot carry an object-level\n`name` or `tags` however stable they look in practice — and a test ties\nevery `latest_` field back to a real passport field so the rule cannot rot.",
+        "description": "A component object with facts from its latest offered version.\n\nUnprefixed fields identify the object; latest_ fields come from that version's\npassport. Objects have no separate passport, name or tags.",
         "properties": {
           "canonical_name": {
             "default": "",
@@ -3485,7 +3510,7 @@
       },
       "ComponentVersionResponse": {
         "additionalProperties": true,
-        "description": "Exact read of one immutable component version.\n\nThe passport is the description of the version (ADR-0012): there is no\nseparate manifest entity. `passport_digest` is served alongside it so the\nclient can verify the bytes it cached independently of the transport.",
+        "description": "An exact immutable component version and its passport digest.\n\nThe passport is the version description; the digest permits independent byte verification.",
         "properties": {
           "checks": {
             "anyOf": [
@@ -4290,7 +4315,7 @@
       },
       "CorporateAssignmentPlan": {
         "additionalProperties": true,
-        "description": "The deterministic install/update plan for one context (ADR-0197).\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
+        "description": "The deterministic install/update plan for one context.\n\nItems are sorted by object kind and stable identity; the response carries\nno wall-clock field so identical policy and materialized inputs produce an\nidentical plan.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -4583,7 +4608,7 @@
       },
       "CorporateAssignmentPlanRequest": {
         "additionalProperties": false,
-        "description": "Evaluate the deterministic install/update plan for one context (ADR-0197).\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
+        "description": "Evaluate the deterministic install/update plan for one context.\n\nThe request names the authenticated employee context, the optional project\nand technology coordinates, the target harness, and the exact coordinates\nthe caller reports as materialized. It never mutates assignments,\ndistribution rows, or provider-owned state.",
         "properties": {
           "account_id": {
             "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",
@@ -9522,7 +9547,7 @@
       },
       "CorporateMemberPrivateGrant": {
         "additionalProperties": true,
-        "description": "Read-only projection of a private major-line AccessGrant (SPEC-002) for\nthe employee-access view — never a source of corporate permissions.",
+        "description": "Read-only projection of a private major-line AccessGrant for\nthe employee-access view — never a source of corporate permissions.",
         "properties": {
           "grant_id": {
             "title": "Grant Id",
@@ -9851,7 +9876,7 @@
       },
       "CorporateMembershipPolicy": {
         "additionalProperties": true,
-        "description": "Email-domain allowlist for joining the organization, plus the people\nvisibility policy (ADR-0230).",
+        "description": "Email-domain allowlist for joining the organization, plus the people\nvisibility policy.",
         "properties": {
           "allowed_email_domains": {
             "default": [],
@@ -14320,7 +14345,7 @@
       },
       "DetectedHarness": {
         "additionalProperties": true,
-        "description": "One harness observed on the device, with the version that was observed.\n\nOnly the supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine (SPEC-011 REQ-1109): it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
+        "description": "One harness observed on the device, with the version that was observed.\n\nOnly the supported harnesses are itemised. An unknown harness stays a\nlocal observation and never leaves the machine: it\ncreates no managed object, so listing it here would put an environment fact\non the wire for something the platform cannot act on.",
         "properties": {
           "harness_id": {
             "$ref": "#/components/schemas/HarnessId"
@@ -14771,7 +14796,7 @@
       },
       "DeviceRevokeResponse": {
         "additionalProperties": true,
-        "description": "The device after revocation.\n\nRevocation is forward-acting and reported as such: the record survives, the\nsummary is marked revoked rather than deleted, and the device keeps its\nlocal data (SPEC-002 REQ-205, REQ-215).",
+        "description": "The device after revocation.\n\nRevocation is forward-acting and reported as such: the record survives, the\nsummary is marked revoked rather than deleted, and the device keeps its\nlocal data.",
         "properties": {
           "device": {
             "$ref": "#/components/schemas/DeviceRecord"
@@ -16848,7 +16873,7 @@
       },
       "GitHubMetadata": {
         "additionalProperties": true,
-        "description": "Best-effort on-demand stars and archive state (SPEC-049).",
+        "description": "Best-effort on-demand stars and archive state.",
         "properties": {
           "archived": {
             "anyOf": [
@@ -19947,7 +19972,7 @@
       },
       "LinkedIdentity": {
         "additionalProperties": true,
-        "description": "One provider linked to the account.\n\nNo address: an identity is named by its provider and when it was linked. The\naddress belongs to the provider and adding it here would put personal data\non a route that does not need it (SPEC-013). Optional avatar_url is a\nprovider-hosted HTTPS image URL, not an email or long-lived token.",
+        "description": "One provider linked to the account.\n\nNo address: an identity is named by its provider and when it was linked. The\naddress belongs to the provider and adding it here would put personal data\non a route that does not need it. Optional avatar_url is a\nprovider-hosted HTTPS image URL, not an email or long-lived token.",
         "properties": {
           "avatar_url": {
             "anyOf": [
@@ -20038,7 +20063,7 @@
       },
       "OAuthCallbackResult": {
         "additionalProperties": true,
-        "description": "The outcome of the browser half, as the web surface reads it.\n\n`conflict` is a first-class outcome rather than an error: SPEC-002 REQ-202\nforbids silently merging two populated accounts, so the user has to be told\nand asked rather than have a merge happen behind them.",
+        "description": "The outcome of the browser half, as the web surface reads it.\n\n`conflict` is an explicit outcome for two populated accounts. Sign-in\nnever merges them implicitly.",
         "properties": {
           "account_id": {
             "anyOf": [
@@ -20234,7 +20259,7 @@
       },
       "OwnerLifecycleRequest": {
         "additionalProperties": false,
-        "description": "POST a lifecycle transition on an exact owned version (`SPEC-007`).\n\n`deprecated` was declared in the state vocabulary, listed in three models\nand offered by a CLI hint, and written by nothing: the staff route accepts\nonly `block`, `hide` and `restore`, and every owner version route was a\nread. Two successive plans carried \"deprecate the old corpus\" as pending\nwork against a verb that did not exist.\n\nThe author holds this one because deprecation is a statement about the\nobject's own future rather than about its acceptability, and because the\nevidence that motivates it — `SPEC-044` archive observation — already\nreaches the author as a proposal.",
+        "description": "Lifecycle transition on an exact owned version.\n\nOwners deprecate or undo deprecation of their versions. Staff moderation\nuses separate actions with an explicit reason and audit event.",
         "properties": {
           "action": {
             "$ref": "#/components/schemas/OwnerLifecycleAction"
@@ -21412,7 +21437,7 @@
       },
       "PageInfo": {
         "additionalProperties": true,
-        "description": "Cursor pagination state (docs/contracts/http-api.md).\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
+        "description": "Cursor pagination state.\n\nNo total is exposed. Reporting one would let a caller detect objects it is\nnot allowed to read, so a hidden or deleted object leaks through neither a\ncount nor a cursor.",
         "properties": {
           "next_cursor": {
             "anyOf": [
@@ -26584,6 +26609,25 @@
                 }
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "projection_format": {
+                  "const": "ai-stp-adaptation-projection/2"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "projection_kind": {
+                  "const": "native_files"
+                },
+                "provider_component_kind": {
+                  "const": "skill"
+                }
+              }
+            }
           }
         ],
         "description": "All native facts for one adaptation at one projection scope.",
@@ -26604,7 +26648,10 @@
             "$ref": "#/components/schemas/NonEmptyArtifactRef"
           },
           "projection_format": {
-            "const": "ai-stp-adaptation-projection/1",
+            "enum": [
+              "ai-stp-adaptation-projection/1",
+              "ai-stp-adaptation-projection/2"
+            ],
             "title": "Projection Format",
             "type": "string"
           },
@@ -27692,7 +27739,7 @@
       },
       "SetupContextBudget": {
         "additionalProperties": true,
-        "description": "Absolute context estimate of one visible exact setup (SPEC-049).",
+        "description": "Absolute context estimate of one visible exact setup.",
         "properties": {
           "always_tokens": {
             "minimum": 0,
@@ -28682,7 +28729,7 @@
       },
       "SetupSummary": {
         "additionalProperties": true,
-        "description": "Search-result card for a setup. A setup has no variant axis (ADR-0014).\n\n`latest_harness_id` keeps the prefix even though a setup belongs to one\nharness from creation: the value is still read out of the version passport,\nand one rule with no exceptions is cheaper to verify than a rule with one.",
+        "description": "A setup object with facts from its latest offered version.\n\nSetups have no variant axis. latest_harness_id comes from the version passport.",
         "properties": {
           "family_id": {
             "anyOf": [
@@ -30104,7 +30151,7 @@
       },
       "SyncEvent": {
         "additionalProperties": false,
-        "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim (REQ-2508). ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
+        "description": "One push event: a candidate revision and its idempotency key.\n\n``device_id`` must match the session-bound active device; the server never\ntrusts a different device claim. ``payload`` is the allowlisted\nrevision document body; tombstone may send an empty object.",
         "properties": {
           "actor_id": {
             "$ref": "#/components/schemas/AccountId"
@@ -30186,7 +30233,7 @@
       },
       "SyncEventReceipt": {
         "additionalProperties": true,
-        "description": "Durable outcome of one event (SPEC-009 receipt states).",
+        "description": "Durable outcome of one event.",
         "properties": {
           "conflict": {
             "anyOf": [
@@ -35045,7 +35092,7 @@
     },
     "securitySchemes": {
       "bearerAuth": {
-        "description": "Short-lived token from the device-code exchange. Per-request Ed25519 signing is reserved for attestation (SPEC-002).",
+        "description": "Short-lived token from the device-code exchange. Per-request Ed25519 signing is reserved for attestation.",
         "scheme": "bearer",
         "type": "http"
       }
@@ -40093,7 +40140,7 @@
                     }
                   },
                   "searchComponents.experimentalOnConsent": {
-                    "summary": "With consent the experimental candidates arrive in their own section, never interleaved into items (SPEC-006 REQ-603). Sprint 1 has no validation pipeline, so nothing can honestly claim component_verified and the authoritative lane is legitimately empty.",
+                    "summary": "With consent experimental candidates have their own section, separate from items. Both sections are empty in this fixture.",
                     "value": {
                       "experimental": [],
                       "items": [],
@@ -40511,7 +40558,7 @@
               "application/json": {
                 "examples": {
                   "readComponentVersion.published": {
-                    "summary": "The passport is the description of the version (ADR-0012); its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
+                    "summary": "The passport is the description of the version; its digest is served alongside so the client can verify cached bytes independently of the transport. The revision id is a real content seal over this exact body.",
                     "value": {
                       "checks": null,
                       "distribution_visibility": null,

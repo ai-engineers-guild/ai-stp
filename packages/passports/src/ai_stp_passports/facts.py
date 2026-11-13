@@ -1,4 +1,4 @@
-"""Facts with two independent axes (ADR-0021, docs/contracts/passport-envelope.md).
+"""Facts with two independent axes.
 
 ``origin`` records where a value came from; ``confirmation`` records whether
 the user confirmed it. Confirmation never erases origin, and a materially

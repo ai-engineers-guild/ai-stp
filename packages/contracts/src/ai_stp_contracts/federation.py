@@ -1,4 +1,4 @@
-"""Authority-safe descriptors for federated external sources (SPEC-045, SPEC-050)."""
+"""Authority-safe descriptors for federated external sources."""
 
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -14,7 +14,7 @@ from ai_stp_contracts.store_ports import (
     StorePortDescriptor,
 )
 
-#: Closed catalog metadata adapters (SPEC-050). Production fetch/projection
+#: Closed catalog metadata adapters. Production fetch/projection
 #: stays off until attribution and terms policy is verified.
 CATALOG_METADATA_PROVIDERS: tuple[str, str, str] = (
     "skills_sh",
@@ -138,7 +138,7 @@ class CatalogExternalCoordinate(_Closed):
 
 
 class CatalogMetadataObservation(_Closed):
-    """Closed allowlist for one catalog metadata adapter observation (SPEC-050)."""
+    """Closed allowlist for one catalog metadata adapter observation."""
 
     schema_version: Literal[1] = 1
     provider: Literal["skills_sh", "nori", "modelcontextprotocol"]

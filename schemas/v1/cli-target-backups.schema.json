@@ -14,7 +14,7 @@
     },
     "TargetBackup": {
       "additionalProperties": true,
-      "description": "One provider-owned copy of a target, and what the target held when it was taken.\n\nA reference and never bytes. The provider owns the copy; recording it here\nwould give one recovery two owners, and only one of them can restore\n(`REQ-814`).",
+      "description": "One provider-owned copy of a target, and what the target held when it was taken.\n\nA reference and never bytes. The provider owns the copy; recording it here\nwould give one recovery two owners, and only one of them can restore.",
       "properties": {
         "backup_ref": {
           "minLength": 1,
@@ -108,7 +108,7 @@
   "$id": "urn:ai-stp:schema:v1:cli-target-backups",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "Every provider-owned copy this pair can restore from, oldest first.\n\nThe read half that `SPEC-012` assumed and no command answered: a `BackupRef`\nappeared once, in the answer to `install apply`, and an agent that did not\nkeep that stdout could not name the copy again. Restoring is still an\nordinary plan with an ordinary approval; this only says which copies exist.",
+  "description": "Provider-owned target copies, oldest first.\n\nThis read lists recovery references. Restoration requires its own exact reviewed plan.",
   "properties": {
     "backups": {
       "items": {

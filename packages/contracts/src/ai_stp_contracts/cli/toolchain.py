@@ -1,8 +1,7 @@
-"""Toolchain observations and retained harness lifecycle wire models.
+"""Toolchain observations and historical harness lifecycle wire models.
 
-ADR-0232 removes harness mutation commands. The legacy program models remain
-available to decode historical receipts without changing their stored schema.
-"""
+Vendor executables remain user/vendor managed. Retained program models decode
+historical receipts without changing their stored schema."""
 
 from typing import Annotated, Literal
 
@@ -35,7 +34,7 @@ class HarnessProgramArtifact(ContractModel):
 
 
 class HarnessProgram(ContractModel):
-    """The outcome of one program lifecycle operation (`ADR-0122`).
+    """The outcome of one program lifecycle operation.
 
     The subject is the harness program under `--prefix`, not the configuration
     in `--target`. `state` is what the provider reported after the effect, and
@@ -44,8 +43,7 @@ class HarnessProgram(ContractModel):
 
     `operation_id` names the journal entry, which is the same journal a setup
     installation uses: the state machine, the backup and the plan digest do not
-    change with the subject.
-    """
+    change with the subject."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -108,26 +106,10 @@ class HarnessProgramOperation(ContractModel):
 
 
 class HarnessProgramStatus(ContractModel):
-    """What stands under one prefix, read from the disk and from the journal.
+    """A historical program-prefix observation from its journal and filesystem.
 
-    The standing report the program lifecycle owes, and the only one
-    (`ADR-0122`). `toolchain harnesses` answers a different question — what is
-    visible on this machine — and the two vocabularies are kept disjoint so no
-    word carries two subjects.
-
-    Two independent sources, deliberately: the journal says what this
-    installation did, the filesystem says what is there now. Reporting only the
-    first would have called a verified operation a success on an empty prefix,
-    which is exactly what happened once — a provider unpacked into a sandbox's
-    own tmpfs, verified it where every check was true, and the files died with
-    the namespace. `lost` exists to make that one glance rather than an
-    investigation.
-
-    `version` comes from the journal and never from running the program.
-    Asking a binary its version would execute a foreign executable from a
-    command declared `read`, which is the same reason `doctor` only checks that
-    `gh` is present.
-    """
+    The journal records the original operation; filesystem absence is reported as
+    lost. version comes from the journal without executing the observed program."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -173,13 +155,10 @@ class HarnessProgramStatus(ContractModel):
 
 
 class ToolInstallation(ContractModel):
-    """The outcome of one managed install (`SPEC-014` REQ-1405, REQ-1410, REQ-1411).
+    """The outcome of a managed installation.
 
-    `action` is what happened, not what was attempted. `needs_user_action` means
-    something outside the managed directory would have to change, and the plan
-    says exactly what — `REQ-1410` forbids the agent obtaining a password to do
-    it instead.
-    """
+    needs_user_action reports the required change outside the managed directory;
+    it grants no password, privilege or installation authority."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -189,14 +168,14 @@ class ToolInstallation(ContractModel):
     action: Literal["installed", "already_installed", "needs_user_action", "removed"]
     reason: Annotated[str, Field(min_length=1)]
 
-    #: The exact path the tool is invoked by (`REQ-1404`). Never a bare name:
+    #: The exact path the tool is invoked by. Never a bare name:
     #: the surrounding `PATH` is not a source of truth for a managed toolchain.
     binary: str | None = None
 
-    #: Whether this could be carried out with no network (`REQ-1413`).
+    #: Whether this could be carried out with no network.
     offline_capable: bool = False
 
-    #: Every path created or removed (`REQ-1411`). An uninstall reads this list
+    #: Every path created or removed. An uninstall reads this list
     #: rather than deciding what looks like ours.
     paths: list[str] = []
 
@@ -222,7 +201,7 @@ class CliProgram(ContractModel):
 
 
 class PinnedTool(ContractModel):
-    """One tool the managed profile pins (`SPEC-014` REQ-1403)."""
+    """One tool the managed profile pins."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -256,15 +235,13 @@ class EcosystemCoverage(ContractModel):
     title: Annotated[str, Field(min_length=1)]
     state: Literal["available", "not_available"]
 
-    #: Present exactly when `state` is `not_available`. `REQ-1407` asks for the
-    #: reason: an agent reading a short list cannot otherwise tell "nothing
-    #: needed" from "nothing yet".
+    #: The reason state is not_available, distinguishing absence from an incomplete observation.
     reason: str | None = None
     tools: list[PinnedTool]
 
 
 class HarnessInstallation(ContractModel):
-    """One place a harness was found (`SPEC-014` REQ-1417)."""
+    """One place a harness was found."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -273,8 +250,7 @@ class HarnessInstallation(ContractModel):
     #: Absolute and verified, rendered with the home directory folded away.
     path: Annotated[str, Field(min_length=1)]
 
-    #: The exact version, or `unknown`. Never a guess: `REQ-1415` allows the
-    #: word and not an invented number.
+    #: The observed exact version, or unknown when no qualified observation exists.
     version: Annotated[str, Field(min_length=1)]
     reason: Annotated[str, Field(min_length=1)]
     surface: Literal["cli", "desktop"] = "cli"
@@ -285,7 +261,7 @@ class HarnessInstallation(ContractModel):
 
 
 class HarnessPresence(ContractModel):
-    """What is known about one harness on this machine (`REQ-1415`)."""
+    """What is known about one harness on this machine."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -305,12 +281,7 @@ class HarnessPresence(ContractModel):
 
 
 class HarnessSurvey(ContractModel):
-    """Every declared harness, whether or not it is here.
-
-    Total by construction. A harness absent from the answer would be
-    indistinguishable from one this build does not support, and `REQ-1414`
-    makes the supported set the point.
-    """
+    """Every supported harness, including those not observed on the machine."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 
@@ -421,12 +392,7 @@ class HarnessCapabilityTable(ContractModel):
 
 
 class ToolchainProfile(ContractModel):
-    """The managed toolchain as it resolves on this machine (`SPEC-014`).
-
-    Policy, not project: `REQ-1402` makes an empty project and a documentation
-    project resolve to the same profile, because what a developer needs
-    installed is not deducible from what they have written so far.
-    """
+    """The machine's managed toolchain policy, independent of project contents."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

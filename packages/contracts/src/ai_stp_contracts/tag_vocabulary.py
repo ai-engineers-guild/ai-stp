@@ -1,4 +1,4 @@
-"""Single versioned catalog tag vocabulary (ADR-0024, docs/contracts/tag-vocabulary.md).
+"""Single versioned catalog tag vocabulary.
 
 This module is the machine-readable source. The HTTP resource, CLI imports,
 seed corpus, search aliases, and the generated web facet list all read it.
@@ -119,7 +119,7 @@ class TagVocabularyItem(ContractModel):
 
 
 class TagVocabularyResponse(ContractModel):
-    """Versioned closed tag vocabulary (ADR-0024)."""
+    """Versioned closed tag vocabulary."""
 
     model_config = ConfigDict(extra="allow", frozen=True, json_schema_extra=open_wire_object)
 

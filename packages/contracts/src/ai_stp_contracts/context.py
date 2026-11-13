@@ -1,8 +1,7 @@
 """Product context, capability projection, and project-link contracts.
 
 The server owns authorization. These models only carry the bounded context and
-the explanation a consumer needs to render one shared product surface
-(SPEC-074..078, ADR-0175..0178).
+the explanation a consumer needs to render one shared product surface.
 """
 
 import json
@@ -290,7 +289,7 @@ class CapabilityProjection(ContractModel):
 
     @property
     def available(self) -> list[str]:
-        """Compatibility accessor for clients written before SPEC-076."""
+        """Compatibility accessor exposing capabilities as ``available``."""
         return self.capabilities
 
 

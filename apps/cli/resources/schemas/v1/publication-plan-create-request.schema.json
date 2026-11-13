@@ -2,7 +2,7 @@
   "$defs": {
     "AuthorAttestation": {
       "additionalProperties": false,
-      "description": "Full closed author attestation on the /v1 wire (ADR-0092).",
+      "description": "Full closed author attestation on the /v1 wire.",
       "properties": {
         "account_id": {
           "pattern": "^account_[0-7][0-9A-HJKMNP-TV-Z]{25}$",

@@ -60,7 +60,7 @@
     },
     "CatalogSupportEvidence": {
       "additionalProperties": true,
-      "description": "Safe public summary of one provider support check (SPEC-033, ADR-0072).",
+      "description": "Safe public summary of one provider support check.",
       "properties": {
         "architecture": {
           "$ref": "#/$defs/SupportArchitecture"
@@ -149,7 +149,7 @@
     },
     "CatalogTrust": {
       "additionalProperties": true,
-      "description": "Why a published version may appear in results, and on whose evidence.\n\nThe two verification flags are independent axes (ADR-0016) and neither may\nbe computed from the other. `authoritative` additionally requires both, and\nthat implication is enforced below — enforcing it is not the same as\nderiving one axis from the other, and a client must still read the flags.",
+      "description": "The independent author and component verification observations.\n\nauthoritative requires both flags; neither flag is derived from the other.",
       "properties": {
         "author_verified": {
           "title": "Author Verified",
@@ -235,7 +235,7 @@
     },
     "ComponentSummary": {
       "additionalProperties": true,
-      "description": "Search-result card for a component.\n\nNaming is mechanical rather than a judgement call: a field without a prefix\nidentifies the **object**, and every `latest_` field is a fact of its latest\noffered **version**, copied from that version's passport. There is no\nobject-level passport (ADR-0012), so a card cannot carry an object-level\n`name` or `tags` however stable they look in practice — and a test ties\nevery `latest_` field back to a real passport field so the rule cannot rot.",
+      "description": "A component object with facts from its latest offered version.\n\nUnprefixed fields identify the object; latest_ fields come from that version's\npassport. Objects have no separate passport, name or tags.",
       "properties": {
         "canonical_name": {
           "default": "",
@@ -751,7 +751,7 @@
     },
     "SetupSummary": {
       "additionalProperties": true,
-      "description": "Search-result card for a setup. A setup has no variant axis (ADR-0014).\n\n`latest_harness_id` keeps the prefix even though a setup belongs to one\nharness from creation: the value is still read out of the version passport,\nand one rule with no exceptions is cheaper to verify than a rule with one.",
+      "description": "A setup object with facts from its latest offered version.\n\nSetups have no variant axis. latest_harness_id comes from the version passport.",
       "properties": {
         "family_id": {
           "anyOf": [

@@ -23,9 +23,11 @@ def sha256(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def distribution(values: list[float]) -> dict[str, float | int]:
-    if not values or any(not math.isfinite(value) or value <= 0 for value in values):
-        raise ValueError("Performance samples must be finite positive observations")
+def distribution(values: list[float], *, allow_zero: bool = False) -> dict[str, float | int]:
+    if not values or any(
+        not math.isfinite(value) or value < 0 or (value == 0 and not allow_zero) for value in values
+    ):
+        raise ValueError("Performance samples must be finite observations in their declared range")
     ordered = sorted(values)
     return {
         "count": len(values),
@@ -54,6 +56,32 @@ def ready(driver: Any, route: str, title: str) -> None:
             return
         time.sleep(0.005)
     raise ValueError("Installed navigation did not reach its usable surface")
+
+
+def navigate(driver: Any, route: str, title: str) -> dict[str, float]:
+    observer = Path(__file__).with_name("desktop-navigation-timing.js").read_text()
+    driver.read("return (" + observer + ")(...arguments);", route, title)
+    started = time.monotonic()
+    driver.navigate(route)
+    ready(driver, route, title)
+    observation = driver.read("return window.__aiStpNavigationTiming.promise;")
+    end_to_end = (time.monotonic() - started) * 1000
+    if (
+        not isinstance(observation, dict)
+        or observation.get("route") != route
+        or observation.get("trusted") is not True
+        or type(observation.get("renderer_ms")) not in {int, float}
+    ):
+        raise ValueError("Renderer timing did not observe the intended actual navigation")
+    renderer = float(observation["renderer_ms"])
+    overhead = end_to_end - renderer
+    if not math.isfinite(renderer) or renderer <= 0 or not math.isfinite(overhead) or overhead < 0:
+        raise ValueError("Renderer and end-to-end observation clocks are inconsistent")
+    return {
+        "end_to_end_ms": round(end_to_end, 2),
+        "renderer_ms": round(renderer, 2),
+        "automation_and_control_ms": round(overhead, 2),
+    }
 
 
 def sample(module: Any, driver_path: Path, root: Path) -> dict[str, Any]:
@@ -102,36 +130,40 @@ def sample(module: Any, driver_path: Path, root: Path) -> dict[str, Any]:
             "initialized Overview with its native context observation",
         )
         ready(driver, "", "Your workspace")
+        webview_usable_ms = float(driver.read("return performance.now();"))
         usable_start_ms = round((time.monotonic() - driver.app_started) * 1000, 2)
         dark = driver.read("return document.documentElement.classList.contains('dark');")
         driver.navigate("profiles")
         context = driver.create_context("Performance personal")
         driver.select_context("Performance personal", context)
-        started = time.monotonic()
-        driver.navigate("settings")
-        ready(driver, "settings", "Settings")
-        first_settings_ms = round((time.monotonic() - started) * 1000, 2)
+        first_settings = navigate(driver, "settings", "Settings")
         driver.navigate("")
         ready(driver, "", "Your workspace")
         navigation: dict[str, list[float]] = {"profiles": [], "settings": [], "overview": []}
+        renderer_navigation: dict[str, list[float]] = {key: [] for key in navigation}
+        automation_navigation: dict[str, list[float]] = {key: [] for key in navigation}
         for _round in range(6):
             for route, title in (
                 ("profiles", "Connections and contexts"),
                 ("settings", "Settings"),
                 ("", "Your workspace"),
             ):
-                started = time.monotonic()
-                driver.navigate(route)
-                ready(driver, route, title)
-                navigation[route or "overview"].append(
-                    round((time.monotonic() - started) * 1000, 2)
-                )
+                observed = navigate(driver, route, title)
+                key = route or "overview"
+                navigation[key].append(observed["end_to_end_ms"])
+                renderer_navigation[key].append(observed["renderer_ms"])
+                automation_navigation[key].append(observed["automation_and_control_ms"])
         driver.selected(context)
         return {
             "first_main_ms": driver.startup_ms,
             "usable_start_ms": usable_start_ms,
-            "first_settings_ms": first_settings_ms,
+            "first_settings_ms": first_settings["end_to_end_ms"],
+            "first_settings_renderer_ms": first_settings["renderer_ms"],
+            "first_settings_automation_and_control_ms": first_settings["automation_and_control_ms"],
+            "webview_usable_ms": round(webview_usable_ms, 2),
             "navigation_ms": navigation,
+            "renderer_navigation_ms": renderer_navigation,
+            "automation_navigation_ms": automation_navigation,
             "cli_version": version["cli_version"],
             "dark_theme": dark,
         }
@@ -211,6 +243,8 @@ def main() -> None:
                     "first_main_ms",
                     "usable_start_ms",
                     "first_settings_ms",
+                    "first_settings_renderer_ms",
+                    "webview_usable_ms",
                 )
             },
             "navigation": {
@@ -219,9 +253,26 @@ def main() -> None:
                 )
                 for route in ("profiles", "settings", "overview")
             },
+            "renderer_navigation": {
+                route: distribution(
+                    [value for row in selected for value in row["renderer_navigation_ms"][route]]
+                )
+                for route in ("profiles", "settings", "overview")
+            },
+            "automation_and_control_navigation": {
+                route: distribution(
+                    [value for row in selected for value in row["automation_navigation_ms"][route]],
+                    allow_zero=True,
+                )
+                for route in ("profiles", "settings", "overview")
+            },
+            "first_settings_automation_and_control_ms": distribution(
+                [row["first_settings_automation_and_control_ms"] for row in selected],
+                allow_zero=True,
+            ),
         }
     proof = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_commit": os.environ["GITHUB_SHA"],
         "baseline_source_commit": manifest["source_commit"],
         "baseline_version": manifest["version"],
@@ -234,8 +285,14 @@ def main() -> None:
         "poll_interval_ms": 5,
         "measurement": (
             "Real session creation or pointer click through usable content, loaded fonts "
-            "and two paint frames; includes automation transport."
+            "and two paint frames; includes automation transport and timing observation retrieval."
         ),
+        "renderer_measurement": (
+            "Trusted navigation click to usable content, loaded fonts and two paint frames, "
+            "observed entirely inside the WebView. Automation/control is the nonnegative "
+            "end-to-end residual. WebView startup is relative to its own performance time origin."
+        ),
+        "observer_sha256": sha256(Path(__file__).with_name("desktop-navigation-timing.js")),
         "cache_condition": (
             "Fresh application profiles on one worker; shared OS caches are not flushed."
         ),

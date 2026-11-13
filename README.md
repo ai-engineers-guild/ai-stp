@@ -29,4 +29,9 @@ harness program.
 [Development](CONTRIBUTING.md) · [Security](SECURITY.md) ·
 [Code of conduct](CODE_OF_CONDUCT.md)
 
-[AGPL-3.0-or-later](LICENSE). Published configurations retain their own licenses.
+## Credit
+
+Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Published configurations
+retain their own licenses, and releases before the change keep their original terms.
+Please credit NDDev and link
+[this repository](https://github.com/ai-engineers-guild/ai-stp).

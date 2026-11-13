@@ -3,8 +3,8 @@
 # also detects vulnerabilities after the containing code stopped changing.
 #
 # GitHub-hosted on purpose. CodeQL needs `security-events: write` and does not
-# need Docker; the fleet class that runs the gate must not carry this job
-# (`ADR-0105`, unpublished). Public repositories get this runner at no cost.
+# need Docker; the fleet class that runs the gate must not carry this job.
+# Public repositories get this runner at no cost.
 # Private ones do not get Code scanning on the free plan, so the job is
 # skipped there —
 # the file still lives in this tree so the public mirror stays a copy instead
@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           python-version: '3.15.2'
       # Keep init and analyze on the same release and commit.
@@ -68,7 +68,7 @@ jobs:
           SOURCE_LANGUAGE: ${{ matrix.language }}
           ORIGINAL_SARIF_ID: ${{ steps.analysis.outputs.sarif-id }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@6038ed01530c24ab5f16390c7b2daab8c85fc7c5
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-codeql-retain-analysis
       - name: Retain source analysis without granting it release authority
