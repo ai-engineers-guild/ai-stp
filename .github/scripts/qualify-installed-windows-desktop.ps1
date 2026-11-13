@@ -290,17 +290,17 @@ function Click-NativeControl([System.Diagnostics.Process] $Process, $Element) {
     if ($Element.TryGetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern, [ref] $scroll)) {
         $scroll.ScrollIntoView()
     }
-    $point = $Element.GetClickablePoint()
-    $hit = [System.Windows.Automation.AutomationElement]::FromPoint($point)
-    $matched = $false
-    for ($depth = 0; $depth -lt 6 -and $null -ne $hit; $depth++) {
-        if ([System.Windows.Automation.Automation]::Compare($hit, $Element)) {
-            $matched = $true
-            break
+    # A page transition can briefly cover the control; the click waits until the
+    # point resolves to it, within the shared observation deadline.
+    $point = Wait-Observation $Process 'native clickable point on the intended control' ({
+        $candidate = $Element.GetClickablePoint()
+        $hit = [System.Windows.Automation.AutomationElement]::FromPoint($candidate)
+        for ($depth = 0; $depth -lt 6 -and $null -ne $hit; $depth++) {
+            if ([System.Windows.Automation.Automation]::Compare($hit, $Element)) { return $candidate }
+            $hit = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($hit)
         }
-        $hit = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($hit)
-    }
-    if (!$matched) { throw 'Native clickable point does not identify the intended control' }
+        return $null
+    }.GetNewClosure())
     $injected = [NativeDesktopInput]::ClickAt(
         $Process.MainWindowHandle, [int][Math]::Floor($point.X), [int][Math]::Floor($point.Y)
     )
