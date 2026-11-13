@@ -82,14 +82,15 @@ trap {
             }
             foreach ($helper in @('ai-stp-desktop-cli', 'git', 'git-credential-manager', 'WerFault', 'msedgewebview2')) {
                 if (@(Get-Process -Name $helper -ErrorAction SilentlyContinue).Count) {
-                    $null = $codes.Add('process:' + $helper)
+                    $null = $codes.Add('process:' + $helper.ToLowerInvariant().Replace('-', '_'))
                 }
             }
         } catch {
             $null = $codes.Add('state:window_scan_failed')
         }
         if (!$codes.Count) { $null = $codes.Add('state:nothing_visible') }
-        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + ($codes -join ','))
+        # The broker admits at most sixteen closed codes.
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + (@($codes | Select-Object -First 16) -join ','))
     } catch {
         [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 state:scan_failed')
     }
