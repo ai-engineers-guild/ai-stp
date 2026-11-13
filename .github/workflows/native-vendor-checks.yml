@@ -24,7 +24,7 @@ jobs:
   discovery:
     name: vendors-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -121,6 +121,28 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-native-vendor-opencode
+      - name: Read Cursor MCP discovery, approval and project shadowing
+        env:
+          AI_STP_NATIVE_ENGINE_SOURCE: ${{ inputs.engine_source }}
+          AI_STP_NATIVE_ENGINE_SOURCE_RUN: ${{ inputs.source_run_id }}
+          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
+          AI_STP_CURSOR_PROOF: ${{ runner.temp }}/cursor-loading-proof.json
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-native-vendor-cursor
+      - name: Read Antigravity skills through its ACP server
+        env:
+          AI_STP_NATIVE_ENGINE_SOURCE: ${{ inputs.engine_source }}
+          AI_STP_NATIVE_ENGINE_SOURCE_RUN: ${{ inputs.source_run_id }}
+          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
+          AI_STP_ANTIGRAVITY_PROOF: ${{ runner.temp }}/antigravity-loading-proof.json
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-native-vendor-antigravity
       - name: Retain content-free vendor discovery proof
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -131,5 +153,7 @@ jobs:
             ${{ runner.temp }}/pi-loading-proof.json
             ${{ runner.temp }}/claude-loading-proof.json
             ${{ runner.temp }}/opencode-loading-proof.json
+            ${{ runner.temp }}/cursor-loading-proof.json
+            ${{ runner.temp }}/antigravity-loading-proof.json
           if-no-files-found: error
           retention-days: 7
