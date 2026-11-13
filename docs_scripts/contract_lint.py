@@ -18,9 +18,15 @@ BRANCH_PREFIXES = ("feat", "chore", "docs", "test", "fix", "refactor")
 BRANCH_NAME_RE = re.compile(rf"^(?:{'|'.join(BRANCH_PREFIXES)})/.+$")
 
 
-def is_dependabot_pull_request(branch: str) -> bool:
-    """Accept only a same-repository PR actually authored by Dependabot."""
-    if not branch.startswith("dependabot/") or branch == "dependabot/":
+# Update bots by their branch prefix and the login that must author the pull request:
+# Dependabot keeps security updates, the owner's Renovate App proposes versions.
+UPDATE_BOTS = {"dependabot/": "dependabot[bot]", "renovate/": "nddev-renovate[bot]"}
+
+
+def is_update_bot_pull_request(branch: str) -> bool:
+    """Accept only a same-repository PR actually authored by an update bot."""
+    prefix = next((prefix for prefix in UPDATE_BOTS if branch.startswith(prefix)), None)
+    if prefix is None or branch == prefix:
         return False
     if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
         return False
@@ -41,7 +47,7 @@ def is_dependabot_pull_request(branch: str) -> bool:
     head = pull_request.get("head")
     return (
         isinstance(user, dict)
-        and user.get("login") == "dependabot[bot]"
+        and user.get("login") == UPDATE_BOTS[prefix]
         and isinstance(head, dict)
         and head.get("ref") == branch
         and isinstance(head.get("repo"), dict)
@@ -117,7 +123,7 @@ class ContractLinter:
             not branch
             or branch in {"main", "dev"}
             or BRANCH_NAME_RE.fullmatch(branch)
-            or is_dependabot_pull_request(branch)
+            or is_update_bot_pull_request(branch)
         ):
             return
         self.error(

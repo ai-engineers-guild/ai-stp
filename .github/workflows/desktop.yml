@@ -47,7 +47,7 @@ concurrency:
 env:
   BUN_VERSION: "1.4.4"
   CARGO_INCREMENTAL: "0"
-  NODE_VERSION: "26.13.0"
+  NODE_VERSION: "26.13.1"
 
 jobs:
   desktop:
