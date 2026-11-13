@@ -15,7 +15,14 @@ from ai_stp_platform.organization_models import (
 )
 
 
-async def seed_corporate(app: Any, origin: str) -> tuple[str, str, str]:
+async def seed_corporate(
+    app: Any,
+    origin: str,
+    *,
+    company: str = "Installed fixture company",
+    project_name: str = "Installed shared project",
+    project_key: str = "shared-project",
+) -> tuple[str, str, str]:
     account, project = new_id("account"), new_id("remote_project")
     async with app.state.sessionmaker() as db:
         db.add(Account(id=account))
@@ -24,7 +31,7 @@ async def seed_corporate(app: Any, origin: str) -> tuple[str, str, str]:
         response = await client.post(
             "/v1/corporate/bootstrap",
             json={
-                "organization_name": "Installed fixture company",
+                "organization_name": company,
                 "superadmin_account_id": account,
                 "idempotency_key": "installed-desktop-corporate-bootstrap",
             },
@@ -39,16 +46,12 @@ async def seed_corporate(app: Any, origin: str) -> tuple[str, str, str]:
                 id=project,
                 organization_id=organization,
                 namespace="remote",
-                external_key="installed-desktop:shared-project",
-                display_name="Installed shared project",
+                external_key=f"installed-desktop:{project_key}",
+                display_name=project_name,
             )
         )
         await db.flush()
-        db.add(
-            CorporateProject(
-                id=project, organization_id=organization, name="Installed shared project"
-            )
-        )
+        db.add(CorporateProject(id=project, organization_id=organization, name=project_name))
         await db.flush()
         db.add(
             CorporateProjectMember(

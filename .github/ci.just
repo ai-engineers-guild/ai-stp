@@ -558,6 +558,18 @@ ci-native-vendor-pi:
 ci-native-vendor-claude:
     python -m tests.native_vendor.claude --distribution tests/native_vendor/claude-distribution --proof "${AI_STP_CLAUDE_PROOF}"
 
+# Native Cursor MCP discovery, approval, loading and project shadowing without an account.
+[group('ci')]
+[private]
+ci-native-vendor-cursor:
+    python -m tests.native_vendor.cursor --distribution tests/native_vendor/cursor-distribution --proof "${AI_STP_CURSOR_PROOF}"
+
+# Native Antigravity skill discovery and project shadowing through its ACP server.
+[group('ci')]
+[private]
+ci-native-vendor-antigravity:
+    python -m tests.native_vendor.antigravity --distribution tests/native_vendor/antigravity-distribution --proof "${AI_STP_ANTIGRAVITY_PROOF}"
+
 # Native OpenCode read-only skills and original installed removal recovery.
 [group('ci')]
 [private]
