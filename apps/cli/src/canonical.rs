@@ -108,6 +108,14 @@ pub fn bytes(value: &Value) -> Result<Vec<u8>> {
 mod tests {
     use super::*;
 
+    /// NFC differs between Unicode versions only for code points that the older
+    /// version leaves unassigned. Raising the tables without the other NFC owners
+    /// changes canonical bytes for those strings on one side only (#1263, #1481).
+    #[test]
+    fn nfc_tables_stay_on_the_contract_unicode_version() {
+        assert_eq!(unicode_normalization::UNICODE_VERSION, (17, 0, 0));
+    }
+
     #[test]
     fn retained_project_bytes_preserve_numbers_unicode_and_key_order() -> Result<()> {
         // Fixed RFC 8785 number representations and project NFC semantics.

@@ -30,4 +30,9 @@ macOS Apple Silicon и Windows x86-64. Проверьте `native_configuration`
 [Desktop](apps/desktop/README.md) · [Разработка](CONTRIBUTING.md) ·
 [Безопасность](SECURITY.md)
 
-[AGPL-3.0-or-later](LICENSE). Опубликованные конфигурации сохраняют свои лицензии.
+## Благодарность
+
+Apache-2.0; см. [LICENSE](LICENSE) и [NOTICE](NOTICE). Опубликованные конфигурации
+сохраняют свои лицензии, а выпуски до смены лицензии — прежние условия.
+Пожалуйста, указывайте NDDev и ссылку на
+[этот репозиторий](https://github.com/ai-engineers-guild/ai-stp).

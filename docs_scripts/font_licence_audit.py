@@ -171,8 +171,8 @@ def main(argv: list[str] | None = None) -> int:
     if restricted:
         print()
         print(
-            "A restricted font is tracked. This repository becomes public at first\n"
-            "release and is AGPL-3.0-or-later, which obliges source distribution —\n"
+            "A restricted font is tracked. This repository is public under\n"
+            "Apache-2.0, which redistributes every tracked file —\n"
             "both are what these licences exclude. Resolve by licensing "
             "redistribution,\nserving the file from outside the repository at build time, or "
             "replacing the\nface. See docs/engineering/quality-gates.md."
