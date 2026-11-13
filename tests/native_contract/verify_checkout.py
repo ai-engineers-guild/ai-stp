@@ -130,7 +130,7 @@ async def journey(
     offline_context: str,
     git_executable: str,
     label: str,
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, str, Path]:
     checkout = root / f"checkout-{label}"
     checkout.mkdir()
     canary = checkout / ".env"
@@ -426,7 +426,7 @@ async def journey(
         ),
         flush=True,
     )
-    return reader, replacement
+    return reader, replacement, adoption["plan"]["operation_id"], checkout
 
 
 async def qualify(
@@ -507,10 +507,32 @@ async def qualify(
         "offline_context": offline_context,
         "git_executable": git_executable,
     }
-    _, retained_connection = await journey(
+    named_context, retained_connection, named_binding, named_checkout = await journey(
         **common, connection=connection, device=device, label="named"
     )
     assert retained_connection is not None
+    from tests.native_contract.verify_corporate_usage import qualify as qualify_usage
+
+    print(
+        json.dumps(
+            await qualify_usage(
+                binary=binary,
+                home=home,
+                state=state,
+                app=app,
+                run=run,
+                enact=enact,
+                organization=organization,
+                project=project,
+                account=account,
+                context=named_context,
+                connection=retained_connection,
+                binding=named_binding,
+                checkout=named_checkout,
+            )
+        ),
+        flush=True,
+    )
     after_refusal = await refused(binary, home, old_arguments)
     assert after_refusal.error == baseline_refusal.error and not old_key.exists()
     after_receipts = {
@@ -526,7 +548,7 @@ async def qualify(
             "state"
         ] == "authorized"
     legacy_device = (await run("device", "show"))["device_id"]
-    current_context, _ = await journey(
+    current_context, _, _, _ = await journey(
         **common, connection=None, device=legacy_device, label="root"
     )
     print(
