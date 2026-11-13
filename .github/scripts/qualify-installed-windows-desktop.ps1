@@ -32,6 +32,25 @@ trap {
                 }
             }
             Start-Sleep -Milliseconds 300
+            # Which closed checkout landmarks are on screen, by presence only.
+            foreach ($landmark in @(
+                @('checkoutPreview.reviewLinkRequest', 'request_button'),
+                @('checkoutPreview.reviewCorporateCheckoutChange', 'review_region'),
+                @('checkoutPreview.exactCheckoutPlan', 'plan_details'),
+                @('checkoutPreview.checkingCheckoutAndCurrentCompanyAccess', 'checkout_busy'),
+                @('error.requestFailed', 'request_failed')
+            )) {
+                $found = $window.FindFirst(
+                    [System.Windows.Automation.TreeScope]::Descendants,
+                    [System.Windows.Automation.PropertyCondition]::new(
+                        [System.Windows.Automation.AutomationElement]::NameProperty, (Text $landmark[0])
+                    )
+                )
+                if ($null -ne $found) {
+                    $enabled = if ($found.Current.IsEnabled) { '' } else { '_disabled' }
+                    $null = $codes.Add('state:' + $landmark[1] + $enabled)
+                }
+            }
             $texts = $window.FindAll(
                 [System.Windows.Automation.TreeScope]::Descendants,
                 [System.Windows.Automation.PropertyCondition]::new(
@@ -41,7 +60,7 @@ trap {
             )
             foreach ($text in $texts) {
                 $name = $text.Current.Name
-                if ($codes.Count -ge 4) { break }
+                if ($codes.Count -ge 8) { break }
                 if ($name -cmatch '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$' -and $name.Length -le 64) {
                     $null = $codes.Add($name)
                 } elseif ($name -cmatch '\(check: ([a-z_]{1,40})\)') {

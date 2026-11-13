@@ -395,7 +395,11 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         ("PRIVATE", "refused"),
         ("PRIVATE-CANARY", "refused"),
         ("AI_STP_PRECONDITION_FAILED,ai_stp_private", "refused"),
-        ("AI_STP_A,AI_STP_B,AI_STP_C,AI_STP_D,AI_STP_E", "refused"),
+        ("state:request_button,state:review_region_disabled", "valid"),
+        (
+            "AI_STP_A,AI_STP_B,AI_STP_C,AI_STP_D,AI_STP_E,AI_STP_F,AI_STP_G,AI_STP_H,AI_STP_I",
+            "refused",
+        ),
         ("AI_STP_PRECONDITION_FAILED", "repeated"),
     ],
 )
