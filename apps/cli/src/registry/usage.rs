@@ -21,7 +21,7 @@ pub(super) enum Handler {
 }
 
 impl Handler {
-    pub fn mutability(self) -> &'static str {
+    pub(super) fn mutability(self) -> &'static str {
         match self {
             Self::ConsentPlan => "plan",
             Self::Status => "read",
