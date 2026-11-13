@@ -36,7 +36,7 @@ async def test_public_document_only_published_and_renders_safe_html(
     client, sessionmaker = harness
     bundled = await client.get("/v1/documents/privacy")
     assert bundled.status_code == 200
-    assert bundled.json()["policy_version"] == "1.0"
+    assert bundled.json()["policy_version"] == "1.1"
 
     async with sessionmaker() as db:
         await documents_service.publish_revision(
