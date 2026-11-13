@@ -106,6 +106,10 @@ export default defineConfig({
             AI_STP_API_BASE_URL: "http://127.0.0.1:8000",
             NEXT_PUBLIC_APP_URL: baseURL,
             AI_STP_SESSION_SECRET: "playwright-session-secret-32chars-min",
+            // Test ids; consented-analytics.spec.ts answers vendor requests locally.
+            NEXT_PUBLIC_ANALYTICS_ENABLED: "true",
+            NEXT_PUBLIC_GA_MEASUREMENT_ID: "G-E2ETEST000",
+            NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID: "12345678",
             AI_STP_USER_FACING_ROOT: path.resolve(
               process.cwd(),
               nextDistDir,

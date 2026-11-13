@@ -23,13 +23,17 @@ class BuiltinPolicy:
 _PATHS = (
     "en/service-rules/1.0/document.md",
     "en/privacy/1.0/document.md",
+    "en/privacy/1.1/document.md",
     "en/personal-data-consent/1.0/document.md",
     "en/cookies/1.0/document.md",
+    "en/cookies/1.1/document.md",
     "en/licensing/1.0/document.md",
     "ru/service-rules/1.0/document.md",
     "ru/privacy/1.0/document.md",
+    "ru/privacy/1.1/document.md",
     "ru/personal-data-consent/1.0/document.md",
     "ru/cookies/1.0/document.md",
+    "ru/cookies/1.1/document.md",
     "ru/licensing/1.0/document.md",
 )
 
