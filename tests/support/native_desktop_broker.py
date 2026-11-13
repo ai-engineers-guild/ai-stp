@@ -18,6 +18,10 @@ FAILURE_PREFIX = b"AI_STP_NATIVE_DESKTOP_FAILURE_V1 "
 STAGE_PREFIX = b"AI_STP_NATIVE_DESKTOP_STAGE_V1 "
 INPUT_PREFIX = b"AI_STP_NATIVE_DESKTOP_INPUT_V1 "
 OPTION_PREFIX = b"AI_STP_NATIVE_DESKTOP_OPTION_V1 "
+ERRORS_PREFIX = b"AI_STP_NATIVE_DESKTOP_ERRORS_V1 "
+ERROR_CODES = re.compile(
+    rb"(?:AI_STP_[A-Z0-9_]{1,56}|IPC_THROW)(?:,(?:AI_STP_[A-Z0-9_]{1,56}|IPC_THROW)){0,3}"
+)
 STAGES = frozenset(
     {
         b"owner",
@@ -193,6 +197,7 @@ def run_owner(
     failure_line: int | None = None
     option_diagnostic: dict[str, Any] | None = None
     input_diagnostic: dict[str, Any] | None = None
+    error_codes: str | None = None
     with errors.open("xb") as error_stream:
         process = subprocess.Popen(
             arguments,
@@ -230,6 +235,12 @@ def run_owner(
                     if option_diagnostic is not None:
                         raise ValueError("Native fixture option diagnostic repeated")
                     option_diagnostic = _option_diagnostic(record.removeprefix(OPTION_PREFIX))
+                    continue
+                if record.startswith(ERRORS_PREFIX):
+                    codes = record.removeprefix(ERRORS_PREFIX).strip()
+                    if error_codes is not None or ERROR_CODES.fullmatch(codes) is None:
+                        raise ValueError("Native fixture error codes refused")
+                    error_codes = codes.decode("ascii")
                     continue
                 if record.startswith(FAILURE_PREFIX):
                     location = record.removeprefix(FAILURE_PREFIX).strip()
@@ -270,6 +281,7 @@ def run_owner(
                 or failure_line is not None
                 or option_diagnostic is not None
                 or input_diagnostic is not None
+                or error_codes is not None
             ):
                 details = (
                     "; option diagnostic=" + json.dumps(option_diagnostic, sort_keys=True)
@@ -278,6 +290,8 @@ def run_owner(
                 )
                 if input_diagnostic is not None:
                     details += "; input diagnostic=" + json.dumps(input_diagnostic, sort_keys=True)
+                if error_codes is not None:
+                    details += "; visible error codes=" + error_codes
                 raise ValueError(
                     f"Native Desktop owner did not complete its approval journey at {stage}; "
                     f"controller line {failure_line}{details}"

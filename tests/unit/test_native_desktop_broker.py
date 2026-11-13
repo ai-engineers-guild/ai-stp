@@ -383,3 +383,46 @@ pathlib.Path(sys.argv[3]).write_text("completed")
     assert marker.read_text() == "completed"
     assert "PRIVATE-CANARY" not in str(refused.value)
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("codes", "case"),
+    [
+        ("AI_STP_PRECONDITION_FAILED", "valid"),
+        ("AI_STP_PRECONDITION_FAILED,IPC_THROW", "valid"),
+        ("PRIVATE-CANARY", "refused"),
+        ("AI_STP_PRECONDITION_FAILED,ai_stp_private", "refused"),
+        ("AI_STP_A,AI_STP_B,AI_STP_C,AI_STP_D,AI_STP_E", "refused"),
+        ("AI_STP_PRECONDITION_FAILED", "repeated"),
+    ],
+)
+def test_native_failure_reports_only_closed_visible_error_codes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], codes: str, case: str
+) -> None:
+    child = r"""
+import pathlib,sys
+print("private UI PRIVATE-CANARY",flush=True)
+print("AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_request",flush=True)
+print("AI_STP_NATIVE_DESKTOP_ERRORS_V1 "+sys.argv[1],flush=True)
+if sys.argv[2]=="repeated":
+ print("AI_STP_NATIVE_DESKTOP_ERRORS_V1 "+sys.argv[1],flush=True)
+print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 1147",flush=True)
+pathlib.Path(sys.argv[3]).write_text("completed")
+sys.exit(3)
+"""
+    marker = tmp_path / "completed"
+    expected = (
+        "at checkout_request; controller line 1147; visible error codes=" + codes
+        if case == "valid"
+        else "Native fixture error codes refused"
+    )
+    with pytest.raises(ValueError, match=expected) as refused:
+        run_owner(
+            [sys.executable, "-u", "-c", child, codes, case, str(marker)],
+            environment=dict(os.environ),
+            errors=tmp_path / "errors",
+            nonce="a" * 64,
+            approve=lambda _: None,
+        )
+    assert "PRIVATE-CANARY" not in str(refused.value)
+    assert capsys.readouterr().out == ""

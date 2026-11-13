@@ -11,6 +11,30 @@ trap {
     if ($_.Exception.Data.Contains('native_controller_source_line')) {
         $location = [int] $_.Exception.Data['native_controller_source_line']
     }
+    # Report only the closed engine error codes the app shows, never their messages.
+    try {
+        $codes = [System.Collections.Generic.SortedSet[string]]::new()
+        foreach ($owner in @(Get-Process -Name 'ai-stp-desktop' -ErrorAction SilentlyContinue)) {
+            if ($owner.MainWindowHandle -eq [IntPtr]::Zero) { continue }
+            $window = [System.Windows.Automation.AutomationElement]::FromHandle($owner.MainWindowHandle)
+            $texts = $window.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                    [System.Windows.Automation.ControlType]::Text
+                )
+            )
+            foreach ($text in $texts) {
+                $name = $text.Current.Name
+                if ($name -cmatch '^(AI_STP_[A-Z0-9_]{1,56}|IPC_THROW)$' -and $codes.Count -lt 4) {
+                    $null = $codes.Add($name)
+                }
+            }
+        }
+        if ($codes.Count) {
+            [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + ($codes -join ','))
+        }
+    } catch {}
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FAILURE_V1 ' + $location)
     [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
     throw $_
