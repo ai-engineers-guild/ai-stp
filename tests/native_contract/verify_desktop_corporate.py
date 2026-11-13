@@ -95,10 +95,14 @@ def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
         label,
     )
     driver.click(option)
+
     # Context switching disables this control until its native plan/apply and
     # refresh finish. Observe completion before sending another real key event.
-    select_element = field(driver, label, kind="select", scope=scope)
-    assert driver.read("return arguments[0].value;", select_element) == value
+    def settled() -> Any:
+        element = field(driver, label, kind="select", scope=scope)
+        return element if driver.read("return arguments[0].value;", element) == value else None
+
+    select_element = driver.wait(settled, f"{label} settled on the chosen value")
     # Dismiss the native select popup through a real key event before leaving
     # the control; reading its selected value alone does not close that popup.
     driver.command(
