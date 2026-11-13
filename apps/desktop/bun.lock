@@ -12,7 +12,7 @@
         "@tauri-apps/api": "2.12.4",
         "@tauri-apps/plugin-dialog": "2.8.4",
         "@tauri-apps/plugin-opener": "2.7.2",
-        "i18next": "26.7.2",
+        "i18next": "27.1.1",
         "i18next-icu": "2.6.1",
         "intl-messageformat": "12.1.4",
         "lucide-react": "1.69.0",
@@ -502,7 +502,7 @@
 
     "html-parse-stringify": ["html-parse-stringify@4.0.1", "", {}, "sha512-0zHsZJrK7S3K2aucXWL6ycoYJ/iNtIcFHC/nYQgFklPtrv5LpJctIiSCroWZWeuoXvuyFdzp6KzjJQ+OT5MfFw=="],
 
-    "i18next": ["i18next@26.7.2", "", { "peerDependencies": { "typescript": "^5 || ^6 || ^7" }, "optionalPeers": ["typescript"] }, "sha512-RsOY3BeaCDdkk52NeJSFAXELQ2rQXBO/tOub6L8ue2ICPfR/FRDWDOfEDg4xMPd1SqO5goVYQ6i72qWEUB/PPw=="],
+    "i18next": ["i18next@27.1.1", "", { "peerDependencies": { "typescript": "^5 || ^6 || ^7" }, "optionalPeers": ["typescript"] }, "sha512-Qq3aJizS3RXQ30crhx9BKQLrHoa6GKpgrOJjVZ9vgj3EBxAddrmVfDNUrAMxSUimw5Jc+ld4SSZUAzf1q4nGyQ=="],
 
     "i18next-icu": ["i18next-icu@2.6.1", "", { "peerDependencies": { "intl-messageformat": ">=10.3.3 <13.0.0" } }, "sha512-ATlbwNqJoa3dUl2+eBcbU7gVgRulPB/rUy1ddLUDTrc9qO2Yjdg3agZSyTrpjhRXKRXxNvMXymoyXvE23/QhbA=="],
 
