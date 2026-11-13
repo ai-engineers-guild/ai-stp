@@ -19,9 +19,7 @@ STAGE_PREFIX = b"AI_STP_NATIVE_DESKTOP_STAGE_V1 "
 INPUT_PREFIX = b"AI_STP_NATIVE_DESKTOP_INPUT_V1 "
 OPTION_PREFIX = b"AI_STP_NATIVE_DESKTOP_OPTION_V1 "
 ERRORS_PREFIX = b"AI_STP_NATIVE_DESKTOP_ERRORS_V1 "
-_ERROR_CODE = (
-    rb"(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|(?:check|state|window|process|event):[a-z][a-z0-9_]{0,39})"
-)
+_ERROR_CODE = rb"(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|(?:check|state|window|process|event|panic):[a-z][a-z0-9_]{0,39})"
 ERROR_CODES = re.compile(_ERROR_CODE + rb"(?:," + _ERROR_CODE + rb"){0,15}")
 STAGES = frozenset(
     {

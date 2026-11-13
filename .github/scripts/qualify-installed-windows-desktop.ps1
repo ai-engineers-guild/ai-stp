@@ -80,10 +80,18 @@ trap {
                     $null = $codes.Add($state)
                 }
             }
-            # Whether the app is exiting, and how, separates a crash from a lost window.
-            foreach ($owner in $owners) {
-                if ($owner.WaitForExit(5000)) {
-                    $null = $codes.Add('process:exit_' + ('{0:x8}' -f $owner.ExitCode))
+            # The launched app's own exit code and panic location separate a crash
+            # from a lost window; the panic message itself is never reported.
+            if ($null -ne $process -and $process.WaitForExit(5000)) {
+                $null = $codes.Add('process:app_exit_' + ('{0:x8}' -f $process.ExitCode))
+            }
+            $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
+            if (Test-Path -LiteralPath $errors) {
+                $panic = Select-String -LiteralPath $errors -Pattern 'panicked at ([^\s:]+):(\d+)' | Select-Object -Last 1
+                if ($null -ne $panic) {
+                    $parts = @($panic.Matches[0].Groups[1].Value -split '[\\/]' | Select-Object -Last 2)
+                    $place = (($parts -join '_') + '_' + $panic.Matches[0].Groups[2].Value).ToLowerInvariant() -replace '[^a-z0-9_]', '_'
+                    $null = $codes.Add('panic:at_' + $place.Substring([Math]::Max(0, $place.Length - 36)))
                 }
             }
             # Crash, hang and error-report events name the failing module without its data.
