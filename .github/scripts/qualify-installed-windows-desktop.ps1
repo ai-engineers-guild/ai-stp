@@ -85,6 +85,28 @@ trap {
             if ($null -ne $process -and $process.WaitForExit(5000)) {
                 $null = $codes.Add('process:app_exit_' + ('{0:x8}' -f $process.ExitCode))
             }
+            if ($null -ne $process) {
+                $desktopId = '0x{0:x}' -f $process.Id
+                $audit = @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
+                    LogName = 'Security'; Id = 4688, 4689; StartTime = (Get-Date).AddMinutes(-10)
+                })
+                foreach ($entry in $audit) {
+                    $data = @{}
+                    foreach ($field in ([xml] $entry.ToXml()).Event.EventData.Data) { $data[$field.Name] = [string] $field.'#text' }
+                    if ($entry.Id -eq 4689 -and $data['ProcessId'] -eq $desktopId) {
+                        $null = $codes.Add('event:desktop_exit_' + ($data['Status'] -replace '[^a-z0-9]', ''))
+                    }
+                    if ($entry.Id -eq 4688) {
+                        $name = [IO.Path]::GetFileNameWithoutExtension($data['NewProcessName']).ToLowerInvariant() -replace '[^a-z0-9]', '_'
+                        if ($data['ProcessId'] -eq $desktopId -or $data['ParentProcessName'] -match 'ai-stp-desktop\.exe$') {
+                            $null = $codes.Add('process:spawned_' + $name)
+                        }
+                        if ($name -eq 'taskkill' -and $data['CommandLine'] -match ('/PID\s+' + $process.Id + '\b')) {
+                            $null = $codes.Add('state:taskkill_targeted_desktop')
+                        }
+                    }
+                }
+            }
             $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
             if (Test-Path -LiteralPath $errors) {
                 $panic = Select-String -LiteralPath $errors -Pattern 'panicked at ([^\s:]+):(\d+)' | Select-Object -Last 1
@@ -129,6 +151,11 @@ trap {
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
     throw 'A disposable hosted Windows runner is required'
 }
+# The disposable runner records process creation and exit, so a failure can name what
+# ended the app. Only closed process names and codes leave the runner.
+$null = & auditpol.exe /set /subcategory:'Process Creation' /success:enable
+$null = & auditpol.exe /set /subcategory:'Process Termination' /success:enable
+$null = New-ItemProperty -Force -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -PropertyType DWord -Value 1
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'PowerShell 7 is required' }
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 owner')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
