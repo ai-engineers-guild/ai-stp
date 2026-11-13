@@ -655,6 +655,7 @@ def second_company(
     organization: str,
     approve: Callable[[str], None],
     suspend: Callable[[], None],
+    remove: Callable[[], None],
 ) -> dict[str, Any]:
     """Join a second company server and switch views without readdressing either."""
 
@@ -708,6 +709,35 @@ def second_company(
 
     second = profile_review(driver, company_plan)["change"]["context"]["context_id"]
     assert second != first
+    # The second server refuses the first company: this account has no membership there.
+    known = native(binary, environment, ["context", "list"])["contexts"]
+    foreign = next(
+        item["context"]["authority"]["organization"]["organization_id"]
+        for item in known
+        if item["context"]["context_id"] == first
+    )
+    refused = subprocess.run(
+        [
+            str(binary),
+            "context",
+            "create",
+            "plan",
+            "--label",
+            "Installed wrong company",
+            "--connection",
+            connection,
+            "--organization",
+            foreign,
+            "--json",
+        ],
+        env=environment,
+        capture_output=True,
+        timeout=60,
+        check=False,
+    )
+    envelope = json.loads(refused.stdout)
+    assert refused.returncode != 0 and envelope["ok"] is False, "a foreign company was admitted"
+    assert len(native(binary, environment, ["context", "list"])["contexts"]) == len(known)
 
     def view(context: str, visible: str, hidden: str) -> None:
         current = native(binary, environment, ["context", "list"])["selected"]["context_id"]
@@ -749,7 +779,23 @@ def second_company(
     )
     assert not main_text(SECOND_COMPANY_PROJECT), "a suspended member still read company projects"
     view(first, "Installed shared project", SECOND_COMPANY_PROJECT)
+    # The administrator then removes the member; the second company stays refused.
+    remove()
+    driver.navigate("profiles")
+    driver.selected(first)
+    choose(driver, "Selected context view", second, scope='section[aria-label="Context view"]')
+    driver.selected(second)
+    driver.navigate("corporate", keyboard=True)
+    driver.click(driver.button("Read projects"))
+    driver.wait(
+        lambda: main_text("The request could not be completed"),
+        "removed membership refusal in the second company",
+    )
+    assert not main_text(SECOND_COMPANY_PROJECT), "a removed member still read company projects"
+    view(first, "Installed shared project", SECOND_COMPANY_PROJECT)
     return {
+        "foreign_organization_context_refused": envelope["error"]["code"],
+        "removed_membership_reads_refused": True,
         "suspended_membership_reads_refused": True,
         "other_company_unaffected_by_suspension": True,
         "second_company_context": second,
@@ -775,6 +821,7 @@ def installed_journey(
     second_organization: str,
     approve_second: Callable[[str], None],
     suspend_second: Callable[[], None],
+    remove_second: Callable[[], None],
 ) -> dict[str, Any]:
     # Reuse the already qualified persistent HTTP/1 driver and fixed diagnostics.
     helpers = runpy.run_path(
@@ -1462,6 +1509,7 @@ def installed_journey(
             organization=second_organization,
             approve=approve_second,
             suspend=suspend_second,
+            remove=remove_second,
         )
         return {
             **location_proof,
@@ -1554,6 +1602,8 @@ async def prove(
                     )
                     await db.commit()
 
+            administrators: list[str] = []
+
             async def suspend_second_membership() -> None:
                 # A second administrator suspends the member through the company API, so the
                 # membership and its role bindings change exactly as in production.
@@ -1562,6 +1612,7 @@ async def prove(
                         db, account_id=second_account, device_id=None, ttl_seconds=600
                     )
                     administrator = Account(id=new_id("account"), status="active")
+                    administrators.append(administrator.id)
                     db.add(administrator)
                     await db.commit()
                 base = f"/v1/corporate/organizations/{second_organization}"
@@ -1610,6 +1661,42 @@ async def prove(
                     )
                     assert suspended.status_code == 200, suspended.status_code
                     assert suspended.json()["state"] == "suspended"
+
+            async def remove_second_membership() -> None:
+                # The same administrator deletes the suspended membership through the API.
+                async with second_app.state.sessionmaker() as db:
+                    admin = await issue_session(
+                        db, account_id=administrators[0], device_id=None, ttl_seconds=600
+                    )
+                    await db.commit()
+                base = f"/v1/corporate/organizations/{second_organization}"
+                auth = {"Authorization": f"Bearer {admin.raw_token}"}
+                async with AsyncClient(base_url=second_origin, timeout=15, trust_env=False) as api:
+                    context = await api.get(f"{base}/context", headers=auth)
+                    member = await api.get(f"{base}/members/{second_account}", headers=auth)
+                    assert context.status_code == member.status_code == 200
+                    assert member.json()["state"] == "suspended"
+                    removed = await api.request(
+                        "DELETE",
+                        f"{base}/members/{second_account}",
+                        json={
+                            "schema_version": 1,
+                            "expected_revision": member.json()["revision"],
+                            "authorization_revision": context.json()["organization"][
+                                "authorization_revision"
+                            ],
+                            "idempotency_key": "installed-desktop-remove-member",
+                        },
+                        headers=auth,
+                    )
+                    assert removed.status_code == 200, removed.status_code
+                    gone = await api.get(f"{base}/members/{second_account}", headers=auth)
+                    assert gone.status_code == 404, gone.status_code
+
+            def remove_second() -> None:
+                asyncio.run_coroutine_threadsafe(remove_second_membership(), loop).result(
+                    timeout=15
+                )
 
             def suspend_second() -> None:
                 asyncio.run_coroutine_threadsafe(suspend_second_membership(), loop).result(
@@ -1682,6 +1769,7 @@ async def prove(
                     second_organization=second_organization,
                     approve_second=approve_second,
                     suspend_second=suspend_second,
+                    remove_second=remove_second,
                 )
                 assert faults.lose_next is None
                 # The second company only enrolled and was read: no checkout writes.
