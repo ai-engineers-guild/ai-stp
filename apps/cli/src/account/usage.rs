@@ -195,7 +195,7 @@ fn view(context: &Context, record: Option<&Record>, pending: usize) -> Result<Va
         json!({"context_id":context.context_id,"organization_id":organization(context)?,
         "enabled":record.is_some_and(|r|r.enabled),"revision":record.map(|r|&r.revision),
         "pending":pending,"outcome":record.and_then(|r|r.outcome.as_deref()),
-        "coverage":"agent_reported_owned_signals","background_service":false}),
+        "coverage":"owned_component_signals","background_service":false}),
     )
 }
 
@@ -250,7 +250,7 @@ pub fn consent_plan(root: &Path, context: &str, at: &str) -> Result<Value> {
     Ok(json!({"plan_digest":plan.digest()?,"plan":plan,
         "disclosure":{"fields":["organization","employee","device","project","harness",
             "exact setup and component coordinates","invocation time","outcome"],
-            "coverage":"agent_reported_owned_signals","background_service":false}}))
+            "coverage":"owned_component_signals","background_service":false}}))
 }
 
 pub fn consent_apply(path: &Path, digest: &str, at: &str) -> Result<Value> {
