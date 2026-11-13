@@ -17,6 +17,21 @@ trap {
         foreach ($owner in @(Get-Process -Name 'ai-stp-desktop' -ErrorAction SilentlyContinue)) {
             if ($owner.MainWindowHandle -eq [IntPtr]::Zero) { continue }
             $window = [System.Windows.Automation.AutomationElement]::FromHandle($owner.MainWindowHandle)
+            # Engine details are collapsed; open them so their closed code is in the tree.
+            foreach ($summary in $window.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'error.engineDetails')
+                )
+            )) {
+                $pattern = $null
+                if ($summary.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref] $pattern)) {
+                    try { $pattern.Expand() } catch {}
+                } elseif ($summary.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref] $pattern)) {
+                    try { $pattern.Invoke() } catch {}
+                }
+            }
+            Start-Sleep -Milliseconds 300
             $texts = $window.FindAll(
                 [System.Windows.Automation.TreeScope]::Descendants,
                 [System.Windows.Automation.PropertyCondition]::new(
@@ -26,8 +41,11 @@ trap {
             )
             foreach ($text in $texts) {
                 $name = $text.Current.Name
-                if ($name -cmatch '^(AI_STP_[A-Z0-9_]{1,56}|IPC_THROW)$' -and $codes.Count -lt 4) {
+                if ($codes.Count -ge 4) { break }
+                if ($name -cmatch '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$' -and $name.Length -le 64) {
                     $null = $codes.Add($name)
+                } elseif ($name -cmatch '\(check: ([a-z_]{1,40})\)') {
+                    $null = $codes.Add('check:' + $Matches[1])
                 }
             }
         }

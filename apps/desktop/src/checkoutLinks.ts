@@ -45,26 +45,26 @@ export function checkoutPath(value: unknown): string | null {
   }
 }
 
-export function checkoutFailure(): CmdResult {
+export function checkoutFailure(check?: string): CmdResult {
   return {
     ok: false,
     data: null,
-    error:
-      "The checkout reply differs from the exact reviewed company operation. Read its original journal in Activity.",
+    error: `The checkout reply differs from the exact reviewed company operation. Read its original journal in Activity.${check ? ` (check: ${check})` : ""}`,
     error_code: "CONTEXT_VIEW",
     warnings: [],
     continuations: [],
   };
 }
 
-export function checkoutReview(
+/** The first exact-review check a plan reply fails, by its closed name. */
+export function checkoutReviewMismatch(
   response: CmdResult,
   action: CheckoutAction,
   context: ContextView,
   project: string,
   anchor: Record<string, unknown>,
   request?: string,
-): CheckoutReview | null {
+): string | null {
   const plan = record(response.data?.plan),
     change = record(plan.change),
     snapshot = record(change.snapshot),
@@ -75,36 +75,80 @@ export function checkoutReview(
     organization = record(snapshot.organization);
   const digest = response.data?.plan_digest;
   const expectedRoot = checkoutPath(record(expectedLocal.root).path);
+  const checks: [string, boolean][] = [
+    ["reply", response.ok],
+    [
+      "plan_digest",
+      typeof digest === "string" && /^sha256:[0-9a-f]{64}$/.test(digest),
+    ],
+    ["operation", typeof plan.operation_id === "string"],
+    ["action", change.action === action],
+    ["preview_account", typeof original.account_id === "string"],
+    [
+      "preview_organization",
+      typeof record(anchor.organization).organization_id === "string",
+    ],
+    [
+      "preview_local_project",
+      typeof expectedLocal.local_project_id === "string",
+    ],
+    ["preview_root", expectedRoot !== null],
+    [
+      "preview_root_identity",
+      Array.isArray(record(expectedLocal.root).identity) &&
+        (record(expectedLocal.root).identity as unknown[]).length === 2,
+    ],
+    ["context", record(snapshot.context).context_id === context.id],
+    ["account_origin", account.origin === context.origin],
+    ["account", account.account_id === original.account_id],
+    [
+      "connection",
+      (record(account.connection).connection_id ?? null) === context.connection,
+    ],
+    [
+      "organization",
+      organization.organization_id ===
+        record(anchor.organization).organization_id,
+    ],
+    ["remote_project", record(snapshot.target).remote_project_id === project],
+    [
+      "local_project",
+      local.local_project_id === expectedLocal.local_project_id,
+    ],
+    ["checkout_root", checkoutPath(plan.checkout_root) === expectedRoot],
+    ["local_root", checkoutPath(record(local.root).path) === expectedRoot],
+    [
+      "local_root_identity",
+      JSON.stringify(record(local.root).identity) ===
+        JSON.stringify(record(expectedLocal.root).identity),
+    ],
+    [
+      "provider_project",
+      record(snapshot.request_coordinates).provider_project_id ===
+        record(anchor.request_coordinates).provider_project_id,
+    ],
+    [
+      "request_operation",
+      action === "request" || change.request_operation_id === request,
+    ],
+  ];
+  return checks.find(([, passed]) => !passed)?.[0] ?? null;
+}
+
+export function checkoutReview(
+  response: CmdResult,
+  action: CheckoutAction,
+  context: ContextView,
+  project: string,
+  anchor: Record<string, unknown>,
+  request?: string,
+): CheckoutReview | null {
   if (
-    !response.ok ||
-    typeof digest !== "string" ||
-    !/^sha256:[0-9a-f]{64}$/.test(digest) ||
-    typeof plan.operation_id !== "string" ||
-    change.action !== action ||
-    typeof original.account_id !== "string" ||
-    typeof record(anchor.organization).organization_id !== "string" ||
-    typeof expectedLocal.local_project_id !== "string" ||
-    expectedRoot === null ||
-    !Array.isArray(record(expectedLocal.root).identity) ||
-    (record(expectedLocal.root).identity as unknown[]).length !== 2 ||
-    record(snapshot.context).context_id !== context.id ||
-    account.origin !== context.origin ||
-    account.account_id !== original.account_id ||
-    (record(account.connection).connection_id ?? null) !== context.connection ||
-    organization.organization_id !==
-      record(anchor.organization).organization_id ||
-    record(snapshot.target).remote_project_id !== project ||
-    local.local_project_id !== expectedLocal.local_project_id ||
-    checkoutPath(plan.checkout_root) !== expectedRoot ||
-    checkoutPath(record(local.root).path) !== expectedRoot ||
-    JSON.stringify(record(local.root).identity) !==
-      JSON.stringify(record(expectedLocal.root).identity) ||
-    record(snapshot.request_coordinates).provider_project_id !==
-      record(anchor.request_coordinates).provider_project_id ||
-    (action !== "request" && change.request_operation_id !== request)
+    checkoutReviewMismatch(response, action, context, project, anchor, request)
   )
     return null;
-  return { action, plan, digest };
+  const plan = record(response.data?.plan);
+  return { action, plan, digest: response.data?.plan_digest as string };
 }
 
 export function checkoutReceipt(

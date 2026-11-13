@@ -390,6 +390,9 @@ pathlib.Path(sys.argv[3]).write_text("completed")
     [
         ("AI_STP_PRECONDITION_FAILED", "valid"),
         ("AI_STP_PRECONDITION_FAILED,IPC_THROW", "valid"),
+        ("CONTEXT_VIEW,check:checkout_root", "valid"),
+        ("CONTEXT_VIEW,check:Private-Path", "refused"),
+        ("PRIVATE", "refused"),
         ("PRIVATE-CANARY", "refused"),
         ("AI_STP_PRECONDITION_FAILED,ai_stp_private", "refused"),
         ("AI_STP_A,AI_STP_B,AI_STP_C,AI_STP_D,AI_STP_E", "refused"),

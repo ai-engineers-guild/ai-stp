@@ -16,8 +16,10 @@ import { record, useContexts, type ContextView } from "./contexts";
 import * as transport from "./transport";
 import type { CmdResult } from "./transport";
 import {
+  checkoutFailure,
   checkoutPath,
   checkoutReview,
+  checkoutReviewMismatch,
   retainedCheckout,
   type CheckoutAction,
 } from "./checkoutLinks";
@@ -234,6 +236,24 @@ it("refuses equal-display roots with different native UTF-8 bytes", () => {
   expect(checkoutReview(response, "request", context, project.id, anchor)).toBe(
     null,
   );
+  expect(
+    checkoutReviewMismatch(response, "request", context, project.id, anchor),
+  ).toBe("checkout_root");
+  expect(checkoutFailure("checkout_root").error).toMatch(
+    /\(check: checkout_root\)$/,
+  );
+});
+
+it("names no mismatch for an exact request plan", () => {
+  expect(
+    checkoutReviewMismatch(
+      proposal("request"),
+      "request",
+      context,
+      project.id,
+      snapshot,
+    ),
+  ).toBe(null);
 });
 
 it("separately reviews and authorizes request, confirmation and local binding through exact native plans", async () => {
