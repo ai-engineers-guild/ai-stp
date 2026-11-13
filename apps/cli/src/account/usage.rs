@@ -626,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    fn hook_payload_reads_only_each_vendor_session_and_directory() {
+    fn hook_payload_reads_only_each_vendor_session_and_directory() -> Result<()> {
         let cases = [
             (
                 "claude-code",
@@ -651,7 +651,7 @@ mod tests {
         ];
         for (harness, event) in cases {
             let (session, directory) =
-                hook_payload(harness, event.to_string().as_bytes()).expect(harness);
+                hook_payload(harness, event.to_string().as_bytes()).ok_or_else(invalid)?;
             assert!(session.ends_with("-1"));
             assert_eq!(directory, PathBuf::from("/w"));
         }
@@ -660,13 +660,15 @@ mod tests {
         );
         assert!(hook_payload("antigravity", br#"{"session_id":"s","cwd":"/w"}"#).is_none());
         assert!(hook_payload("codex", b"not json").is_none());
+        Ok(())
     }
 
     #[test]
-    fn hook_without_session_records_nothing_and_succeeds() {
-        let root = tempfile::tempdir().expect("root");
+    fn hook_without_session_records_nothing_and_succeeds() -> Result<()> {
+        let root = tempfile::tempdir().map_err(|_| invalid())?;
         let reply = hook(root.path(), "codex", b"{}", "2026-11-14T00:00:00.000Z");
         assert_eq!(reply["recorded"], 0);
         assert_eq!(reply["session_identified"], false);
+        Ok(())
     }
 }
