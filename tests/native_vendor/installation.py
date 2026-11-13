@@ -127,12 +127,22 @@ def passport_digest(document: dict[str, Any]) -> str:
 class Installation:
     """Separate CLI processes retain the original context and exact reviewed operation."""
 
-    def __init__(self, executable: Path, root: Path, vendor_variable: str) -> None:
+    def __init__(
+        self,
+        executable: Path,
+        root: Path,
+        vendor_variable: str,
+        *,
+        home_relative_vendor_root: str | None = None,
+    ) -> None:
+        """A vendor without a documented root override reads its root below home."""
         disposable_runner()
         self.executable = executable
         self.root = root
         root.mkdir()
         self.home, self.vendor_home, self.project = root / "h", root / "v", root / "p"
+        if home_relative_vendor_root is not None:
+            self.vendor_home = self.home / home_relative_vendor_root
         self.state, self.source = root / "s", root / "q"
         for path in [
             self.home,
