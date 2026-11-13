@@ -1,5 +1,4 @@
 ---
-
 description: "Branch integration, exact-source qualification and artifact publication."
 last_verified: "2026-11-11"
 ---
