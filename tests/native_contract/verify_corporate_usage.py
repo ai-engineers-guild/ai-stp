@@ -107,7 +107,11 @@ async def qualify(
         "--context",
         context,
     )
-    item = next(item for item in preview["items"] if item["stable_id"] == FIXTURE_SETUP_ID)
+    item = next(
+        item
+        for item in preview["observation"]["data"]["items"]
+        if item["stable_id"] == FIXTURE_SETUP_ID
+    )
     version = item["version"]
     acquired = await run(
         "registry",
