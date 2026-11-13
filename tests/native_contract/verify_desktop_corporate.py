@@ -1690,8 +1690,11 @@ async def prove(
                         headers=auth,
                     )
                     assert removed.status_code == 200, removed.status_code
-                    gone = await api.get(f"{base}/members/{second_account}", headers=auth)
-                    assert gone.status_code == 404, gone.status_code
+                    listed = await api.get(f"{base}/members", headers=auth)
+                    assert listed.status_code == 200, listed.status_code
+                    assert second_account not in {
+                        item["account_id"] for item in listed.json()["items"]
+                    }, "the removed member is still listed"
 
             def remove_second() -> None:
                 asyncio.run_coroutine_threadsafe(remove_second_membership(), loop).result(
