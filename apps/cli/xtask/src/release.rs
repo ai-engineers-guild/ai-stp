@@ -133,6 +133,7 @@ pub(crate) fn read_archive(path: &Path, binary: &str) -> Result<Files> {
     let limits = [
         (binary, MAX_ARCHIVE),
         ("LICENSE", 64 * 1024),
+        ("NOTICE", 8 * 1024),
         ("release.json", 4096),
         (SBOM, sbom::LIMIT),
     ]
@@ -194,14 +195,14 @@ pub(crate) fn read_archive(path: &Path, binary: &str) -> Result<Files> {
             admit(path, entry.size(), entry.header().mode()?, Box::new(entry))?;
         }
     }
-    require(files.len() == 4, "archive member inventory differs")?;
+    require(files.len() == 5, "archive member inventory differs")?;
     Ok(files)
 }
 
 pub(crate) fn validate(files: &Files, version: &str, revision: &str, target: &str) -> Result<()> {
     identity(version, revision, target)?;
     let binary = binary(target)?;
-    for name in [binary, "LICENSE", "release.json", SBOM] {
+    for name in [binary, "LICENSE", "NOTICE", "release.json", SBOM] {
         require(files.contains_key(name), "release member is missing")?;
     }
     let manifest: Value = serde_json::from_slice(&files["release.json"])?;
@@ -230,7 +231,7 @@ pub(crate) fn validate(files: &Files, version: &str, revision: &str, target: &st
 fn manifest_for(files: &Files, version: &str, revision: &str, target: &str) -> Result<Value> {
     let binary = binary(target)?;
     Ok(
-        json!({"schema_version":2,"package":"ai-stp-cli","version":version,"release_channel":"stable","source_commit":revision,"target":target,"binary":binary,"binary_sha256":hash(&files[binary]),"license_sha256":hash(&files["LICENSE"]),"sbom":SBOM,"sbom_sha256":hash(&files[SBOM])}),
+        json!({"schema_version":3,"package":"ai-stp-cli","version":version,"release_channel":"stable","source_commit":revision,"target":target,"binary":binary,"binary_sha256":hash(&files[binary]),"license_sha256":hash(&files["LICENSE"]),"notice_sha256":hash(&files["NOTICE"]),"sbom":SBOM,"sbom_sha256":hash(&files[SBOM])}),
     )
 }
 
@@ -283,6 +284,7 @@ pub(crate) fn package(args: &[OsString]) -> Result<()> {
     let mut files = Files::from([
         (binary.into(), bytes),
         ("LICENSE".into(), fs::read(root().join("LICENSE"))?),
+        ("NOTICE".into(), fs::read(root().join("NOTICE"))?),
         (SBOM.into(), inventory),
     ]);
     files.insert(
