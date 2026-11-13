@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.99"
 publish = false
-license = "AGPL-3.0-or-later"
+license = "Apache-2.0"
 
 # Build and release tooling only; none of this crate enters shipped binaries.
 [workspace]
