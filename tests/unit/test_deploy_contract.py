@@ -495,7 +495,11 @@ def test_deployment_verification_observes_the_service_that_gates_publication() -
     runnable = "\n".join(line for line in script.splitlines() if not line.lstrip().startswith("#"))
     assert "compose config --images" not in runnable
     assert "docker inspect -f '{{.Config.Image}}'" in script
-    assert "docker inspect -f '{{.Image}}'" in script
+    # The platform image Compose recorded, against the tag's platform image: an
+    # index-only rebuild left a current worker reported stale for two days.
+    assert "com.docker.compose.image" in script
+    assert 'docker image inspect --platform "${platform}"' in script
+    assert "docker inspect -f '{{.Image}}'" not in runnable
     assert ".State.Health.Status" in script
     assert "failed=1" in script.split("worker_id=", maxsplit=1)[1]
 
