@@ -1,6 +1,6 @@
 [package]
 name = "ai-stp-cli"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2024"
 rust-version = "1.99"
 repository = "https://github.com/ai-engineers-guild/ai-stp"
@@ -36,12 +36,12 @@ sqlite-plugin = "=0.11.0"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.154", features = ["raw_value", "float_roundtrip"] }
 serde_json_canonicalizer = "=0.4.1"
-serde-saphyr = { version = "=2.0.0", default-features = false, features = ["deserialize"] }
+serde-saphyr = { version = "=2.1.1", default-features = false, features = ["deserialize"] }
 sha2 = "=0.11.1"
 sigstore-tuf = { version = "=0.15.1", default-features = false }
 sigstore-verify = { version = "=0.15.1", default-features = false, features = ["aws-lc-rs"] }
 ulid = "=3.0.0"
-toml_edit = { version = "=0.25.18", default-features = false, features = ["parse", "display"] }
+toml_edit = { version = "=0.25.19", default-features = false, features = ["parse", "display"] }
 tree-sitter = { version = "=0.27.1", default-features = false, features = ["std"] }
 tree-sitter-python = "=0.25.0"
 # Unicode18 needs persisted canonical/path and provider compatibility proof (#1263).
@@ -51,9 +51,9 @@ unicase = "=2.10.0"
 ureq = { version = "=3.5.1", default-features = false, features = ["rustls"] }
 url = "=2.5.8"
 percent-encoding = "=2.3.2"
-zip = { version = "=9.4.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "=9.4.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 crc32fast = "=1.5.4"
-flate2 = { version = "=1.1.10", default-features = false, features = ["zlib-rs"] }
+flate2 = { version = "=1.1.11", default-features = false, features = ["zlib-rs"] }
 tar = { version = "=0.4.46", default-features = false }
 ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["fast", "zeroize"] }
 getrandom = "=0.4.3"

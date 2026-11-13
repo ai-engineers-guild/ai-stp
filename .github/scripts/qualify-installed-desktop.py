@@ -375,7 +375,8 @@ class Driver:
         )
         self.wait(
             lambda: self.read(
-                "return !document.querySelector('aside select[name=language]')?.disabled;"
+                "return document.querySelector('aside select[name=language]')"
+                "?.getAttribute('aria-busy')==='false';"
             ),
             "acknowledged theme preference",
         )
@@ -392,7 +393,8 @@ class Driver:
         self.wait(
             lambda: self.read(
                 "return document.documentElement.lang===arguments[0]&&"
-                "!document.querySelector('aside select[name=language]').disabled;",
+                "document.querySelector('aside select[name=language]')"
+                ".getAttribute('aria-busy')==='false';",
                 locale,
             ),
             "packaged language selection",

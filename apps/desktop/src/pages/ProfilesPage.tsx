@@ -215,9 +215,10 @@ export default function ProfilesPage() {
           <p>{msg("profiles.noRetainedConnectionsYet")}</p>
         )}
         {retained.map((item) => (
-          <div
-            className="space-y-2 rounded-lg border border-border p-4"
+          <fieldset
+            className="min-w-0 space-y-2 rounded-lg border border-border p-4"
             key={String(item.connection_id)}
+            aria-label={String(item.label)}
           >
             <h3 className="font-medium">{String(item.label)}</h3>
             <p className="text-sm break-all text-muted-foreground">
@@ -251,7 +252,7 @@ export default function ProfilesPage() {
                 {msg("profiles.reviewInterruptedCreation")}
               </button>
             )}
-          </div>
+          </fieldset>
         ))}
       </section>
       <section className="card space-y-4 p-6">
@@ -307,6 +308,7 @@ export default function ProfilesPage() {
             {msg("profiles.signInMethod")}
             <select
               className="input"
+              aria-label={msg("profiles.signInMethod")}
               value={provider}
               disabled={busy}
               onChange={(e) => {
@@ -363,9 +365,10 @@ export default function ProfilesPage() {
             authority = object(context.authority),
             org = object(authority.organization);
           return (
-            <div
-              className="space-y-2 rounded-lg border border-border p-4"
+            <fieldset
+              className="min-w-0 space-y-2 rounded-lg border border-border p-4"
               key={String(context.context_id)}
+              aria-label={String(context.label)}
             >
               <h3 className="font-medium">
                 {String(context.label)}
@@ -417,7 +420,7 @@ export default function ProfilesPage() {
                   {msg("profiles.checkCurrentAccess")}
                 </button>
               )}
-            </div>
+            </fieldset>
           );
         })}
         <label className="field-label">
@@ -433,35 +436,37 @@ export default function ProfilesPage() {
             }}
           />
         </label>
-        <label className="field-label">
-          {msg("profiles.contextConnection")}
-          <select
-            className="input"
-            value={connection}
-            disabled={busy}
-            onChange={(e) => {
-              setConnection(e.target.value);
-              setOrganizations(null);
-              setOrganization("");
-              clearReview();
-            }}
-          >
-            <option value="">{msg("profiles.personalNativeOffline")}</option>
-            <option value="legacy-account">
-              {msg("profiles.existingLocalOwnerAccountSession")}
-            </option>
-            {retained
-              .filter((item) => item.state === "ready")
-              .map((item) => (
-                <option
-                  key={String(item.connection_id)}
-                  value={String(item.connection_id)}
-                >
-                  {String(item.label)} · {String(item.origin)}
-                </option>
-              ))}
-          </select>
-        </label>
+        {connections?.ok && !busy && (
+          <label className="field-label">
+            {msg("profiles.contextConnection")}
+            <select
+              className="input"
+              aria-label={msg("profiles.contextConnection")}
+              value={connection}
+              onChange={(e) => {
+                setConnection(e.target.value);
+                setOrganizations(null);
+                setOrganization("");
+                clearReview();
+              }}
+            >
+              <option value="">{msg("profiles.personalNativeOffline")}</option>
+              <option value="legacy-account">
+                {msg("profiles.existingLocalOwnerAccountSession")}
+              </option>
+              {retained
+                .filter((item) => item.state === "ready")
+                .map((item) => (
+                  <option
+                    key={String(item.connection_id)}
+                    value={String(item.connection_id)}
+                  >
+                    {String(item.label)} · {String(item.origin)}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
         {!!connection && (
           <button
             type="button"
@@ -483,6 +488,7 @@ export default function ProfilesPage() {
             {msg("profiles.organization")}
             <select
               className="input"
+              aria-label={msg("profiles.organization")}
               value={organization}
               disabled={busy}
               onChange={(e) => {

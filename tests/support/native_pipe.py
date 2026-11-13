@@ -1,4 +1,4 @@
-"""Bounded native pipe ownership shared by the Codex and Pi readers."""
+"""Bounded native pipe ownership shared by native fixture consumers."""
 
 from __future__ import annotations
 

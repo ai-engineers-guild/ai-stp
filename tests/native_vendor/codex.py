@@ -20,9 +20,10 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
 
+from tests.support.native_pipe import Pipe
+
 from . import installation
 from .common import binary_digest, environment, write_skill
-from .rpc import Pipe
 
 PREFIX = "ai-stp-qualification-"
 
