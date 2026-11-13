@@ -80,6 +80,26 @@ trap {
                     $null = $codes.Add($state)
                 }
             }
+            # Whether the app is exiting, and how, separates a crash from a lost window.
+            foreach ($owner in $owners) {
+                if ($owner.WaitForExit(5000)) {
+                    $null = $codes.Add('process:exit_' + ('{0:x8}' -f $owner.ExitCode))
+                }
+            }
+            # Crash, hang and error-report events name the failing module without its data.
+            foreach ($entry in @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
+                LogName = 'Application'; Id = 1000, 1001, 1002; StartTime = (Get-Date).AddMinutes(-15)
+            })) {
+                if ($entry.Message -cmatch 'ai-stp-desktop|msedgewebview2|WebView2') {
+                    $null = $codes.Add('event:id_' + $entry.Id)
+                    if ($entry.Id -eq 1000 -and $entry.Properties.Count -gt 6) {
+                        $module = ([string] $entry.Properties[3].Value).ToLowerInvariant() -replace '[^a-z0-9]', '_'
+                        $null = $codes.Add('event:module_' + $module.Substring(0, [Math]::Min(30, $module.Length)))
+                        $code = ([string] $entry.Properties[6].Value).ToLowerInvariant() -replace '[^a-z0-9]', ''
+                        $null = $codes.Add('event:code_' + $code.Substring(0, [Math]::Min(30, $code.Length)))
+                    }
+                }
+            }
             foreach ($helper in @('ai-stp-desktop-cli', 'git', 'git-credential-manager', 'WerFault', 'msedgewebview2')) {
                 if (@(Get-Process -Name $helper -ErrorAction SilentlyContinue).Count) {
                     $null = $codes.Add('process:' + $helper.ToLowerInvariant().Replace('-', '_'))
