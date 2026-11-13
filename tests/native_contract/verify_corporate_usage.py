@@ -19,6 +19,7 @@ from tests.native_contract.verify_ownership import cli_environment
 from tests.support.catalog_seed import FIXTURE_SETUP_ID
 
 from ai_stp_api.session import issue_session
+from ai_stp_platform.organization_models import CorporateCatalogAssignment
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
 
 Native = Any
@@ -95,6 +96,35 @@ async def qualify(
             },
         )
         assert saved.status_code == 200, saved.text
+        # Earlier precedence controls retire the employee's Claude Code decision;
+        # put that exact decision back for this installation.
+        async with app.state.sessionmaker() as db:
+            held = await db.scalar(
+                select(CorporateCatalogAssignment).where(
+                    CorporateCatalogAssignment.organization_id == organization,
+                    CorporateCatalogAssignment.account_id == account,
+                    CorporateCatalogAssignment.harness == "claude-code",
+                    CorporateCatalogAssignment.stable_id == FIXTURE_SETUP_ID,
+                )
+            )
+            expected = held.revision if held is not None else 0
+        assigned = await api.put(
+            f"{base}/catalog-assignments",
+            headers=auth,
+            json={
+                "subject_kind": "employee",
+                "subject_id": account,
+                "object_kind": "setup",
+                "stable_id": FIXTURE_SETUP_ID,
+                "version": "1.0",
+                "harness": "claude-code",
+                "state": "current",
+                "expected_revision": expected,
+                "authorization_revision": await revision(),
+                "idempotency_key": "native-usage-employee-assignment",
+            },
+        )
+        assert assigned.status_code == 200, assigned.text
 
     preview = await run(
         "corporate",
