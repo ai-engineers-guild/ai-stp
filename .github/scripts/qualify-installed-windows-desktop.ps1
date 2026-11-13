@@ -73,6 +73,21 @@ trap {
                 }
             }
         }
+        try {
+            # Window and helper-process states explain a missing main window.
+            foreach ($owner in $owners) {
+                foreach ($state in [NativeDesktopInput]::TopLevelWindowStates([uint32] $owner.Id)) {
+                    $null = $codes.Add($state)
+                }
+            }
+            foreach ($helper in @('ai-stp-desktop-cli', 'git', 'git-credential-manager', 'WerFault', 'msedgewebview2')) {
+                if (@(Get-Process -Name $helper -ErrorAction SilentlyContinue).Count) {
+                    $null = $codes.Add('process:' + $helper)
+                }
+            }
+        } catch {
+            $null = $codes.Add('state:window_scan_failed')
+        }
         if (!$codes.Count) { $null = $codes.Add('state:nothing_visible') }
         [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + ($codes -join ','))
     } catch {
