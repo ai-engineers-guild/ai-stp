@@ -10,7 +10,8 @@ CI push branches: `dev`.
 `dev` is the integration and complete source qualification branch. `main` names
 an already qualified release source. Both branches are permanent locally and
 remotely. Work branches use `feat/`, `fix/`, `refactor/`, `docs/`, `test/` or
-`chore/`; Dependabot updates target `dev`.
+`chore/`; Renovate's version updates and Dependabot's security updates target
+`dev`.
 
 ## Source qualification
 
