@@ -77,7 +77,7 @@ def render(projection: Projection, *, locale: str = "en") -> str:
 name: ai-stp
 description: >-
   {description}
-license: AGPL-3.0-or-later
+license: Apache-2.0
 metadata:
   harness: "{projection.harness_id}"
   source: canonical
