@@ -16,12 +16,15 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
+      - name: Outside telemetry off
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/telemetry@9fead1382c452a6b791a0a9e464ac6ac66537ac3
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           python-version: '3.15.2'
       - uses: ./.github/actions/project-rust
@@ -31,7 +34,7 @@ jobs:
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-component-compile-one-portable-component-without-third-party-guest-dependencies
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -51,12 +54,15 @@ jobs:
       matrix:
         os: [ubuntu-26.04, macos-26, windows-2025]
     steps:
+      - name: Outside telemetry off
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/telemetry@9fead1382c452a6b791a0a9e464ac6ac66537ac3
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           python-version: '3.15.2'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -65,7 +71,7 @@ jobs:
           path: ${{ runner.temp }}/wasi-component
       - name: Prepare the pinned native WASI runtime archive
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           manifest: .github/wasi-runtime/${{ runner.os }}.json
           directory: ${{ runner.temp }}/wasi-runtime-asset
@@ -73,6 +79,6 @@ jobs:
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-confinement-verify-runtime-digest-and-exercise-the-identical-guest-component

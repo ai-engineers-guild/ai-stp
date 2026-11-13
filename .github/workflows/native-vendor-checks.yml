@@ -38,13 +38,16 @@ jobs:
     env:
       AI_STP_NATIVE_VENDOR_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
+      - name: Outside telemetry off
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/telemetry@9fead1382c452a6b791a0a9e464ac6ac66537ac3
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Prepare the declared hosted SDK
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           python-version: '3.15.2'
           bun-version: '1.4.4'
@@ -60,7 +63,7 @@ jobs:
           path: ${{ runner.temp }}/ai-stp-engine-archives
       - name: Prepare the exact official vendor distribution
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           manifest: .github/codex-${{ runner.os }}.json
           directory: ${{ runner.temp }}/ai-stp-codex-distribution
@@ -74,7 +77,7 @@ jobs:
           AI_STP_CODEX_TOOLS: ${{ runner.temp }}/ai-stp-codex-distribution
           AI_STP_CODEX_PROOF: ${{ runner.temp }}/codex-loading-proof.json
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-native-vendor-codex
       - name: Read actual Grok configuration and refusal controls
@@ -85,7 +88,7 @@ jobs:
           AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
           AI_STP_GROK_PROOF: ${{ runner.temp }}/grok-loading-proof.json
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-native-vendor-grok
       - name: Read actual Pi configuration and refusal controls
@@ -96,7 +99,7 @@ jobs:
           AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
           AI_STP_PI_PROOF: ${{ runner.temp }}/pi-loading-proof.json
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-native-vendor-pi
       - name: Read Claude configuration and observe owned startup hooks
@@ -107,7 +110,7 @@ jobs:
           AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
           AI_STP_CLAUDE_PROOF: ${{ runner.temp }}/claude-loading-proof.json
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-native-vendor-claude
       - name: Read OpenCode skills through an owned private server
@@ -118,7 +121,7 @@ jobs:
           AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
           AI_STP_OPENCODE_PROOF: ${{ runner.temp }}/opencode-loading-proof.json
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-native-vendor-opencode
       - name: Retain content-free vendor discovery proof
