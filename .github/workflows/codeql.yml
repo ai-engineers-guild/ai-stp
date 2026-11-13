@@ -56,18 +56,18 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           python-version: '3.15.2'
       # Keep init and analyze on the same release and commit.
       - name: Initialise CodeQL
-        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
       - name: Analyse
         id: analysis
-        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066
         with:
           category: /language:${{ matrix.language }}
           wait-for-processing: true
@@ -80,7 +80,7 @@ jobs:
           SOURCE_LANGUAGE: ${{ matrix.language }}
           ORIGINAL_SARIF_ID: ${{ steps.analysis.outputs.sarif-id }}
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-codeql-retain-analysis
       - name: Retain source analysis without granting it release authority

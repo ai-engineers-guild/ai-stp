@@ -93,7 +93,7 @@ jobs:
           version="$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/cli/rust-toolchain.toml)"
           printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
       - uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           rust-version: ${{ steps.toolchain.outputs.version }}
       - name: Reproduce the verified crate before acquiring publishing credentials

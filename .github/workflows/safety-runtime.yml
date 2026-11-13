@@ -69,18 +69,18 @@ jobs:
             "UV_CACHE_DIR=$RUNNER_TEMP/safety-runtime-uv" >> "$GITHUB_ENV"
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           python-version: '3.15.2'
           uv-version: '0.13.7'
       - name: Build the exact native scanner image with shared layers
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-safety-runtime-build
       - name: Qualify actual native reports and mandatory isolation
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-safety-runtime-test
       - name: Retain exact-source native runtime proof
