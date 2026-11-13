@@ -14,7 +14,10 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+};
 
 const DIRECTORY: &str = "ai-stp-v2-runtime-usage";
 const OWNER: &[u8] = b"ai-stp native runtime usage v1\n";
@@ -363,6 +366,56 @@ pub fn record(root: &Path, context_id: &str, signal: &planning::UsageSignal<'_>)
     view(&context, Some(&held), pending_names(&dir)?.len())
 }
 
+/// Queue native hook load signals for the owned components of the harness
+/// session that called the hook. A hook never fails its harness: a missing
+/// consent, installation or identifier records nothing and still succeeds.
+pub fn hook(root: &Path, harness: &str, payload: &[u8], at: &str) -> Value {
+    let Some((session, directory)) = hook_payload(harness, payload) else {
+        return json!({"recorded":0,"skipped":0,"session_identified":false});
+    };
+    let components = Custody::existing_user()
+        .ok()
+        .flatten()
+        .and_then(|custody| planning::hook_components(root, &custody, harness, &directory).ok())
+        .unwrap_or_default();
+    let mut recorded = 0;
+    for (context, operation, component) in &components {
+        let signal = planning::UsageSignal {
+            operation,
+            component,
+            signal_id: &session,
+            activity_kind: "load",
+            outcome: "succeeded",
+            at,
+            source: "native_hook",
+        };
+        if record(root, context, &signal).is_ok() {
+            recorded += 1;
+        }
+    }
+    json!({"recorded":recorded,"skipped":components.len() - recorded,"session_identified":true})
+}
+
+/// Reads only the session identifier and working directory of a hook event.
+fn hook_payload(harness: &str, payload: &[u8]) -> Option<(String, PathBuf)> {
+    let event: Value = serde_json::from_slice(payload).ok()?;
+    let session = match harness {
+        "grok-build" => event["sessionId"].as_str(),
+        "cursor" => event["session_id"]
+            .as_str()
+            .or_else(|| event["conversation_id"].as_str()),
+        "claude-code" | "codex" => event["session_id"].as_str(),
+        _ => None,
+    }?;
+    let directory = event["cwd"]
+        .as_str()
+        .or_else(|| event["workspaceRoot"].as_str())
+        .or_else(|| event["workspace_roots"][0].as_str())
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())?;
+    Some((session.to_owned(), directory))
+}
+
 fn acknowledge(events: &[Value], reply: &Value) -> Result<(BTreeSet<String>, bool)> {
     RECEIPT.validate(reply)?;
     let wanted = events
@@ -570,5 +623,50 @@ mod tests {
             );
         }
         Ok(())
+    }
+
+    #[test]
+    fn hook_payload_reads_only_each_vendor_session_and_directory() {
+        let cases = [
+            (
+                "claude-code",
+                json!({"session_id":"claude-1","cwd":"/w","hook_event_name":"SessionStart","prompt":"x"}),
+            ),
+            (
+                "codex",
+                json!({"session_id":"codex-1","cwd":"/w","hook_event_name":"SessionStart"}),
+            ),
+            (
+                "cursor",
+                json!({"session_id":"cursor-1","workspace_roots":["/w"]}),
+            ),
+            (
+                "cursor",
+                json!({"conversation_id":"cursor-1","workspace_roots":["/w"]}),
+            ),
+            (
+                "grok-build",
+                json!({"sessionId":"grok-1","workspaceRoot":"/w"}),
+            ),
+        ];
+        for (harness, event) in cases {
+            let (session, directory) =
+                hook_payload(harness, event.to_string().as_bytes()).expect(harness);
+            assert!(session.ends_with("-1"));
+            assert_eq!(directory, PathBuf::from("/w"));
+        }
+        assert!(
+            hook_payload("grok-build", br#"{"session_id":"wrong-field","cwd":"/w"}"#).is_none()
+        );
+        assert!(hook_payload("antigravity", br#"{"session_id":"s","cwd":"/w"}"#).is_none());
+        assert!(hook_payload("codex", b"not json").is_none());
+    }
+
+    #[test]
+    fn hook_without_session_records_nothing_and_succeeds() {
+        let root = tempfile::tempdir().expect("root");
+        let reply = hook(root.path(), "codex", b"{}", "2026-11-14T00:00:00.000Z");
+        assert_eq!(reply["recorded"], 0);
+        assert_eq!(reply["session_identified"], false);
     }
 }

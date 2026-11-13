@@ -140,6 +140,8 @@ pub struct UsageSignal<'a> {
     pub activity_kind: &'a str,
     pub outcome: &'a str,
     pub at: &'a str,
+    /// `agent_reported` for a manual report, `native_hook` for a harness hook.
+    pub source: &'a str,
 }
 
 pub fn usage_observation(
@@ -158,6 +160,7 @@ pub fn usage_observation(
             .all(|b| b.is_ascii_alphanumeric() || b"._:-".contains(&b))
         || !matches!(signal.activity_kind, "invocation" | "load")
         || !matches!(signal.outcome, "succeeded" | "failed" | "cancelled")
+        || !matches!(signal.source, "agent_reported" | "native_hook")
         || !custody.current_operations()?.contains(signal.operation)
     {
         return Err(invalid());
@@ -234,7 +237,57 @@ pub fn usage_observation(
         "setup":plan.setup,
         "component":{"kind":document["component_type"],"stable_id":signal.component,
             "version":source["version"],"passport_digest":source["passport_digest"]},
-        "invoked_at":signal.at,"outcome":signal.outcome,"source":"agent_reported",
+        "invoked_at":signal.at,"outcome":signal.outcome,"source":signal.source,
         "activity_kind":signal.activity_kind
     }}))
+}
+
+/// Owned components of current completed corporate operations for `harness`
+/// whose checkout holds `directory`, as (context, operation, component).
+pub fn hook_components(
+    root: &Path,
+    custody: &Custody,
+    harness: &str,
+    directory: &Path,
+) -> Result<Vec<(String, String, String)>> {
+    let directory = directory.canonicalize().map_err(|_| invalid())?;
+    let mut found = Vec::new();
+    for operation in custody.current_operations()? {
+        let Some(review) = custody.retained(&operation)? else {
+            continue;
+        };
+        if custody.status(&review)?["state"] != "completed" {
+            continue;
+        }
+        let Some(plan) = review.original_plan()? else {
+            continue;
+        };
+        let Some(corporate) = plan.corporate.as_ref() else {
+            continue;
+        };
+        let Ok(checkout) = corporate.checkout_root.canonicalize() else {
+            continue;
+        };
+        if plan.target.harness_id != harness
+            || plan.state.path != root
+            || !directory.starts_with(&checkout)
+        {
+            continue;
+        }
+        for row in custody.inventory(&operation)? {
+            if let (true, Some(component)) = (
+                row["state"] == "present",
+                row["source"]["stable_id"].as_str(),
+            ) {
+                found.push((
+                    plan.context.context_id.clone(),
+                    operation.clone(),
+                    component.to_owned(),
+                ));
+            }
+        }
+    }
+    found.sort();
+    found.dedup();
+    Ok(found)
 }

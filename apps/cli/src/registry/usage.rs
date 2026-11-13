@@ -8,7 +8,10 @@ use crate::{
 };
 use clap::ArgMatches;
 use serde_json::Value;
-use std::path::PathBuf;
+use std::{io::Read, path::PathBuf};
+
+/// Vendor hook events carry tool input; only identifiers are read.
+const HOOK_PAYLOAD_LIMIT: u64 = 1024 * 1024;
 
 #[derive(Clone, Copy)]
 pub(super) enum Handler {
@@ -18,6 +21,7 @@ pub(super) enum Handler {
     Disable,
     Record,
     Flush,
+    Hook,
 }
 
 impl Handler {
@@ -118,6 +122,20 @@ pub(super) const COMMANDS: &[Declaration] = &[
         handler: super::Handler::Usage(Handler::Record),
     },
     Declaration {
+        path: &["corporate", "usage", "hook"],
+        summary: "Harness hook entry: queue load signals for this session's owned components; reads the vendor event on stdin, prints nothing and always exits 0.",
+        parameters: &[
+            STATE_DIR,
+            Parameter {
+                name: "harness",
+                summary: "Harness whose documented session start hook calls this command.",
+                kind: ParameterType::Choice(&["claude-code", "codex", "cursor", "grok-build"]),
+                required: true,
+            },
+        ],
+        handler: super::Handler::Usage(Handler::Hook),
+    },
+    Declaration {
         path: &["corporate", "usage", "flush"],
         summary: "Send retained original usage events with exact receipt reconciliation.",
         parameters: &[STATE_DIR, CONTEXT],
@@ -152,8 +170,21 @@ pub(super) fn dispatch(handler: Handler, args: &ArgMatches) -> Result<Value> {
                 activity_kind: value("activity-kind")?,
                 outcome: value("outcome")?,
                 at: &at,
+                source: "agent_reported",
             },
         ),
         Handler::Flush => usage::flush(path("state-dir")?, value("context")?),
+        Handler::Hook => {
+            let mut payload = Vec::new();
+            std::io::Read::take(std::io::stdin().lock(), HOOK_PAYLOAD_LIMIT)
+                .read_to_end(&mut payload)
+                .map_err(|_| Failure::input("hook event is unreadable"))?;
+            Ok(usage::hook(
+                path("state-dir")?,
+                value("harness")?,
+                &payload,
+                &at,
+            ))
+        }
     }
 }

@@ -903,6 +903,17 @@ pub fn help(path: &str, find: &str) -> Result<Value> {
     )
 }
 
+/// Harness hook entries print nothing: the harness may read stdout as model context.
+pub(crate) fn silent(matches: &ArgMatches) -> bool {
+    let mut leaf = matches;
+    let mut path = Vec::new();
+    while let Some((name, child)) = leaf.subcommand() {
+        path.push(name);
+        leaf = child;
+    }
+    path == ["corporate", "usage", "hook"]
+}
+
 pub(crate) fn warnings(matches: &ArgMatches, result: &Result<Value>) -> Vec<String> {
     if matches
         .subcommand_matches("account")

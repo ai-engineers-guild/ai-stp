@@ -48,6 +48,8 @@ use error::{Failure, Result};
 pub struct Invocation {
     pub result: Result<Value>,
     pub machine: bool,
+    /// Print nothing and exit 0, for harness hooks whose stdout becomes model context.
+    pub silent: bool,
     pub text: Option<String>,
     pub warnings: Vec<String>,
     pub continuations: Vec<Value>,
@@ -94,6 +96,7 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
             let warnings = registry::warnings(&matches, &result);
             let continuations = registry::continuations(&matches, &result);
             Invocation {
+                silent: !machine && registry::silent(&matches),
                 result,
                 machine,
                 text,
@@ -104,6 +107,7 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
         Err(error) if error.kind() == clap::error::ErrorKind::DisplayHelp => Invocation {
             result: registry::help("", ""),
             machine,
+            silent: false,
             text: Some(error.to_string()),
             warnings: Vec::new(),
             continuations: Vec::new(),
@@ -113,6 +117,7 @@ pub fn invoke(arguments: impl IntoIterator<Item = OsString>) -> Invocation {
                 "invalid invocation; use help --json for accepted commands and parameters",
             )),
             machine,
+            silent: false,
             text: None,
             warnings: Vec::new(),
             continuations: Vec::new(),

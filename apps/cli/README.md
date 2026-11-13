@@ -271,9 +271,16 @@ operation, an unchanged owned component, and a stable opaque signal ID.
 The private outbox retains exact version coordinates and sends only content-free
 events to the authenticated corporate usage endpoint. Exact retries are
 idempotent; conflicting reuse of a signal ID is refused. Delivery is foreground
-only. These manual reports are labeled `agent_reported`; no harness-native hook
-collection or background service is available yet. Corporate native-hook
-aggregates exclude these reports.
+only. Manual reports are labeled `agent_reported`; corporate native-hook
+aggregates exclude them.
+
+`corporate usage hook --harness <harness>` is the entry for a documented session
+start hook of Claude Code, Codex, Cursor or Grok Build. It reads only the session
+ID and working directory from the vendor event on stdin, queues a `native_hook`
+load signal for each owned component of the current corporate operations of that
+harness whose checkout holds the directory, under the original context and its
+consent, prints nothing and always exits 0. OpenCode, Pi and Antigravity have no
+qualified hook surface and report unknown coverage.
 
 ## Build and verification
 
