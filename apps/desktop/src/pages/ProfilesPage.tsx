@@ -436,36 +436,37 @@ export default function ProfilesPage() {
             }}
           />
         </label>
-        <label className="field-label">
-          {msg("profiles.contextConnection")}
-          <select
-            className="input"
-            aria-label={msg("profiles.contextConnection")}
-            value={connection}
-            disabled={busy || !connections?.ok}
-            onChange={(e) => {
-              setConnection(e.target.value);
-              setOrganizations(null);
-              setOrganization("");
-              clearReview();
-            }}
-          >
-            <option value="">{msg("profiles.personalNativeOffline")}</option>
-            <option value="legacy-account">
-              {msg("profiles.existingLocalOwnerAccountSession")}
-            </option>
-            {retained
-              .filter((item) => item.state === "ready")
-              .map((item) => (
-                <option
-                  key={String(item.connection_id)}
-                  value={String(item.connection_id)}
-                >
-                  {String(item.label)} · {String(item.origin)}
-                </option>
-              ))}
-          </select>
-        </label>
+        {connections?.ok && !busy && (
+          <label className="field-label">
+            {msg("profiles.contextConnection")}
+            <select
+              className="input"
+              aria-label={msg("profiles.contextConnection")}
+              value={connection}
+              onChange={(e) => {
+                setConnection(e.target.value);
+                setOrganizations(null);
+                setOrganization("");
+                clearReview();
+              }}
+            >
+              <option value="">{msg("profiles.personalNativeOffline")}</option>
+              <option value="legacy-account">
+                {msg("profiles.existingLocalOwnerAccountSession")}
+              </option>
+              {retained
+                .filter((item) => item.state === "ready")
+                .map((item) => (
+                  <option
+                    key={String(item.connection_id)}
+                    value={String(item.connection_id)}
+                  >
+                    {String(item.label)} · {String(item.origin)}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
         {!!connection && (
           <button
             type="button"

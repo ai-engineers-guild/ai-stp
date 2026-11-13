@@ -707,6 +707,8 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     try corporateSession(cli, fixture, connection)
     try pressNamed(process, catalogs.text("shell.connections"), role: "AXLink")
     try enter(process, visible(process, catalogs.text("profiles.contextLabel"), role: kAXTextFieldRole, enabled: true),
+        "Native corporate draft")
+    try enter(process, visible(process, catalogs.text("profiles.contextLabel"), role: kAXTextFieldRole, enabled: true),
         "Native corporate context")
     corporateStage("context_connection")
     try profileOption(process, catalogs, "profiles.contextConnection", "Native company connection · " + fixture.origin)
