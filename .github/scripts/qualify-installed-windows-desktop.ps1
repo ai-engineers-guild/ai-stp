@@ -44,10 +44,19 @@ if (!(Test-Path -LiteralPath $app -PathType Leaf) -or !(Test-Path -LiteralPath $
 
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 installed')
 
+function Read-NativeText([string[]] $Command) {
+    $text = (& $cli @Command --json) -join "`n"
+    $result = $text | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or !$result.ok) {
+        # The closed error code is content-free; messages and details stay private.
+        $code = if ($result.error.code -cmatch '^[a-z0-9_.-]{1,64}$') { $result.error.code } else { 'unknown' }
+        throw "Installed CLI readback failed ($code)"
+    }
+    return [pscustomobject]@{ Text = $text; Data = $result.data }
+}
+
 function Read-Native([string[]] $Command) {
-    $result = & $cli @Command --json | ConvertFrom-Json
-    if ($LASTEXITCODE -ne 0 -or !$result.ok) { throw 'Installed CLI readback failed' }
-    return $result.data
+    return (Read-NativeText $Command).Data
 }
 
 function Wait-Element([System.Diagnostics.Process] $Process, [string] $Name, $ControlType, [bool] $AllowDisabled = $false) {
@@ -1096,13 +1105,20 @@ function Assert-CheckoutIntent(
 function Start-CorporateCheckout([System.Diagnostics.Process] $Process, $Fixture, $Corporate) {
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_preview')
     # Fixture preparation uses the installed public engine, never application IPC.
-    $prepared = Read-Native @('project', 'passport', 'plan', '--root', $Fixture.checkout_root)
+    $preparedText = Read-NativeText @('project', 'passport', 'plan', '--root', $Fixture.checkout_root)
+    $prepared = $preparedText.Data
     $local = $prepared.plan.operation.passport.stable_id
     if ($prepared.plan_digest -cnotmatch '^sha256:[0-9a-f]{64}$' -or $local -isnot [string] -or !$local) {
         throw 'Owned checkout passport preparation differs'
     }
     $preparation = Join-Path ([IO.Path]::GetDirectoryName($Fixture.result_path)) 'checkout-passport.json'
-    $bytes = [Text.Encoding]::UTF8.GetBytes(($prepared.plan | ConvertTo-Json -Depth 100))
+    # Keep the engine's exact plan values: a PowerShell object round trip turns
+    # timestamp strings into DateTime and writes them back in another form.
+    $document = [System.Text.Json.JsonDocument]::Parse($preparedText.Text)
+    try {
+        $planText = $document.RootElement.GetProperty('data').GetProperty('plan').GetRawText()
+    } finally { $document.Dispose() }
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($planText)
     $stream = [IO.File]::Open($preparation, [IO.FileMode]::CreateNew)
     try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
     $null = Read-Native @('local', 'apply', '--plan', $preparation, '--plan-digest', $prepared.plan_digest)
