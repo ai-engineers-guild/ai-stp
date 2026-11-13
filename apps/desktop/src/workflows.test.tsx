@@ -218,7 +218,7 @@ it("discards a previous account response even after returning to the same connec
   expect(screen.getByText("current-personal")).toBeTruthy();
 });
 
-it("waits for retained connection choices without replacing entered context text", async () => {
+it("mounts ready connection choices without replacing entered context text or focus", async () => {
   let complete!: (result: CmdResult) => void;
   vi.mocked(transport.cmdRunRead).mockImplementation(async (path) =>
     path === "account connections list"
@@ -228,9 +228,12 @@ it("waits for retained connection choices without replacing entered context text
       : ok({ contexts: [] }),
   );
   mount(<ProfilesPage />);
-  const selector = screen.getByRole("combobox", { name: "Context connection" });
-  expect(selector).toHaveProperty("disabled", true);
-  fireEvent.change(screen.getByLabelText("Context label"), {
+  expect(
+    screen.queryByRole("combobox", { name: "Context connection" }),
+  ).toBeNull();
+  const field = screen.getByLabelText("Context label");
+  field.focus();
+  fireEvent.change(field, {
     target: { value: "Waiting context" },
   });
   await act(async () =>
@@ -248,7 +251,10 @@ it("waits for retained connection choices without replacing entered context text
       }),
     ),
   );
+  const selector = screen.getByRole("combobox", { name: "Context connection" });
   expect(selector).toHaveProperty("disabled", false);
+  expect(screen.getByLabelText("Context label")).toBe(field);
+  expect(document.activeElement).toBe(field);
   expect(
     screen.getByRole("option", {
       name: "Fixture company · https://company.example.test",
@@ -274,8 +280,8 @@ it("keeps unknown connection choices unavailable after a failed local read", asy
   mount(<ProfilesPage />);
   await screen.findByRole("alert");
   expect(
-    screen.getByRole("combobox", { name: "Context connection" }),
-  ).toHaveProperty("disabled", true);
+    screen.queryByRole("combobox", { name: "Context connection" }),
+  ).toBeNull();
 });
 
 it("plans a context from the existing account without creating a new enrollment", async () => {
@@ -302,9 +308,10 @@ it("plans a context from the existing account without creating a new enrollment"
     ok({ plan: { schema_version: 1 }, plan_digest: "sha256:legacy" }),
   );
   mount(<ProfilesPage />);
-  fireEvent.change(screen.getByLabelText("Context connection"), {
-    target: { value: "legacy-account" },
-  });
+  fireEvent.change(
+    await screen.findByRole("combobox", { name: "Context connection" }),
+    { target: { value: "legacy-account" } },
+  );
   fireEvent.click(
     screen.getByRole("button", { name: "Read available organizations" }),
   );

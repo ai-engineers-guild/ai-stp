@@ -1022,6 +1022,7 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
     $null = Wait-Element $Process (Text 'auth.signedIn') $null
     Assert-CorporateSession $Fixture $connection
     Invoke-Control (Wait-Element $Process (Text 'shell.connections') ([System.Windows.Automation.ControlType]::Hyperlink))
+    Enter-Context $Process 'Native corporate draft' 'profiles.contextLabel' $false
     Enter-Context $Process 'Native corporate context' 'profiles.contextLabel' $false
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 context_connection')
     Select-ProfileOption $Process 'profiles.contextConnection' ('Native company connection · ' + $Fixture.origin)
