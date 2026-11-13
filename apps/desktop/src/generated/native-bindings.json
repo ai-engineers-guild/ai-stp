@@ -5,8 +5,8 @@
     "type UiPreferences = { locale: string | null, theme: string | null, };"
   ],
   "inputs": {
-    "core/Cargo.lock": "9d96e586b64ef1293a9b8582d89aa39b2f3bdc2e0c2145adc723939b2796bf73",
-    "core/Cargo.toml": "d07534c408e52f6fd20866a7a1aa867fc9023b70be51b740c4cf61429f64f71f",
+    "core/Cargo.lock": "ae7b347d25cf00ca1c18f50eeaa3bd512fbc3e4562091d5cdb7be079d8b5d454",
+    "core/Cargo.toml": "bcc0f0331777636fb057bd11e5458ab259ae090f89dd216506a4f6c57f5ac8c1",
     "core/src/bindings.rs": "af32d4011760a1b7ca1ec49b2c86bcfe5a487871544d80b8394fefd0bf50fe35",
     "core/src/bridge.rs": "ff1e24a48372d53f899ccee83f1337b44e5a9ad7e1702aa7580a4e68236a7ec2",
     "core/src/envelope.rs": "db96758e8566aa09b766062e4d4a7bef20d8bb1e2beb850ccee0e374ab776f8c",

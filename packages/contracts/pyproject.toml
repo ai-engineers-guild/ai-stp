@@ -4,7 +4,7 @@ version = "0.0.16"
 description = "Frozen /v1 wire contract: request and response models shared by the CLI and the platform."
 readme = "README.md"
 requires-python = ">=3.12"
-license = "AGPL-3.0-or-later"
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "AI Engineers Guild" }]
 keywords = ["ai", "api", "contracts", "developer-tools", "setup"]
@@ -23,7 +23,7 @@ dependencies = [
   "ai-stp-assurance==0.0.16",
   "ai-stp-foundation==0.0.16",
   "ai-stp-passports==0.0.16",
-  "pydantic>=2.14.1",
+  "pydantic>=2.14.3",
   "tzdata>=2025.1; sys_platform == 'win32'",
 ]
 
@@ -38,7 +38,7 @@ Repository = "https://github.com/ai-engineers-guild/ai-stp"
 mock = ["httpx>=0.28"]
 
 [build-system]
-requires = ["uv_build>=0.13.5,<0.14"]
+requires = ["uv_build>=0.13.7,<0.14"]
 build-backend = "uv_build"
 
 [tool.deptry.per_rule_ignores]

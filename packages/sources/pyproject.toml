@@ -4,7 +4,7 @@ version = "0.0.16"
 description = "Shared SourceIntent/SourceSnapshot contracts and GitHub/local resolvers."
 readme = "README.md"
 requires-python = ">=3.12"
-license = "AGPL-3.0-or-later"
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "AI Engineers Guild" }]
 keywords = ["ai", "developer-tools", "setup", "sources"]
@@ -26,7 +26,7 @@ dependencies = [
     "packaging>=24",
     "pathspec>=1.1.1,<2",
     "pyyaml>=6",
-    "pydantic>=2.14.1",
+    "pydantic>=2.14.3",
 ]
 
 [project.urls]
@@ -39,5 +39,5 @@ ai-stp-foundation = { workspace = true }
 ai-stp-passports = { workspace = true }
 
 [build-system]
-requires = ["uv_build>=0.13.5,<0.14"]
+requires = ["uv_build>=0.13.7,<0.14"]
 build-backend = "uv_build"

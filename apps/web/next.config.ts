@@ -23,7 +23,8 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "media-src 'self' blob: https:",
-  "frame-src https://www.youtube-nocookie.com",
+  // Yandex Metrica's documented click-map frame; it loads only after consent.
+  "frame-src https://www.youtube-nocookie.com blob: https://mc.yandex.ru",
   "font-src 'self'",
   "connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com https://mc.yandex.ru https://mc.yandex.com",
   "object-src 'none'",
