@@ -705,7 +705,11 @@ def second_company(
     assert second != first
 
     def view(context: str, visible: str, hidden: str) -> None:
+        current = native(binary, environment, ["context", "list"])["selected"]["context_id"]
         driver.navigate("profiles")
+        # Navigation re-reads contexts and disables the switcher until that read
+        # settles on the current view; choose only after it does.
+        driver.selected(current)
         choose(driver, "Selected context view", context, scope='section[aria-label="Context view"]')
         driver.selected(context)
         driver.navigate("corporate", keyboard=True)
