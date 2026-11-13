@@ -163,8 +163,8 @@ pub(crate) fn read_archive(path: &Path, binary: &str) -> Result<Files> {
     if path.extension().is_some_and(|s| s == "zip") {
         let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
         require(
-            archive.len() == 4,
-            "archive must contain exactly four regular files",
+            archive.len() == 5,
+            "archive must contain exactly five regular files",
         )?;
         for i in 0..archive.len() {
             let entry = archive.by_index_with_options(
