@@ -81,8 +81,12 @@ jobs:
     with:
       installed_engine: true
 
+  previous-writers:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/previous-native-writers.yml
+
   native-corporate:
-    needs: archives
+    needs: [archives, previous-writers]
     if: github.event_name != 'pull_request'
     permissions:
       contents: read
@@ -424,6 +428,7 @@ jobs:
       - wasi-confinement
       - safety-runtime
       - vendor-discovery
+      - previous-writers
       - native-corporate
       - secrets
       - integration-python
@@ -459,7 +464,7 @@ jobs:
           printf 'Qualification phase: %s\n' "${PHASE}"
           jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
             --arg wasi "${WASI_SELECTED}" '
-            type == "object" and length == 23 and
+            type == "object" and length == 24 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
             ($phase != "full" or $wasi == "true") and
@@ -502,6 +507,7 @@ jobs:
 
   cli:
     if: github.event_name != 'pull_request'
+    needs: previous-writers
     name: cli-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     # A cold Windows build takes about 25 minutes before the consumer proof.
@@ -576,22 +582,23 @@ jobs:
           workspaces: ${{ env.NATIVE_CACHE_WORKSPACE }}
           cache-bin: 'false'
           save-if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
-      - name: Restore isolated previous native build artifacts
+      - name: Read this run's historical writers
         if: runner.os == 'Linux'
-        id: previous-native-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        continue-on-error: true
-        timeout-minutes: 5
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
-          # Restore before long-running checks to reduce the eviction window.
-          # Every use verifies compiler/recipe/bytes and reruns actual API controls.
-          # No prefix fallback may import another producer's artifacts.
-          key: >-
-            previous-native-v3-${{ runner.os }}-${{ runner.arch }}-${{
-            hashFiles('apps/cli/rust-toolchain.toml',
-            '.github/scripts/build-previous-native-cli.sh',
-            '.github/scripts/previous-native-cache.py') }}
+          pattern: previous-native-${{ runner.os }}-*
+          path: ${{ runner.temp }}/previous-native-artifacts
+          merge-multiple: true
+      - name: Unpack this run's historical writers
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "${RUNNER_TEMP}/ai-stp-previous-native-binaries"
+          for epoch in 58 59; do
+            tar -xf "${RUNNER_TEMP}/previous-native-artifacts/previous-native-${epoch}.tar" \
+              -C "${RUNNER_TEMP}"
+          done
       - name: Observe Linux package networking before native checks
         if: runner.os == 'Linux'
         shell: bash
@@ -664,17 +671,6 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
           recipe: ci-cli-ownership-and-corporate-journeys-through-the-native-http-client
-      - name: Cache previous native builds after API acceptance
-        if: >-
-          success() && github.event_name == 'push' && github.ref == 'refs/heads/dev' &&
-          runner.os == 'Linux' && steps.previous-native-cache.outputs.cache-hit != 'true' &&
-          steps.previous-native-cache.outputs.cache-primary-key != ''
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        continue-on-error: true
-        timeout-minutes: 5
-        with:
-          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
-          key: ${{ steps.previous-native-cache.outputs.cache-primary-key }}
 
   docs:
     if: github.event_name != 'pull_request'

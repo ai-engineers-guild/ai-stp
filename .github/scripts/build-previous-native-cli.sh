@@ -118,7 +118,8 @@ assert ("corporate", "project", "binding-retire", "plan") not in paths
 assert not any(home.iterdir()), "metadata probe created persistent state"
 print(f"Verified previous writer {epoch} command boundary: {metadata['registry_digest']}")
 PY
-if [[ "${previous_epoch}" == 59 ]]; then
+# The producer builds each epoch on its own runner; consumers compare both.
+if [[ "${previous_epoch}" == 59 && "${AI_STP_PREVIOUS_NATIVE_PRODUCER:-}" != true ]]; then
   test -x "${AI_STP_TEST_PREVIOUS_CLI_BINARY:?}"
   if cmp -s "${previous_binary}" "${AI_STP_TEST_PREVIOUS_CLI_BINARY}"; then
     echo "Independent previous writers unexpectedly have identical bytes." >&2

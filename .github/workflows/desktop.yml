@@ -459,7 +459,17 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  previous-writers-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_native_corporate
+    uses: ./.github/workflows/previous-native-writers.yml
+    with:
+      platforms: >-
+        ${{ inputs.diagnostic_platform == 'Windows' && '["windows-2025"]' ||
+        inputs.diagnostic_platform == 'macOS' && '["macos-26"]' ||
+        '["macos-26","windows-2025"]' }}
+
   native-corporate-diagnostic:
+    needs: previous-writers-diagnostic
     if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_native_corporate
     permissions:
       contents: read

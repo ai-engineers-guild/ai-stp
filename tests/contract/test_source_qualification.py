@@ -102,6 +102,7 @@ class QualificationTests(unittest.TestCase):
         for job, filename in [
             ("desktop", "desktop.yml"),
             ("native-corporate", "native-corporate-checks.yml"),
+            ("previous-writers", "previous-native-writers.yml"),
             ("analysis", "codeql.yml"),
             ("archives", "cli-archives.yml"),
             ("wasi-confinement", "wasi-confinement.yml"),
@@ -114,7 +115,8 @@ class QualificationTests(unittest.TestCase):
             self.assertNotIn("pull_request", events)
         self.assertIn("schedule", workflow("codeql.yml")["on"])
         corporate = jobs["native-corporate"]
-        self.assertEqual(corporate["needs"], "archives")
+        self.assertEqual(corporate["needs"], ["archives", "previous-writers"])
+        self.assertEqual(jobs["cli"]["needs"], "previous-writers")
         self.assertNotIn("with", corporate)
 
     def test_pr_eligibility_and_full_dev_have_distinct_complete_owners(self) -> None:

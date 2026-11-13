@@ -129,6 +129,10 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
         "security-events": "read",
     }
     assert corporate["uses"] == "./.github/workflows/native-corporate-checks.yml"
+    assert corporate["needs"] == "previous-writers-diagnostic"
+    writers = jobs["previous-writers-diagnostic"]
+    assert writers["if"] == corporate["if"]
+    assert writers["uses"] == "./.github/workflows/previous-native-writers.yml"
     assert corporate["with"]["diagnostic_only"] is True
     owner = workflow("native-corporate-checks")["jobs"]["journeys"]
     steps = {step.get("name"): step for step in owner["steps"]}
@@ -164,6 +168,10 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
     ]:
         assert order.index(database) < order.index(name) < order.index(consumer)
         assert "if" not in steps[name]
+    unpack = "Unpack this run's historical writers"
+    assert order.index("Read this run's historical writers") < order.index(unpack)
+    assert order.index(unpack) < order.index("Build the immutable previous schema58 native writer")
+    assert not any("actions/cache/" in str(step.get("uses")) for step in owner["steps"])
 
 
 @pytest.mark.parametrize("module", ["verify_native_corporate", "verify_native_desktop_corporate"])

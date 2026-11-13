@@ -96,18 +96,23 @@ jobs:
           AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
         with:
           recipe: ci-native-corporate-postgresql-preflight
-      - name: Restore only exact native historical build records
-        id: previous-native-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        continue-on-error: true
-        timeout-minutes: 5
+      - name: Read this run's historical writers
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
-          key: >-
-            previous-native-v3-${{ runner.os }}-${{ runner.arch }}-${{
-            hashFiles('apps/cli/rust-toolchain.toml',
-            '.github/scripts/build-previous-native-cli.sh',
-            '.github/scripts/previous-native-cache.py') }}
+          pattern: previous-native-${{ runner.os }}-*
+          path: ${{ runner.temp }}/previous-native-artifacts
+          merge-multiple: true
+      - name: Unpack this run's historical writers
+        shell: bash
+        run: |
+          set -euo pipefail
+          temporary="${RUNNER_TEMP}"
+          if [[ "${RUNNER_OS}" == Windows ]]; then temporary="$(cygpath -u "${temporary}")"; fi
+          test ! -e "${temporary}/ai-stp-previous-native-binaries"
+          for epoch in 58 59; do
+            tar -xf "${temporary}/previous-native-artifacts/previous-native-${epoch}.tar" \
+              -C "${temporary}"
+          done
       - name: Build the immutable previous schema58 native writer
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
@@ -145,18 +150,6 @@ jobs:
             ${{ inputs.diagnostic_source_run_attempt || github.run_attempt }}
         with:
           recipe: ci-native-corporate
-      - name: Save historical build records after native API acceptance
-        if: >-
-          success() && !inputs.diagnostic_only && github.event_name == 'push' &&
-          github.ref == 'refs/heads/dev' &&
-          steps.previous-native-cache.outputs.cache-hit != 'true' &&
-          steps.previous-native-cache.outputs.cache-primary-key != ''
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        continue-on-error: true
-        timeout-minutes: 5
-        with:
-          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
-          key: ${{ steps.previous-native-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: >-

@@ -1,0 +1,83 @@
+name: previous-native-writers
+
+# Produces the two immutable historical writers once per platform and epoch, in
+# parallel with the checks that consume them. Consumers download the run-scoped
+# artifact, verify its identity record and rerun every API control themselves.
+
+on:
+  workflow_call:
+    inputs:
+      platforms:
+        description: JSON list of runner labels that need the historical writers
+        type: string
+        default: '["ubuntu-26.04","macos-26","windows-2025"]'
+
+permissions:
+  contents: read
+
+jobs:
+  writer:
+    name: writer-${{ matrix.os }}-${{ matrix.epoch }}
+    runs-on: ${{ matrix.os }}
+    # A cold Windows build of one writer takes about ten minutes.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platforms) }}
+        epoch: ['58', '59']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Prepare the declared hosted SDK
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          python-version: '3.15.2'
+      - uses: ./.github/actions/project-rust
+      - name: Restore only the exact historical build record
+        id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
+          key: >-
+            previous-native-v4-${{ runner.os }}-${{ runner.arch }}-${{ matrix.epoch }}-${{
+            hashFiles('apps/cli/rust-toolchain.toml',
+            '.github/scripts/build-previous-native-cli.sh',
+            '.github/scripts/previous-native-cache.py') }}
+      - name: Build or verify the historical writer
+        shell: bash
+        env:
+          AI_STP_PREVIOUS_NATIVE_PRODUCER: 'true'
+        run: bash .github/scripts/build-previous-native-cli.sh "${{ matrix.epoch }}"
+      # The record identifies bytes, not acceptance; every consumer reverifies
+      # it and reruns the previous/current-writer API controls.
+      - name: Save the historical build record from Dev
+        if: >-
+          github.event_name == 'push' && github.ref == 'refs/heads/dev' &&
+          steps.cache.outputs.cache-hit != 'true' &&
+          steps.cache.outputs.cache-primary-key != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          path: ${{ runner.temp }}/ai-stp-previous-native-binaries
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+      # A tar archive keeps the executable mode that the identity record checks.
+      - name: Pack the historical writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          temporary="${RUNNER_TEMP}"
+          if [[ "${RUNNER_OS}" == Windows ]]; then temporary="$(cygpath -u "${temporary}")"; fi
+          cd "${temporary}"
+          tar -cf "previous-native-${{ matrix.epoch }}.tar" ai-stp-previous-native-binaries
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: previous-native-${{ runner.os }}-${{ matrix.epoch }}
+          path: ${{ runner.temp }}/previous-native-${{ matrix.epoch }}.tar
+          if-no-files-found: error
+          retention-days: 1

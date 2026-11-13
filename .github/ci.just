@@ -516,13 +516,19 @@ ci-safety-runtime-build:
     test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
     [[ "${AI_STP_SAFETY_RUNTIME_SOURCE}" =~ ^[0-9a-f]{40}$ ]]
     case "${AI_STP_SAFETY_RUNTIME_ARCH}" in amd64|arm64) ;; *) exit 1 ;; esac
+    scope="type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH}"
+    # Every run reads Dev's layers; only Dev writes them, so pull requests do not
+    # fill the repository cache quota and evict the other build caches.
+    cache_to=()
+    if [[ "${GITHUB_EVENT_NAME:-}" == push && "${GITHUB_REF:-}" == refs/heads/dev ]]; then
+      cache_to=(--cache-to "${scope},mode=max")
+    fi
     docker buildx build --load --progress=plain \
       --platform "linux/${AI_STP_SAFETY_RUNTIME_ARCH}" \
       --target worker-safety --file deploy/docker/Dockerfile.app \
       --tag "${AI_STP_SAFETY_RUNTIME_IMAGE}" \
       --label "org.opencontainers.image.revision=${AI_STP_SAFETY_RUNTIME_SOURCE}" \
-      --cache-from "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH}" \
-      --cache-to "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH},mode=max" .
+      --cache-from "${scope}" "${cache_to[@]}" .
 
 [group('ci')]
 [private]
