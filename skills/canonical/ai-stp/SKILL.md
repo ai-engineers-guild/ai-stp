@@ -5,7 +5,7 @@ description: >
   complete AI harness setups. Use when the user asks to prepare a harness,
   manage setup content or access the ai-stp catalog/account. Do NOT use for
   model API calls or editing harness targets directly.
-license: AGPL-3.0-or-later
+license: Apache-2.0
 metadata:
   source: canonical
 ---
