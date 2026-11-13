@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Any, cast
@@ -80,7 +82,7 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     native = next(
         step
         for step in steps.values()
-        if step.get("with", {}).get("recipe") == "ci-desktop-installed-native-corporate-profiles"
+        if step.get("with", {}).get("recipe") == "ci-desktop-installed-native-corporate"
     )
     preparation = next(
         step
@@ -88,7 +90,7 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
         if step.get("with", {}).get("recipe") == "ci-native-corporate-prepare"
     )
     personal = steps["Retain installed macOS and Windows personal results"]
-    corporate = steps["Retain installed native corporate profile results"]
+    corporate = steps["Retain installed native corporate profile and checkout results"]
     condition = "(runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only"
     assert native["if"] == preparation["if"] == personal["if"] == corporate["if"] == condition
     assert native["env"]["AI_STP_POSTGRESQL_ASSETS"] == "${{ runner.temp }}/postgresql-sdk"
@@ -174,3 +176,22 @@ def test_native_corporate_consumer_refuses_before_provisioning_on_a_developer_ho
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     with pytest.raises(AssertionError, match="Native fixtures require hosted CI"):
         consumer.main()
+
+
+@pytest.mark.parametrize(
+    "controller",
+    [
+        ".github/scripts/qualify-installed-macos-desktop.swift",
+        ".github/scripts/qualify-installed-windows-desktop.ps1",
+    ],
+)
+def test_native_controllers_use_existing_canonical_message_keys(controller: str) -> None:
+    catalog = json.loads(Path("apps/desktop/src/locales/en.json").read_text())
+    prefixes = {key.split(".")[0] for key in catalog}
+    literals = re.findall(
+        r"""['"]([a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9]*)['"]""",
+        Path(controller).read_text(),
+    )
+    references = {key for key in literals if key.split(".")[0] in prefixes}
+    assert references
+    assert references <= catalog.keys(), sorted(references - catalog.keys())

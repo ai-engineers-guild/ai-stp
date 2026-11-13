@@ -43,6 +43,12 @@ STAGES = frozenset(
         b"context",
         b"selection",
         b"restart",
+        b"checkout_preview",
+        b"checkout_request",
+        b"checkout_confirmation",
+        b"checkout_restart",
+        b"checkout_reconciliation",
+        b"checkout_binding",
         b"complete",
     }
 )

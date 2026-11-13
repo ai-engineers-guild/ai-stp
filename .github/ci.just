@@ -400,10 +400,10 @@ ci-desktop-probe-the-packaged-cli-resource-tree:
 ci-desktop-installed-personal-workspace:
     bash .github/scripts/qualify-installed-native-desktop.sh
 
-# Preserve the installed personal journey and qualify native corporate profile GUI.
+# Preserve installed personal/profile journeys and qualify native checkout recovery.
 [group('ci')]
 [private]
-ci-desktop-installed-native-corporate-profiles:
+ci-desktop-installed-native-corporate:
     uv run --no-sync python -m tests.native_contract.verify_native_desktop_corporate
 
 # Current Dev admission and distinct evidence for manual native-owner diagnosis.
