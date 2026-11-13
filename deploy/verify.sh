@@ -103,10 +103,22 @@ else
   # first line of that gave `postgres:16` and compared it against the worker,
   # so the check could only ever fail — and it failed a real deployment before
   # this comment existed.
+  #
+  # Compare platform images, the identity Compose itself recreates by. On the
+  # containerd image store a tag names an index, and `.Image` of a container is
+  # the index it was started from. A rebuild that changes only the index (its
+  # attestation) moves the tag to a new index over the same platform image;
+  # Compose rightly keeps the container, and comparing indexes called a current
+  # worker stale. The label holds the platform image the container runs, and
+  # `--platform` asks the tag for the same kind of id; on the classic store both
+  # are the image id.
   tag="$(docker inspect -f '{{.Config.Image}}' "${worker_id}" 2>/dev/null || true)"
-  have="$(docker inspect -f '{{.Image}}' "${worker_id}" 2>/dev/null || true)"
+  have="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.image"}}' "${worker_id}" 2>/dev/null || true)"
+  platform="$(docker version -f '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null || true)"
   want=""
-  [[ -n "${tag}" ]] && want="$(docker image inspect -f '{{.Id}}' "${tag}" 2>/dev/null || true)"
+  if [[ -n "${tag}" && -n "${platform}" ]]; then
+    want="$(docker image inspect --platform "${platform}" -f '{{.Id}}' "${tag}" 2>/dev/null || true)"
+  fi
   if [[ -z "${want}" || -z "${have}" ]]; then
     # Undetermined is not stale. A check that cannot answer must not be the
     # thing that stops a deployment; that is how this check first behaved.
