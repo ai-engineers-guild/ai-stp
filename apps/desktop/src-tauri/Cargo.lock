@@ -22,6 +22,7 @@ name = "ai-stp-desktop"
 version = "0.5.2"
 dependencies = [
  "ai-stp-desktop-core",
+ "dispatch2",
  "serde_json",
  "tauri",
  "tauri-build",

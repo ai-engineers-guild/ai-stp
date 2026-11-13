@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
 mod registry;
+mod window_geometry;
 use registry::RegistryCache;
 
 /// The frontend routes on stable codes; keep the closed set aligned with
@@ -1209,6 +1210,9 @@ pub fn run() {
             // if its bundled engine is missing. Development may use an override.
             let bundled = (!cfg!(debug_assertions) || bundled.is_file()).then_some(bundled);
             app.manage(Arc::new(AppState::new(bundled)));
+            if let Some(window) = app.get_webview_window("main") {
+                window_geometry::fit_after_restore(window);
+            }
             Ok(())
         })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
