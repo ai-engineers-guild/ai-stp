@@ -60,7 +60,7 @@ def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
         assert digest(directory / name) == expected_digest
     check_checksum_files(directory, proof["files"])
     archive = directory / f"ai-stp-cli-{version}-{target}.{extension}"
-    members = {executable_name, "LICENSE", "ai-stp-cli.cdx.json", "release.json"}
+    members = {executable_name, "LICENSE", "NOTICE", "ai-stp-cli.cdx.json", "release.json"}
     if extension == "zip":
         with zipfile.ZipFile(archive) as bundle:
             assert set(bundle.namelist()) == members and len(bundle.infolist()) == len(members)
@@ -78,12 +78,13 @@ def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
                 with stream:
                     documents[name] = stream.read()
     manifest = json.loads(documents["release.json"])
-    assert manifest["schema_version"] == 2 and manifest["source_commit"] == expected_source
+    assert manifest["schema_version"] == 3 and manifest["source_commit"] == expected_source
     assert manifest["target"] == target and manifest["version"] == version
     assert manifest["binary"] == executable_name
     for name, key in [
         (executable_name, "binary_sha256"),
         ("LICENSE", "license_sha256"),
+        ("NOTICE", "notice_sha256"),
         ("ai-stp-cli.cdx.json", "sbom_sha256"),
     ]:
         assert hashlib.sha256(documents[name]).hexdigest() == manifest[key]
