@@ -63,7 +63,7 @@ jobs:
       matrix:
         # Linux bundles use the selected Ubuntu 26.04/glibc baseline. Native
         # installed acceptance must use these exact packaged bytes.
-        os: [ubuntu-26.04, macos-15, windows-2025]
+        os: [ubuntu-26.04, macos-26, windows-2025]
     steps:
       - name: Confine package-only diagnosis to its explicit manual workflow
         if: inputs.packages_only
@@ -208,8 +208,8 @@ jobs:
         with:
           recipe: >-
             ci-desktop-three-installed-linux-desktop-journeys-with-bundled-cli-and-native-vault
-      - name: Prepare uv for the Linux corporate API fixture
-        if: runner.os == 'Linux' && !inputs.packages_only
+      - name: Prepare uv for the installed corporate API fixture
+        if: ${{ !inputs.packages_only }}
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
@@ -279,13 +279,54 @@ jobs:
           python -m release_scripts.desktop_artifacts seal
           --directory apps/desktop/src-tauri/target/release/bundle
           --source "${SOURCE_SHA}" --platform "${PLATFORM}"
-      - name: Qualify personal workspace on installed macOS and Windows
+      - name: Isolate the native corporate API environment
         if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
-        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "UV_PYTHON=$(python -c 'import sys; print(sys.executable)')"
+            echo "UV_PROJECT_ENVIRONMENT=${{ runner.temp }}/ai-stp-native-desktop-corporate"
+            echo "UV_CACHE_DIR=${{ runner.temp }}/uv-cache"
+          } >> "${GITHUB_ENV}"
+      - name: Prepare the pinned official macOS PostgreSQL distribution
+        if: runner.os == 'macOS' && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          manifest: .github/postgresql-macOS.json
+          directory: ${{ runner.temp }}/postgresql-sdk
+      - name: Prepare the actual native corporate API fixture
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
         with:
-          recipe: ci-desktop-installed-personal-workspace
+          recipe: ci-native-corporate-prepare
+      - name: Qualify installed personal and corporate profiles on macOS and Windows
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        timeout-minutes: 12
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        env:
+          AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
+        with:
+          recipe: ci-desktop-installed-native-corporate-profiles
+      - name: Retain installed native corporate profile results
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-native-corporate-desktop-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-native-corporate-desktop.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain bounded native window geometry after refusal
+        if: failure() && (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: installed-native-window-geometry-${{ matrix.os }}
+          path: ${{ runner.temp }}/installed-native-window-geometry.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Retain the owned Windows fixture window after refusal
         if: failure() && runner.os == 'Windows' && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -366,8 +407,8 @@ jobs:
         os: >-
           ${{ fromJSON(
           inputs.diagnostic_platform == 'Windows' && '["windows-2025"]' ||
-          inputs.diagnostic_platform == 'macOS' && '["macos-15"]' ||
-          '["macos-15","windows-2025"]'
+          inputs.diagnostic_platform == 'macOS' && '["macos-26"]' ||
+          '["macos-26","windows-2025"]'
           ) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

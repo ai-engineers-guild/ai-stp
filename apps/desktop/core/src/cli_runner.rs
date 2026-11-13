@@ -89,6 +89,15 @@ pub const PASSTHROUGH_ENV: &[&str] = &[
     "PROCESSOR_IDENTIFIER",
 ];
 
+/// Windows environment names are case-insensitive; Unix names are exact.
+fn env_name_matches(name: &str, expected: &str) -> bool {
+    if cfg!(windows) {
+        name.eq_ignore_ascii_case(expected)
+    } else {
+        name == expected
+    }
+}
+
 /// Compute the environment the CLI child runs under, from an explicit
 /// parent-env snapshot: the inherited passthrough set, every `AI_STP_*`
 /// var (locale, credential-store pins, future config), synthesized temp
@@ -106,16 +115,23 @@ fn child_env(
 ) -> Vec<(OsString, OsString)> {
     let get = |name: &str| {
         vars.iter()
-            .find(|(k, _)| k.to_str() == Some(name))
+            .find(|(k, _)| k.to_str().is_some_and(|key| env_name_matches(key, name)))
             .map(|(_, v)| v)
     };
     let mut env: Vec<(OsString, OsString)> = PASSTHROUGH_ENV
         .iter()
         .filter_map(|k| get(k).map(|v| (OsString::from(*k), v.clone())))
         .collect();
+    const APP_PREFIX: &str = "AI_STP_";
     for (k, v) in vars {
-        if k.to_str().is_some_and(|s| s.starts_with("AI_STP_"))
-            && !env.iter().any(|(ek, _)| ek == k)
+        let Some(name) = k.to_str() else { continue };
+        if name
+            .get(..APP_PREFIX.len())
+            .is_some_and(|prefix| env_name_matches(prefix, APP_PREFIX))
+            && !env.iter().any(|(ek, _)| {
+                ek.to_str()
+                    .is_some_and(|inherited| env_name_matches(inherited, name))
+            })
         {
             env.push((k.clone(), v.clone()));
         }
@@ -464,6 +480,33 @@ mod tests {
             last(&env, "DBUS_SESSION_BUS_ADDRESS").as_deref(),
             Some("unix:path=/run/user/1000/bus")
         );
+        assert!(last(&env, "SHOULD_NOT_LEAK").is_none());
+    }
+
+    /// Python and other Windows launchers can uppercase the environment block.
+    #[test]
+    fn child_env_preserves_native_key_case_rules() {
+        let temporary = std::env::temp_dir();
+        let snapshot = vars(&[
+            ("TMPDIR", temporary.to_str().unwrap()),
+            ("SYSTEMROOT", "native-system-root"),
+            ("Path", "native-search-path"),
+            ("Ai_Stp_LOCALE", "ru"),
+            ("SHOULD_NOT_LEAK", "private-canary"),
+        ]);
+        let env = child_env(&snapshot, &temporary, &[]);
+        if cfg!(windows) {
+            assert_eq!(
+                last(&env, "SystemRoot").as_deref(),
+                Some("native-system-root")
+            );
+            assert_eq!(last(&env, "PATH").as_deref(), Some("native-search-path"));
+            assert_eq!(last(&env, "Ai_Stp_LOCALE").as_deref(), Some("ru"));
+        } else {
+            assert!(last(&env, "SystemRoot").is_none());
+            assert!(last(&env, "PATH").is_none());
+            assert!(last(&env, "Ai_Stp_LOCALE").is_none());
+        }
         assert!(last(&env, "SHOULD_NOT_LEAK").is_none());
     }
 

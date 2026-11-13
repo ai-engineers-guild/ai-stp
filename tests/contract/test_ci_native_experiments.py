@@ -54,7 +54,7 @@ def test_every_owning_job_is_joined_into_qualification() -> None:
     assert experiment["jobs"]["confinement"]["needs"] == "component"
     assert set(experiment["jobs"]["confinement"]["strategy"]["matrix"]["os"]) == {
         "ubuntu-26.04",
-        "macos-15",
+        "macos-26",
         "windows-2025",
     }
 

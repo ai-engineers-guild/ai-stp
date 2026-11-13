@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 import subprocess
 from pathlib import Path
@@ -76,13 +77,33 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     assert order.index("Seal the exact platform installers") > order.index(
         "Retain the exact same-worker performance observations"
     )
-    personal = "Qualify personal workspace on installed macOS and Windows"
-    retained = "Retain installed macOS and Windows personal results"
+    native = next(
+        step
+        for step in steps.values()
+        if step.get("with", {}).get("recipe") == "ci-desktop-installed-native-corporate-profiles"
+    )
+    preparation = next(
+        step
+        for step in steps.values()
+        if step.get("with", {}).get("recipe") == "ci-native-corporate-prepare"
+    )
+    personal = steps["Retain installed macOS and Windows personal results"]
+    corporate = steps["Retain installed native corporate profile results"]
     condition = "(runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only"
-    assert steps[personal]["if"] == steps[retained]["if"] == condition
-    assert steps[personal]["with"]["recipe"] == "ci-desktop-installed-personal-workspace"
-    assert order.index("Seal the exact platform installers") < order.index(personal)
-    assert order.index(personal) < order.index(retained) < order.index("Upload bundles")
+    assert native["if"] == preparation["if"] == personal["if"] == corporate["if"] == condition
+    assert native["env"]["AI_STP_POSTGRESQL_ASSETS"] == "${{ runner.temp }}/postgresql-sdk"
+    for retained in [personal, corporate]:
+        assert retained["with"]["if-no-files-found"] == "error"
+    assert personal["with"]["path"] == "${{ runner.temp }}/installed-personal-desktop.json"
+    assert corporate["with"]["path"] == "${{ runner.temp }}/installed-native-corporate-desktop.json"
+    assert (
+        order.index("Seal the exact platform installers")
+        < order.index(preparation["name"])
+        < order.index(native["name"])
+        < order.index(corporate["name"])
+        < order.index(personal["name"])
+        < order.index("Upload bundles")
+    )
     assert steps["Upload bundles"]["with"]["if-no-files-found"] == "error"
     assert (
         '"application_acceptance":false'
@@ -145,11 +166,11 @@ def test_native_corporate_diagnosis_preserves_ordinary_application_acceptance() 
         assert "if" not in steps[name]
 
 
+@pytest.mark.parametrize("module", ["verify_native_corporate", "verify_native_desktop_corporate"])
 def test_native_corporate_consumer_refuses_before_provisioning_on_a_developer_host(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, module: str
 ) -> None:
-    from tests.native_contract.verify_native_corporate import main
-
+    consumer = importlib.import_module(f"tests.native_contract.{module}")
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     with pytest.raises(AssertionError, match="Native fixtures require hosted CI"):
-        main()
+        consumer.main()

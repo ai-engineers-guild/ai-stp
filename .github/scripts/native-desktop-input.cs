@@ -95,6 +95,56 @@ public static class NativeDesktopInput
     [DllImport("user32.dll")]
     private static extern IntPtr WindowFromPhysicalPoint(Point point);
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public uint Size;
+        public Rectangle Monitor, WorkArea;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+
+    [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(
+        IntPtr window, uint attribute, out Rectangle value, uint size);
+
+    public static int[] WorkArea(IntPtr window)
+    {
+        var info = new MonitorInfo { Size = (uint)Marshal.SizeOf(typeof(MonitorInfo)) };
+        if (window == IntPtr.Zero ||
+            !GetMonitorInfo(MonitorFromWindow(window, 2), ref info) ||
+            info.WorkArea.Right <= info.WorkArea.Left || info.WorkArea.Bottom <= info.WorkArea.Top)
+            throw new InvalidOperationException("Native display work area could not be observed");
+        return new[] { info.WorkArea.Left, info.WorkArea.Top, info.WorkArea.Right, info.WorkArea.Bottom };
+    }
+
+    [DllImport("user32.dll")]
+    public static extern uint GetDpiForWindow(IntPtr window);
+
+    public static int[] WindowBounds(IntPtr window)
+    {
+        Rectangle bounds;
+        if (DwmGetWindowAttribute(window, 9, out bounds, (uint)Marshal.SizeOf(typeof(Rectangle))) != 0)
+            throw new InvalidOperationException("Visible native window bounds could not be observed");
+        return new[] { bounds.Left, bounds.Top, bounds.Right, bounds.Bottom };
+    }
+
+    public static bool WindowFitsWorkArea(IntPtr window)
+    {
+        // DWMWA_EXTENDED_FRAME_BOUNDS excludes invisible resize borders and uses physical pixels.
+        int[] bounds = WindowBounds(window);
+        int[] area = WorkArea(window);
+        return bounds[2] > bounds[0] && bounds[3] > bounds[1] &&
+            bounds[0] >= area[0] && bounds[1] >= area[1] &&
+            bounds[2] <= area[2] && bounds[3] <= area[3];
+    }
+
     private static bool WindowOwnedBy(IntPtr root, IntPtr window)
     {
         return root != IntPtr.Zero && window != IntPtr.Zero &&
