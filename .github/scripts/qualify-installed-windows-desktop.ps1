@@ -14,8 +14,13 @@ trap {
     # Report only the closed engine error codes the app shows, never their messages.
     try {
         $codes = [System.Collections.Generic.SortedSet[string]]::new()
-        foreach ($owner in @(Get-Process -Name 'ai-stp-desktop' -ErrorAction SilentlyContinue)) {
-            if ($owner.MainWindowHandle -eq [IntPtr]::Zero) { continue }
+        $owners = @(Get-Process -Name 'ai-stp-desktop' -ErrorAction SilentlyContinue)
+        if (!$owners.Count) { $null = $codes.Add('state:no_app_process') }
+        foreach ($owner in $owners) {
+            if ($owner.MainWindowHandle -eq [IntPtr]::Zero) {
+                $null = $codes.Add('state:no_app_window')
+                continue
+            }
             $window = [System.Windows.Automation.AutomationElement]::FromHandle($owner.MainWindowHandle)
             # Engine details are collapsed; open them so their closed code is in the tree.
             foreach ($summary in $window.FindAll(
@@ -68,10 +73,11 @@ trap {
                 }
             }
         }
-        if ($codes.Count) {
-            [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + ($codes -join ','))
-        }
-    } catch {}
+        if (!$codes.Count) { $null = $codes.Add('state:nothing_visible') }
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + ($codes -join ','))
+    } catch {
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 state:scan_failed')
+    }
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FAILURE_V1 ' + $location)
     [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
     throw $_
