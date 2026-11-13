@@ -97,7 +97,8 @@ def _option_diagnostic(payload: bytes) -> dict[str, Any]:
 
 
 def _input_diagnostic(payload: bytes) -> dict[str, Any]:
-    """Accept only input lengths and nullable native focus state, never field text."""
+    """Accept only input lengths, nullable native focus state and the focused control's
+    UI Automation type, never field text or element names."""
     refused = "Native fixture input diagnostic refused"
     if len(payload) > 512:
         raise ValueError(refused)
@@ -117,7 +118,15 @@ def _input_diagnostic(payload: bytes) -> dict[str, Any]:
         "keyboard_focus_owned",
         "keyboard_focus_is_root",
         "pressed_modifiers",
+        "element_available",
+        "element_enabled",
+        "focused_control_type",
     }:
+        raise ValueError(refused)
+    focused = result["focused_control_type"]
+    if focused is not None and (
+        type(focused) is not str or not re.fullmatch(r"ControlType\.[A-Za-z]{1,32}", focused)
+    ):
         raise ValueError(refused)
     expected, observed, modifiers = (
         result["expected_length"],
@@ -136,6 +145,8 @@ def _input_diagnostic(payload: bytes) -> dict[str, Any]:
         "foreground_owned",
         "keyboard_focus_owned",
         "keyboard_focus_is_root",
+        "element_available",
+        "element_enabled",
     ]:
         if result[key] is not None and type(result[key]) is not bool:
             raise ValueError(refused)

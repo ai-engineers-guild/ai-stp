@@ -281,6 +281,7 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         "flag",
         "modifiers_bool",
         "modifiers_high",
+        "focused_text",
         "malformed",
         "not_object",
         "oversize",
@@ -320,6 +321,9 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         "keyboard_focus_owned": False,
         "keyboard_focus_is_root": False,
         "pressed_modifiers": 0,
+        "element_available": True,
+        "element_enabled": True,
+        "focused_control_type": "ControlType.Document",
     }
     if case == "nullable":
         for key in payload:
@@ -345,6 +349,8 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         payload["pressed_modifiers"] = True
     if case == "modifiers_high":
         payload["pressed_modifiers"] = 32
+    if case == "focused_text":
+        payload["focused_control_type"] = "PRIVATE-CANARY"
     encoded = (
         "{PRIVATE-CANARY"
         if case == "malformed"

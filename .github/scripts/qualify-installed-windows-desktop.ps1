@@ -389,6 +389,7 @@ function Write-InputFailure([System.Diagnostics.Process] $Process, $Element, [in
         expected_length = $ExpectedLength; observed_length = $null; unchanged = $null
         automation_focused = $null; foreground_owned = $null
         keyboard_focus_owned = $null; keyboard_focus_is_root = $null; pressed_modifiers = $null
+        element_available = $null; element_enabled = $null; focused_control_type = $null
     }
     try {
         $observed = Read-EditValue $Element
@@ -406,6 +407,17 @@ function Write-InputFailure([System.Diagnostics.Process] $Process, $Element, [in
     try { $record.keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle) } catch {}
     try { $record.keyboard_focus_is_root = [NativeDesktopInput]::KeyboardFocusIsRoot($Process.MainWindowHandle) } catch {}
     try { $record.pressed_modifiers = [NativeDesktopInput]::PressedModifiers() } catch {}
+    try {
+        $record.element_enabled = $Element.Current.IsEnabled
+        $record.element_available = $true
+    } catch [System.Windows.Automation.ElementNotAvailableException] {
+        $record.element_available = $false
+    } catch {}
+    try {
+        # Only UI Automation's closed control type name, never an element name or value.
+        $type = [System.Windows.Automation.AutomationElement]::FocusedElement.Current.ControlType.ProgrammaticName
+        if ($type -cmatch '^ControlType\.[A-Za-z]{1,32}$') { $record.focused_control_type = $type }
+    } catch {}
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_INPUT_V1 ' + ($record | ConvertTo-Json -Compress))
 }
 
