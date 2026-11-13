@@ -47,8 +47,11 @@
         ]
       }
     },
+    "license": "Apache-2.0",
     "resources": {
-      "sidecar/cli/": "cli/"
+      "sidecar/cli/": "cli/",
+      "../../../LICENSE": "LICENSE",
+      "../../../NOTICE": "NOTICE"
     }
   }
 }
