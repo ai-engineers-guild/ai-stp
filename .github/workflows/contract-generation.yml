@@ -29,6 +29,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # No tool reports usage to its maker (the switches of nddev-ci's telemetry action).
+  DO_NOT_TRACK: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+  BUN_DO_NOT_TRACK: '1'
+  ASTRO_TELEMETRY_DISABLED: '1'
+  HOMEBREW_NO_ANALYTICS: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DISABLE_TELEMETRY: '1'
+  SEMGREP_SEND_METRICS: 'off'
+  HF_HUB_DISABLE_TELEMETRY: '1'
   PYTHON_VERSION: "3.15.2"
   NODE_VERSION: "26.13.0"
   UV_VERSION: "0.13.7"
