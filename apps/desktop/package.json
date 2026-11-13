@@ -36,7 +36,7 @@
     "zustand": "5.0.16"
   },
   "overrides": {
-    "js-yaml": "4.3.2"
+    "js-yaml": "5.5.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.5",
