@@ -264,3 +264,116 @@ pathlib.Path(sys.argv[3]).write_text("completed")
     assert marker.read_text() == "completed"
     assert "PRIVATE-CANARY" not in str(refused.value)
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "valid",
+        "nullable",
+        "extra",
+        "missing",
+        "expected_bool",
+        "expected_zero",
+        "expected_high",
+        "observed_bool",
+        "observed_high",
+        "flag",
+        "modifiers_bool",
+        "modifiers_high",
+        "malformed",
+        "not_object",
+        "oversize",
+        "repeated",
+        "success_claim",
+    ],
+)
+def test_native_input_failure_keeps_field_text_private_and_cannot_claim_success(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], case: str
+) -> None:
+    child = r"""
+import json,pathlib,sys
+print("private UI PRIVATE-CANARY",flush=True)
+if sys.argv[2]=="success_claim":
+ print("AI_STP_NATIVE_DESKTOP_FIXTURE_V1 "+json.dumps({
+  "protocol":"ai-stp-native-desktop-fixture/1","nonce":"a"*64,
+  "sequence":1,"action":"approve_device","user_code":"PRIVATE-CANARY"}),flush=True)
+ assert json.loads(sys.stdin.readline())["approved"] is True
+print("AI_STP_NATIVE_DESKTOP_STAGE_V1 approval",flush=True)
+print("AI_STP_NATIVE_DESKTOP_INPUT_V1 "+sys.argv[1],flush=True)
+if sys.argv[2]=="repeated":
+ print("AI_STP_NATIVE_DESKTOP_INPUT_V1 "+sys.argv[1],flush=True)
+if sys.argv[2] in {"valid","nullable","success_claim"}:
+ pathlib.Path(sys.argv[3]).write_text("completed")
+ if sys.argv[2]!="success_claim":
+  print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 454",flush=True)
+ sys.exit(0 if sys.argv[2]=="success_claim" else 3)
+assert sys.stdin.readline()==""
+pathlib.Path(sys.argv[3]).write_text("completed")
+"""
+    payload: dict[str, object] = {
+        "expected_length": 24,
+        "observed_length": 0,
+        "unchanged": True,
+        "automation_focused": False,
+        "foreground_owned": False,
+        "keyboard_focus_owned": False,
+        "keyboard_focus_is_root": False,
+        "pressed_modifiers": 0,
+    }
+    if case == "nullable":
+        for key in payload:
+            if key != "expected_length":
+                payload[key] = None
+    if case == "extra":
+        payload["field_text"] = "PRIVATE-CANARY"
+    if case == "missing":
+        del payload["unchanged"]
+    if case == "expected_bool":
+        payload["expected_length"] = True
+    if case == "expected_zero":
+        payload["expected_length"] = 0
+    if case == "expected_high":
+        payload["expected_length"] = 121
+    if case == "observed_bool":
+        payload["observed_length"] = False
+    if case == "observed_high":
+        payload["observed_length"] = 65537
+    if case == "flag":
+        payload["automation_focused"] = "PRIVATE-CANARY"
+    if case == "modifiers_bool":
+        payload["pressed_modifiers"] = True
+    if case == "modifiers_high":
+        payload["pressed_modifiers"] = 32
+    encoded = (
+        "{PRIVATE-CANARY"
+        if case == "malformed"
+        else "[]"
+        if case == "not_object"
+        else " " * 513 + json.dumps(payload)
+        if case == "oversize"
+        else json.dumps(payload)
+    )
+    marker = tmp_path / "completed"
+    valid = case in {"valid", "nullable", "success_claim"}
+    expected = (
+        "at approval; controller line " + ("None" if case == "success_claim" else "454")
+        if valid
+        else "Native fixture input diagnostic"
+    )
+    codes: list[str] = []
+    with pytest.raises(ValueError, match=expected) as refused:
+        run_owner(
+            [sys.executable, "-u", "-c", child, encoded, case, str(marker)],
+            environment=dict(os.environ),
+            errors=tmp_path / "errors",
+            nonce="a" * 64,
+            approve=codes.append,
+        )
+    if valid:
+        observed = str(refused.value).split("; input diagnostic=", 1)[1]
+        assert json.loads(observed) == payload
+    assert codes == (["PRIVATE-CANARY"] if case == "success_claim" else [])
+    assert marker.read_text() == "completed"
+    assert "PRIVATE-CANARY" not in str(refused.value)
+    assert capsys.readouterr().out == ""

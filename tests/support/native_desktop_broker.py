@@ -16,6 +16,7 @@ from tests.support.native_pipe import Pipe
 PREFIX = b"AI_STP_NATIVE_DESKTOP_FIXTURE_V1 "
 FAILURE_PREFIX = b"AI_STP_NATIVE_DESKTOP_FAILURE_V1 "
 STAGE_PREFIX = b"AI_STP_NATIVE_DESKTOP_STAGE_V1 "
+INPUT_PREFIX = b"AI_STP_NATIVE_DESKTOP_INPUT_V1 "
 OPTION_PREFIX = b"AI_STP_NATIVE_DESKTOP_OPTION_V1 "
 STAGES = frozenset(
     {
@@ -89,6 +90,52 @@ def _option_diagnostic(payload: bytes) -> dict[str, Any]:
     return result
 
 
+def _input_diagnostic(payload: bytes) -> dict[str, Any]:
+    """Accept only input lengths and nullable native focus state, never field text."""
+    refused = "Native fixture input diagnostic refused"
+    if len(payload) > 512:
+        raise ValueError(refused)
+    try:
+        value = json.loads(payload)
+    except (ValueError, UnicodeError):
+        raise ValueError(refused) from None
+    if not isinstance(value, dict):
+        raise ValueError(refused)
+    result = cast(dict[str, Any], value)
+    if set(result) != {
+        "expected_length",
+        "observed_length",
+        "unchanged",
+        "automation_focused",
+        "foreground_owned",
+        "keyboard_focus_owned",
+        "keyboard_focus_is_root",
+        "pressed_modifiers",
+    }:
+        raise ValueError(refused)
+    expected, observed, modifiers = (
+        result["expected_length"],
+        result["observed_length"],
+        result["pressed_modifiers"],
+    )
+    if type(expected) is not int or not 1 <= expected <= 120:
+        raise ValueError(refused)
+    if observed is not None and (type(observed) is not int or not 0 <= observed <= 65536):
+        raise ValueError(refused)
+    if modifiers is not None and (type(modifiers) is not int or not 0 <= modifiers <= 31):
+        raise ValueError(refused)
+    for key in [
+        "unchanged",
+        "automation_focused",
+        "foreground_owned",
+        "keyboard_focus_owned",
+        "keyboard_focus_is_root",
+    ]:
+        if result[key] is not None and type(result[key]) is not bool:
+            raise ValueError(refused)
+    return result
+
+
 def _approval(line: bytes, nonce: str, sequence: int) -> str:
     if len(line) > MAX_REQUEST_BYTES:
         raise ValueError("Native fixture request exceeded its bound")
@@ -128,6 +175,7 @@ def run_owner(
     stage = "startup"
     failure_line: int | None = None
     option_diagnostic: dict[str, Any] | None = None
+    input_diagnostic: dict[str, Any] | None = None
     with errors.open("xb") as error_stream:
         process = subprocess.Popen(
             arguments,
@@ -156,6 +204,11 @@ def run_owner(
                 output_bytes += len(record)
                 if output_bytes > MAX_OUTPUT_BYTES:
                     raise ValueError("Native Desktop fixture output exceeded its bound")
+                if record.startswith(INPUT_PREFIX):
+                    if input_diagnostic is not None:
+                        raise ValueError("Native fixture input diagnostic repeated")
+                    input_diagnostic = _input_diagnostic(record.removeprefix(INPUT_PREFIX))
+                    continue
                 if record.startswith(OPTION_PREFIX):
                     if option_diagnostic is not None:
                         raise ValueError("Native fixture option diagnostic repeated")
@@ -199,12 +252,15 @@ def run_owner(
                 or approved != 1
                 or failure_line is not None
                 or option_diagnostic is not None
+                or input_diagnostic is not None
             ):
                 details = (
                     "; option diagnostic=" + json.dumps(option_diagnostic, sort_keys=True)
                     if option_diagnostic is not None
                     else ""
                 )
+                if input_diagnostic is not None:
+                    details += "; input diagnostic=" + json.dumps(input_diagnostic, sort_keys=True)
                 raise ValueError(
                     f"Native Desktop owner did not complete its approval journey at {stage}; "
                     f"controller line {failure_line}{details}"
