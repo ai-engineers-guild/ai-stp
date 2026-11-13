@@ -8,7 +8,6 @@ import os
 import secrets
 import shutil
 import socket
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any, cast
@@ -266,36 +265,12 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                 await asyncio.wait_for(serving, timeout=30)
 
 
-def check_native_controller() -> None:
-    """Expose compiler/parser diagnostics before private runtime output begins."""
-    if os.environ["RUNNER_OS"] == "macOS":
-        arguments = [
-            "swiftc",
-            "-typecheck",
-            ".github/scripts/qualify-installed-macos-desktop.swift",
-        ]
-    else:
-        arguments = [
-            "pwsh",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "$tokens = $null; $errors = $null; "
-            "[void][System.Management.Automation.Language.Parser]::ParseFile("
-            "(Join-Path (Get-Location) '.github/scripts/qualify-installed-windows-desktop.ps1'),"
-            "[ref]$tokens,[ref]$errors); "
-            "if ($errors.Count) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }",
-        ]
-    subprocess.run(arguments, check=True, timeout=120)
-
-
 def main() -> None:
     disposable_runner()
     assert os.environ["RUNNER_OS"] in {"macOS", "Windows"}
     assert os.environ["GITHUB_WORKFLOW"] in {"check", "desktop"}
     assert os.environ["GITHUB_EVENT_NAME"] in {"push", "workflow_dispatch"}
     assert not os.environ.get("AI_STP_DESKTOP_DIAGNOSTIC_SOURCE")
-    check_native_controller()
     temporary = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
     root = Path(tempfile.mkdtemp(prefix="ai-stp-native-desktop-corporate-", dir=temporary))
     root.chmod(0o700)

@@ -374,6 +374,32 @@ function Read-EditValue($Element) {
     throw ('Native edit has no readable value/text pattern: ' + $patterns)
 }
 
+
+function Write-InputFailure([System.Diagnostics.Process] $Process, $Element, [int] $ExpectedLength, [string] $Before) {
+    $record = [ordered]@{
+        expected_length = $ExpectedLength; observed_length = $null; unchanged = $null
+        automation_focused = $null; foreground_owned = $null
+        keyboard_focus_owned = $null; keyboard_focus_is_root = $null; pressed_modifiers = $null
+    }
+    try {
+        $observed = Read-EditValue $Element
+        if ($observed.Length -le 65536) {
+            $record.observed_length = $observed.Length
+            $record.unchanged = $observed -ceq $Before
+        }
+    } catch {}
+    try {
+        $record.automation_focused = [System.Windows.Automation.Automation]::Compare(
+            [System.Windows.Automation.AutomationElement]::FocusedElement, $Element
+        )
+    } catch {}
+    try { $record.foreground_owned = [NativeDesktopInput]::GetForegroundWindow() -eq $Process.MainWindowHandle } catch {}
+    try { $record.keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle) } catch {}
+    try { $record.keyboard_focus_is_root = [NativeDesktopInput]::KeyboardFocusIsRoot($Process.MainWindowHandle) } catch {}
+    try { $record.pressed_modifiers = [NativeDesktopInput]::PressedModifiers() } catch {}
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_INPUT_V1 ' + ($record | ConvertTo-Json -Compress))
+}
+
 function Enter-Context(
     [System.Diagnostics.Process] $Process, [string] $Label,
     [string] $FieldKey = 'profiles.contextLabel', [bool] $CountReplacement = $true
@@ -450,9 +476,11 @@ function Enter-Context(
             return $null
         }.GetNewClosure())
     } catch {
-        $observed = Read-EditValue $field
-        throw ('Native text entry did not match: length=' + $observed.Length +
-            ', expected_length=' + $Label.Length + ', unchanged=' + ($observed -ceq $before))
+        $originalFailure = $_
+        try { Write-InputFailure $Process $field $Label.Length $before } catch {
+            [Console]::Error.WriteLine('Owned native input diagnostic unavailable')
+        }
+        throw $originalFailure
     }
 }
 

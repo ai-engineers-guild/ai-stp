@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -93,6 +94,10 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     corporate = steps["Retain installed native corporate profile and checkout results"]
     condition = "(runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only"
     assert native["if"] == preparation["if"] == personal["if"] == corporate["if"] == condition
+    controller = steps["Check native Desktop controllers before package builds"]
+    assert controller["if"] == condition
+    assert controller["with"]["recipe"] == "ci-desktop-native-controller-check"
+    assert order.index(controller["name"]) < order.index("Tauri build")
     assert native["env"]["AI_STP_POSTGRESQL_ASSETS"] == "${{ runner.temp }}/postgresql-sdk"
     for retained in [personal, corporate]:
         assert retained["with"]["if-no-files-found"] == "error"
@@ -195,3 +200,20 @@ def test_native_controllers_use_existing_canonical_message_keys(controller: str)
     references = {key for key in literals if key.split(".")[0] in prefixes}
     assert references
     assert references <= catalog.keys(), sorted(references - catalog.keys())
+
+
+def test_native_controller_compilation_refuses_an_unowned_host() -> None:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("GITHUB_", "RUNNER_"))
+    }
+    result = subprocess.run(
+        [sys.executable, "-m", "tests.support.native_desktop_controller"],
+        env=environment,
+        check=False,
+        capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert b"Native fixtures require hosted CI" in result.stderr

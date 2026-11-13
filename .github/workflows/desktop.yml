@@ -82,6 +82,12 @@ jobs:
           python-version: '3.15.2'
           node-version: ${{ env.NODE_VERSION }}
           bun-version: ${{ env.BUN_VERSION }}
+      - name: Check native Desktop controllers before package builds
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+        with:
+          recipe: ci-desktop-native-controller-check
       - uses: ./.github/actions/project-rust
         with:
           components: clippy,rustfmt

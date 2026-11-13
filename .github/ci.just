@@ -400,6 +400,12 @@ ci-desktop-probe-the-packaged-cli-resource-tree:
 ci-desktop-installed-personal-workspace:
     bash .github/scripts/qualify-installed-native-desktop.sh
 
+# Check the native controller before compiling or packaging the application.
+[group('ci')]
+[private]
+ci-desktop-native-controller-check:
+    python -m tests.support.native_desktop_controller
+
 # Preserve installed personal/profile journeys and qualify native checkout recovery.
 [group('ci')]
 [private]
