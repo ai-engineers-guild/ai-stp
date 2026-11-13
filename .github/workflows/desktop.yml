@@ -63,7 +63,7 @@ jobs:
       matrix:
         # Linux bundles use the selected Ubuntu 26.04/glibc baseline. Native
         # installed acceptance must use these exact packaged bytes.
-        os: [ubuntu-26.04, macos-15, windows-2025]
+        os: [ubuntu-26.04, macos-26, windows-2025]
     steps:
       - name: Confine package-only diagnosis to its explicit manual workflow
         if: inputs.packages_only
@@ -366,8 +366,8 @@ jobs:
         os: >-
           ${{ fromJSON(
           inputs.diagnostic_platform == 'Windows' && '["windows-2025"]' ||
-          inputs.diagnostic_platform == 'macOS' && '["macos-15"]' ||
-          '["macos-15","windows-2025"]'
+          inputs.diagnostic_platform == 'macOS' && '["macos-26"]' ||
+          '["macos-26","windows-2025"]'
           ) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
