@@ -543,7 +543,7 @@ ci-safety-runtime-test:
     test "${GITHUB_ACTIONS}" = true
     test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
     test -n "${AI_STP_SAFETY_RUNTIME_PROOF_DIR}"
-    # This profile is loaded only in the disposable runner, never a contour host.
+    # This profile is loaded only in the disposable runner, never a shared host.
     sudo apparmor_parser --skip-cache -r deploy/apparmor/ai-stp-worker
     trap 'sudo apparmor_parser --remove deploy/apparmor/ai-stp-worker' EXIT
     just setup-python
@@ -580,6 +580,17 @@ ci-native-vendor-cursor:
 [private]
 ci-native-vendor-antigravity:
     python -m tests.native_vendor.antigravity --distribution tests/native_vendor/antigravity-distribution --proof "${AI_STP_ANTIGRAVITY_PROOF}"
+
+# Rehearse a RustFS upgrade on an owned volume: the current production pin writes,
+# the candidate pin reads everything back. AI_STP_RUSTFS_CANDIDATE names the new image.
+[group('ci')]
+[private]
+[script('bash')]
+ci-rustfs-upgrade-rehearsal:
+    set -euo pipefail
+    current="$(sed -n 's/^ *image: \(rustfs\/rustfs:[^ ]*\)$/\1/p' deploy/compose.prod.yml)"
+    test -n "${current}" && test -n "${AI_STP_RUSTFS_CANDIDATE}"
+    uv run --no-sync python -m tests.native_contract.verify_rustfs_upgrade --old "${current}" --new "${AI_STP_RUSTFS_CANDIDATE}" --proof "${AI_STP_RUSTFS_PROOF}"
 
 # Native OpenCode read-only skills and original installed removal recovery.
 [group('ci')]
