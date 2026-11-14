@@ -1,0 +1,62 @@
+# Build the production application images of one qualified commit in CI and push
+# them to GHCR, so the host pulls the exact bytes CI built instead of rebuilding.
+name: images
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  # A change to the image build itself is built without pushing before it merges.
+  pull_request:
+    paths:
+      - .github/workflows/images.yml
+      - .github/scripts/build-release-images.sh
+      - deploy/docker/**
+
+permissions: {}
+
+concurrency:
+  group: images-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: 'false'
+      - name: Use a BuildKit builder that records SBOM and provenance attestations
+        run: docker buildx create --name ai-stp-images --driver docker-container --use
+      - name: Sign in to GHCR with this job's token
+        if: github.event_name != 'pull_request'
+        env:
+          TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "${TOKEN}" | docker login ghcr.io --username "${ACTOR}" --password-stdin
+      - name: Build and push the application images
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          REGISTRY_PREFIX: ghcr.io/ai-engineers-guild/ai-stp
+          INVENTORY: ${{ runner.temp }}/image-inventory.json
+          WEB_APP_URL: ${{ vars.AI_STP_PUBLIC_ORIGIN }}
+          WEB_ANALYTICS_ENABLED: ${{ vars.NEXT_PUBLIC_ANALYTICS_ENABLED }}
+          WEB_GA_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
+          WEB_YANDEX_METRIKA_COUNTER_ID: ${{ vars.NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID }}
+          WEB_COOKIE_CONSENT_ENABLED: ${{ vars.NEXT_PUBLIC_COOKIE_CONSENT_ENABLED }}
+          DOCS_URL: ${{ vars.AI_STP_DOCS_ORIGIN }}
+          PUSH: ${{ github.event_name != 'pull_request' }}
+        run: bash .github/scripts/build-release-images.sh
+      - name: Keep the image inventory
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: image-inventory-${{ github.sha }}
+          path: ${{ runner.temp }}/image-inventory.json
+          retention-days: 90
+      - name: Sign out of GHCR
+        if: always()
+        run: docker logout ghcr.io
