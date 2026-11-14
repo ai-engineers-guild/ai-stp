@@ -442,6 +442,22 @@ function Focus-KeyboardLink([System.Diagnostics.Process] $Process, $Target) {
         }
         $injected = [NativeDesktopInput]::PreviousTab()
         Write-Host ('Native focus traversal keyboard events accepted: ' + $injected)
+        # An undelivered Shift+Tab leaves focus on the same control; repeat only that.
+        for ($repeat = 1; $repeat -le 2; $repeat++) {
+            $deadline = [Diagnostics.Stopwatch]::StartNew()
+            while ($deadline.Elapsed.TotalSeconds -lt 3) {
+                $now = [System.Windows.Automation.AutomationElement]::FocusedElement
+                if ($null -ne $now -and ($null -eq $previous -or
+                    ![System.Windows.Automation.Automation]::Compare($now, $previous))) { break }
+                Start-Sleep -Milliseconds 100
+            }
+            $now = [System.Windows.Automation.AutomationElement]::FocusedElement
+            if ($null -ne $now -and ($null -eq $previous -or
+                ![System.Windows.Automation.Automation]::Compare($now, $previous))) { break }
+            if ([NativeDesktopInput]::PressedModifiers() -ne 0) { break }
+            $injected = [NativeDesktopInput]::PreviousTab()
+            Write-Host ('Native focus traversal repeated after an undelivered Shift+Tab: ' + $injected)
+        }
         $next = Wait-Observation $Process 'actual keyboard focus transition' ({
             $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
             if ($null -eq $focused -or [NativeDesktopInput]::PressedModifiers() -ne 0 -or
@@ -592,8 +608,27 @@ function Enter-Context(
         if ($CountReplacement) { $script:contextTextReplacements++ }
     }
     Assert-KeyboardTarget $Process $field
-    $injected = [NativeDesktopInput]::TypeText($Label)
-    Write-Host ('Native text keyboard events accepted: ' + $injected)
+    # A re-render can move automation focus off the edit between the focus check
+    # and the keystrokes; then the edit stays exactly as it was. Repeat only such
+    # an undelivered entry, never one that changed the field.
+    $delivered = $false
+    for ($attempt = 1; $attempt -le 3 -and !$delivered; $attempt++) {
+        if ($attempt -gt 1) {
+            $field = Wait-Element $Process (Text $FieldKey) ([System.Windows.Automation.ControlType]::Edit)
+            Focus-Control $Process $field
+            Click-NativeControl $Process $field
+            Assert-KeyboardTarget $Process $field
+            Write-Host ('Native text entry repeated after an undelivered attempt: ' + $attempt)
+        }
+        $current = Read-EditValue $field
+        $injected = [NativeDesktopInput]::TypeText($Label)
+        Write-Host ('Native text keyboard events accepted: ' + $injected)
+        $deadline = [Diagnostics.Stopwatch]::StartNew()
+        while ($deadline.Elapsed.TotalSeconds -lt 5 -and (Read-EditValue $field) -ceq $current) {
+            Start-Sleep -Milliseconds 100
+        }
+        $delivered = (Read-EditValue $field) -cne $current
+    }
     try {
         $null = Wait-Observation $Process 'entered context label' ({
             if ((Read-EditValue $field) -ceq $Label) { return $true }
