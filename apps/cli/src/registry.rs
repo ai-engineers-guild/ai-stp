@@ -19,6 +19,7 @@ mod requests;
 mod selections;
 mod sync;
 mod tasks;
+mod usage;
 mod visibility;
 
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
@@ -42,6 +43,7 @@ enum Handler {
     Context(contexts::Handler),
     Configuration(configuration::Handler),
     Inventory(inventory::Handler),
+    Usage(usage::Handler),
     Corporate(corporate::Handler),
     Attestation(attestation::Handler),
     Grant(grants::Handler),
@@ -759,6 +761,7 @@ fn declarations() -> impl Iterator<Item = &'static Declaration> {
         .chain(contexts::COMMANDS)
         .chain(configuration::COMMANDS)
         .chain(inventory::COMMANDS)
+        .chain(usage::COMMANDS)
         .chain(corporate::COMMANDS)
         .chain(migration::COMMANDS)
         .chain(grants::COMMANDS)
@@ -839,6 +842,7 @@ fn mutability(handler: Handler) -> &'static str {
         Handler::Context(handler) => handler.mutability(),
         Handler::Configuration(handler) => handler.mutability(),
         Handler::Inventory(handler) => handler.mutability(),
+        Handler::Usage(handler) => handler.mutability(),
         Handler::Corporate(handler) => handler.mutability(),
         Handler::Migration(handler) => handler.mutability(),
         Handler::Grant(handler) => handler.mutability(),
@@ -899,6 +903,17 @@ pub fn help(path: &str, find: &str) -> Result<Value> {
     )
 }
 
+/// Harness hook entries print nothing: the harness may read stdout as model context.
+pub(crate) fn silent(matches: &ArgMatches) -> bool {
+    let mut leaf = matches;
+    let mut path = Vec::new();
+    while let Some((name, child)) = leaf.subcommand() {
+        path.push(name);
+        leaf = child;
+    }
+    path == ["corporate", "usage", "hook"]
+}
+
 pub(crate) fn warnings(matches: &ArgMatches, result: &Result<Value>) -> Vec<String> {
     if matches
         .subcommand_matches("account")
@@ -948,6 +963,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
         Handler::Context(handler) => contexts::dispatch(handler, leaf),
         Handler::Configuration(handler) => configuration::dispatch(handler, leaf),
         Handler::Inventory(handler) => inventory::dispatch(handler, leaf),
+        Handler::Usage(handler) => usage::dispatch(handler, leaf),
         Handler::Corporate(handler) => corporate::dispatch(handler, leaf),
         Handler::Migration(handler) => migration::dispatch(handler, leaf),
         Handler::Grant(handler) => grants::dispatch(handler, leaf),
@@ -968,6 +984,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "configuration_installation": if cfg!(target_os = "linux") { "supported" } else { "unavailable" },
             "native_authoring_harnesses": config::HARNESSES,
             "native_inventory":{"available":crate::platform::current().is_some(),"coverage":"owned_native_only","foreground_only":true},
+            "native_runtime_usage":{"available":crate::platform::current().is_some(),"coverage":"owned_component_signals","sources":["agent_reported","native_hook"],"hook_harnesses":["claude-code","codex","cursor","grok-build"],"foreground_flush":true,"automatic_hook_registration":false},
             "native_configuration":{"available":crate::platform::current().is_some(),"harnesses":config::HARNESSES,
                 "operations":["plan","prepare","apply","status","cancel","confirm","remove","retire","custody","effective","pending"],
                 "process_handoff":true,"vendor_programs_managed":false,"runtime_loading_observed":false},

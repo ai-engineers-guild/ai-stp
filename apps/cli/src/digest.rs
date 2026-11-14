@@ -68,6 +68,7 @@ pub const DOMAINS: &[&str] = &[
     "ai-stp:publication-set:v1",
     "ai-stp:revision:v1",
     "ai-stp:runtime-usage-export:v1",
+    "ai-stp:runtime-usage-signal:v1",
     "ai-stp:scaffold-plan:v1",
     "ai-stp:schema-body:v1",
     "ai-stp:selection-snapshot:v1",

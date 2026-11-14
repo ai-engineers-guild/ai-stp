@@ -9,12 +9,11 @@ import socket
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import uvicorn
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import select
 from tests.api.platform.conftest import make_settings
 from tests.support.catalog_seed import (
     FIXTURE_COMPONENT_ID,
@@ -22,28 +21,20 @@ from tests.support.catalog_seed import (
     SEED_OWNER_ACCOUNT_ID,
     load_fixture_seed,
 )
-from tests.support.component_passports import adaptation_fields
+from tests.support.native_catalog import store_fixture_artifacts
 from tests.support.native_runner import cli_environment
 from tests.support.postgres import isolated_database
 
 from ai_stp_api.app import create_app
-from ai_stp_foundation.canonical import JsonValue
-from ai_stp_foundation.digests import digest_bytes, digest_canonical
 from ai_stp_foundation.ids import new_id
-from ai_stp_foundation.refs import ComponentRef
-from ai_stp_passports import ComponentVersionPassport, ScopeAdaptation, seal_adaptation
-from ai_stp_passports.envelope import derive_revision_id
-from ai_stp_passports.projections import build_projection
 from ai_stp_platform.catalog_transfer import transfer_catalog_line
 from ai_stp_platform.models import (
     Account,
     CatalogIdentity,
     CatalogMetadata,
-    ObjectLocation,
     ReportCase,
 )
 from ai_stp_platform.storage import ImmutableObjectStore, MemoryObjectClient
-from ai_stp_sources import freeze_setup_definition
 
 ARTIFACT_DOMAIN = "ai-stp:artifact:v1"
 PASSPORT_DOMAIN = "ai-stp:passport:v1"
@@ -57,23 +48,6 @@ class ObservedObjects(MemoryObjectClient):
     async def get_object_bytes(self, *, bucket: str, key: str) -> bytes | None:
         self.reads.add((bucket, key))
         return await super().get_object_bytes(bucket=bucket, key=key)
-
-
-def projection(harness: str) -> tuple[dict[str, JsonValue], bytes]:
-    body = f"---\nname: demo\ndescription: Inspect a project.\n---\n# {harness} skill\n".encode()
-    fields = adaptation_fields(
-        digest=digest_bytes(ARTIFACT_DOMAIN, body), size=len(body), harness_id=harness
-    )
-    adaptation = cast(list[dict[str, JsonValue]], fields["adaptations"])[0]
-    scope = ScopeAdaptation.model_validate(cast(list[object], adaptation["scope_adaptations"])[0])
-    payload = build_projection(scope, {scope.members[0].path: body})
-    raw = scope.model_dump(mode="json")
-    raw["projection_artifact"] = {
-        "digest": digest_bytes(ARTIFACT_DOMAIN, payload),
-        "size_bytes": len(payload),
-    }
-    adaptation["scope_adaptations"] = [raw]
-    return seal_adaptation(adaptation).model_dump(mode="json"), payload
 
 
 async def native_result(binary: Path, home: Path, arguments: list[str]) -> tuple[int, bytes, bytes]:
@@ -121,98 +95,11 @@ async def prove(
         objects = ObservedObjects()
         app.state.object_client = objects
         store = ImmutableObjectStore(settings=settings.storage, client=objects)
-        adaptations, payloads = zip(
-            *(projection(harness) for harness in ("claude-code", "codex")), strict=True
-        )
         async with app.state.sessionmaker() as db:
             await load_fixture_seed(db)
-            component = (
-                await db.scalars(
-                    select(CatalogMetadata).where(
-                        CatalogMetadata.stable_id == FIXTURE_COMPONENT_ID,
-                        CatalogMetadata.version == "1.2",
-                    )
-                )
-            ).one()
-            document = dict(component.passport_document)
-            document["adaptations"] = list(adaptations)
-            document["artifact"] = {
-                "digest": digest_bytes(ARTIFACT_DOMAIN, payloads[0]),
-                "size_bytes": len(payloads[0]),
-            }
-            document = ComponentVersionPassport.model_validate(document).model_dump(mode="json")
-            document["revision_id"] = derive_revision_id(document)
-            component.passport_document = document
-            component.current_revision_id = document["revision_id"]
-            component.passport_digest = digest_canonical(PASSPORT_DOMAIN, document)
-            stored = [
-                await store.put_immutable(
-                    payload,
-                    expected_digest=digest_bytes(ARTIFACT_DOMAIN, payload),
-                    expected_size=len(payload),
-                    owner_account_id=SEED_OWNER_ACCOUNT_ID,
-                )
-                for payload in payloads
-            ]
-            setup = (
-                await db.scalars(
-                    select(CatalogMetadata).where(
-                        CatalogMetadata.stable_id == FIXTURE_SETUP_ID,
-                        CatalogMetadata.version == "1.0",
-                    )
-                )
-            ).one()
-            setup_document = dict(setup.passport_document)
-            reference = ComponentRef(
-                stable_id=FIXTURE_COMPONENT_ID,
-                version="1.2",
-                passport_digest=component.passport_digest,
-            )
-            definition = freeze_setup_definition(
-                setup_id=FIXTURE_SETUP_ID,
-                version="1.0",
-                harness_id="codex",
-                input_digest="sha256:" + "0" * 64,
-                publisher_id=SEED_OWNER_ACCOUNT_ID,
-                created_at=document["created_at"],
-                catalog_members=(reference,),
-                embedded_members=(),
-            )
-            setup_bytes = await store.put_immutable(
-                definition.payload,
-                expected_digest=digest_bytes(ARTIFACT_DOMAIN, definition.payload),
-                expected_size=len(definition.payload),
-                owner_account_id=SEED_OWNER_ACCOUNT_ID,
-            )
-            setup_document.update(
-                harness_id="codex",
-                artifact_format=definition.format,
-                components=[
-                    {
-                        "stable_id": FIXTURE_COMPONENT_ID,
-                        "version": "1.2",
-                        "passport_digest": component.passport_digest,
-                    }
-                ],
-                artifact={"digest": setup_bytes.digest, "size_bytes": setup_bytes.size_bytes},
-            )
-            setup_document["revision_id"] = derive_revision_id(setup_document)
-            setup.passport_document = setup_document
-            setup.current_revision_id = setup_document["revision_id"]
-            setup.passport_digest = digest_canonical(PASSPORT_DOMAIN, setup_document)
-            for row, artifact in ((component, stored[0]), (setup, setup_bytes)):
-                db.add(
-                    ObjectLocation(
-                        catalog_metadata_id=row.id,
-                        purpose="artifact",
-                        owner_account_id=SEED_OWNER_ACCOUNT_ID,
-                        bucket=artifact.bucket,
-                        object_key=artifact.key,
-                        digest=artifact.digest,
-                        content_id=artifact.content_id,
-                        size_bytes=artifact.size_bytes,
-                    )
-                )
+            fixture = await store_fixture_artifacts(db, store, harness="codex")
+            component, document = fixture.component, fixture.component_document
+            stored, setup_bytes = fixture.stored, fixture.setup_bytes
             if await db.get(CatalogIdentity, FIXTURE_COMPONENT_ID) is None:
                 db.add(
                     CatalogIdentity(

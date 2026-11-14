@@ -264,6 +264,24 @@ file states under current company policy. Collection/delivery are explicit
 foreground actions; retries keep the original batch. Local disable works offline.
 It neither performs complete external discovery nor measures runtime loading.
 
+Corporate runtime usage has its own reviewed consent:
+`corporate usage consent plan/apply`, `status`, `record`, `flush` and `disable`.
+`record` requires the original context, a current completed native installation
+operation, an unchanged owned component, and a stable opaque signal ID.
+The private outbox retains exact version coordinates and sends only content-free
+events to the authenticated corporate usage endpoint. Exact retries are
+idempotent; conflicting reuse of a signal ID is refused. Delivery is foreground
+only. Manual reports are labeled `agent_reported`; corporate native-hook
+aggregates exclude them.
+
+`corporate usage hook --harness <harness>` is the entry for a documented session
+start hook of Claude Code, Codex, Cursor or Grok Build. It reads only the session
+ID and working directory from the vendor event on stdin, queues a `native_hook`
+load signal for each owned component of the current corporate operations of that
+harness whose checkout holds the directory, under the original context and its
+consent, prints nothing and always exits 0. OpenCode, Pi and Antigravity have no
+qualified hook surface and report unknown coverage.
+
 ## Build and verification
 
 Use the pinned Rust/Bun/uv and existing managed compiler/cache frontends. The
