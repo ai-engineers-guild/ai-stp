@@ -55,6 +55,9 @@ fn main() -> ExitCode {
         }
     }
     let invocation = ai_stp_cli::invoke(std::env::args_os());
+    if invocation.silent {
+        return ExitCode::SUCCESS;
+    }
     let code = invocation.exit_code();
     let write = if invocation.machine {
         writeln!(io::stdout().lock(), "{}", invocation.envelope())

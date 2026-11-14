@@ -328,7 +328,7 @@ def test_recipe_action_rejects_unsupported_preparation() -> None:
     with pytest.raises(AssertionError, match="separate preparation step"):
         _command_owners(
             {
-                "uses": RECIPE_ACTION + "1a409d4ee632eb594e58a6b291ce9e5a0ef51da2",
+                "uses": RECIPE_ACTION + "9fead1382c452a6b791a0a9e464ac6ac66537ac3",
                 "with": {"recipe": "ci-native-corporate", "prepare": "ci-native-corporate-prepare"},
             }
         )
@@ -395,8 +395,12 @@ def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     three = {"ubuntu-26.04", "macos-26", "windows-latest"}
     jobs = workflow["jobs"]
-    for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
+    for name in ("web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
+    # Dev runs the cli job on all three; a pull request runs only its Linux leg.
+    matrix = jobs["cli"]["strategy"]["matrix"]["os"]
+    assert '["ubuntu-26.04"]' in matrix.split("||")[0]
+    assert all(name in matrix.split("||")[-1] for name in three)
     assert jobs["tests"]["runs-on"] == "ubuntu-26.04"
     native = command_text(jobs["cli"])
     assert "cargo test --locked" in native
@@ -438,7 +442,7 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
         for step in jobs["cli"]["steps"]
         if step.get("name") == "Actual Linux Secret Service enrollment and recovery"
     )
-    assert linux["if"] == "runner.os == 'Linux'"
+    assert linux["if"] == "runner.os == 'Linux' && github.event_name != 'pull_request'"
     assert "bash .github/scripts/check-native-secret-service.sh" in command_text(linux)
     assert linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == (
         "${{ inputs.native_vault_rounds || '100' }}"

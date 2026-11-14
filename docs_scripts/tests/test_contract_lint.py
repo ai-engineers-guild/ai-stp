@@ -104,6 +104,46 @@ class ContractLintTests(unittest.TestCase):
             self.write("event.json", "not JSON")
             self.assertIn("CT014", self.codes())
 
+    def test_renovate_branch_requires_same_repository_bot_pr(self) -> None:
+        branch = "renovate/non-major"
+        event = {
+            "pull_request": {
+                "user": {"login": "nddev-renovate[bot]"},
+                "head": {"ref": branch, "repo": {"full_name": "owner/repo"}},
+            }
+        }
+        env = {
+            "GITHUB_HEAD_REF": branch,
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_EVENT_PATH": str(self.root / "event.json"),
+            "GITHUB_REPOSITORY": "owner/repo",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            self.write("event.json", json.dumps(event))
+            self.assertNotIn("CT014", self.codes())
+
+            event["pull_request"]["user"]["login"] = "other-user"
+            self.write("event.json", json.dumps(event))
+            self.assertIn("CT014", self.codes())
+
+            event["pull_request"]["user"]["login"] = "nddev-renovate[bot]"
+            event["pull_request"]["head"]["repo"]["full_name"] = "other/repo"
+            self.write("event.json", json.dumps(event))
+            self.assertIn("CT014", self.codes())
+
+            event["pull_request"]["head"]["repo"]["full_name"] = "owner/repo"
+            event["pull_request"]["head"]["ref"] = "renovate/other"
+            self.write("event.json", json.dumps(event))
+            self.assertIn("CT014", self.codes())
+
+            event["pull_request"]["head"]["ref"] = branch
+            self.write("event.json", json.dumps(event))
+            with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push"}, clear=False):
+                self.assertIn("CT014", self.codes())
+
+            self.write("event.json", "not JSON")
+            self.assertIn("CT014", self.codes())
+
     def test_workflow_branch_mismatch_fails(self) -> None:
         self.write(".github/workflows/check.yml", WORKFLOW.replace("[dev, main]", "[main]"))
         self.assertIn("CT013", self.codes())

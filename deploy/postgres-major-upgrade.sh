@@ -21,7 +21,7 @@ source "${SCRIPT_DIR}/lib.sh"
 LEGACY_DATA=/var/lib/postgresql/data
 FAILED="${AI_STP_STATE_DIR}/postgres-upgrade-failed"
 COPIED="${AI_STP_STATE_DIR}/postgres-upgrade-copied"
-WRITERS=(api worker content-import)
+WRITERS=(api api-standby worker content-import)
 
 require_cmd docker
 require_cmd sha256sum

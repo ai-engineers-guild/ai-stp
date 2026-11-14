@@ -71,13 +71,16 @@ log info "backup_start name=${NAME}"
 # Hold every application writer while PostgreSQL and RustFS are copied. Without
 # this, the two individually valid snapshots can describe different moments.
 WRITERS_PAUSED=0
+mapfile -t WRITERS < <(running_services api api-standby worker)
 resume_writers() {
   if [[ "${WRITERS_PAUSED}" -eq 1 ]]; then
-    compose unpause api worker >/dev/null 2>&1 || true
+    compose unpause "${WRITERS[@]}" >/dev/null 2>&1 || true
   fi
 }
 trap resume_writers EXIT
-compose pause api worker >/dev/null
+# An empty list would pause every service, postgres and rustfs included.
+((${#WRITERS[@]} > 0)) || die "no_running_writers"
+compose pause "${WRITERS[@]}" >/dev/null
 WRITERS_PAUSED=1
 
 if ! compose run --rm --no-deps api python -m ai_stp_platform.storage.verify >/dev/null; then

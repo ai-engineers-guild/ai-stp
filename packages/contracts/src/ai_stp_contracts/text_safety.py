@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import re
-import unicodedata
+
+from ai_stp_foundation import unicodedata
 
 _UNSAFE_URI = re.compile(r"(?i)(?<![\w])(?:javascript|data|vbscript):")
 _RAW_HTML = re.compile(r"(?is)<\s*/?\s*[a-z][^>]*>")

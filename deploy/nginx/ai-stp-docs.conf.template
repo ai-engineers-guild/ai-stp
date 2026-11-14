@@ -3,6 +3,15 @@
 # independently: a docs subdomain without DNS and a certificate must not be
 # installed, or nginx refuses to start over the missing lineage.
 
+# Each upstream is a serving container and its standby. Only the first serves
+# while it answers, so the stack keeps one active process. A deploy replaces the
+# two one at a time, and a connection the stopped one refuses goes to the other:
+# nginx retries every method then, because nothing reached the refused upstream.
+upstream ai_stp_docs_@@SITE@@ {
+    server @@DOCS_BIND@@ max_fails=1 fail_timeout=5s;
+    server @@DOCS_STANDBY_BIND@@ backup;
+}
+
 server {
     listen 80;
     listen [::]:80;
@@ -31,8 +40,10 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_next_upstream error timeout;
+    proxy_next_upstream_tries 2;
 
     location / {
-        proxy_pass http://@@DOCS_BIND@@;
+        proxy_pass http://ai_stp_docs_@@SITE@@;
     }
 }

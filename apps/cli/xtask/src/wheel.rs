@@ -74,13 +74,14 @@ pub(crate) fn contents(
     let platform = tag(target)?;
     let description = "# ai-stp Rust CLI\n\nThis package contains the same native Rust executable as the GitHub release.\nThere is no Python launcher, interpreter dependency or legacy CLI fallback.\n\nInstall or upgrade with `uv tool install --upgrade ai-stp`, then run\n`ai-stp version --json`. Package-manager installations remain owned by that\npackage manager; use it for subsequent updates.\n\nNative archives require no Python installation and remain the primary route:\nhttps://github.com/ai-engineers-guild/ai-stp/releases?q=cli-v\n\nExisting Python state needs explicit `ai-stp state migrate plan` and apply.\nThe older ai-stp-cli PyPI project is separate; remove its launcher through its owning package manager before installing ai-stp.\n\nSupported binaries: Linux x86-64 (glibc 2.43+), macOS 15+ Apple Silicon,\nWindows x86-64. First-party native setup configuration is supported on all\nthree platforms; historical external-provider execution remains Linux-only.\n";
     let metadata = format!(
-        "Metadata-Version: 2.4\nName: ai-stp\nVersion: {version}\nSummary: Native Rust engine for AI harness configurations\nLicense-Expression: Apache-2.0\nLicense-File: LICENSE\nClassifier: Programming Language :: Rust\nProject-URL: Repository, https://github.com/ai-engineers-guild/ai-stp\nDescription-Content-Type: text/markdown\n\n{description}"
+        "Metadata-Version: 2.4\nName: ai-stp\nVersion: {version}\nSummary: Native Rust engine for AI harness configurations\nLicense-Expression: Apache-2.0\nLicense-File: LICENSE\nLicense-File: NOTICE\nClassifier: Programming Language :: Rust\nProject-URL: Repository, https://github.com/ai-engineers-guild/ai-stp\nDescription-Content-Type: text/markdown\n\n{description}"
     );
     let mut wheel = Files::from([
         (binary.clone(), files[release::binary(target)?].clone()),
         (format!("{info}/METADATA"), metadata.into_bytes()),
         (format!("{info}/WHEEL"), format!("Wheel-Version: 1.0\nGenerator: ai-stp-native-tools\nRoot-Is-Purelib: false\nTag: py3-none-{platform}\n").into_bytes()),
         (format!("{info}/licenses/LICENSE"), files["LICENSE"].clone()),
+        (format!("{info}/licenses/NOTICE"), files["NOTICE"].clone()),
         (format!("{info}/release.json"), files["release.json"].clone()),
         (format!("{info}/{}", release::SBOM), files[release::SBOM].clone()),
     ]);

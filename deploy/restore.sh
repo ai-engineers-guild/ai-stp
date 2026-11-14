@@ -60,7 +60,8 @@ if ! (cd "${FROM}/postgres" && sha256sum -c object_manifest.tsv.sha256 >/dev/nul
 fi
 
 # Stop writers that depend on database/storage identity before restore.
-compose stop api worker web seed migrate content-import >/dev/null 2>&1 || true
+compose stop api api-standby worker web web-standby seed migrate content-import \
+  >/dev/null 2>&1 || true
 
 # Restore PostgreSQL.
 compose cp "${FROM}/postgres/ai_stp.dump" postgres:/tmp/ai_stp.dump >/dev/null

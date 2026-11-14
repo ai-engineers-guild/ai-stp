@@ -245,7 +245,15 @@ test("cookie settings do not float over the mobile layout after consent", async 
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto("/en/catalog");
   await expect(page.locator('[data-ui="human-machine-toggle"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "Cookie settings" })).toHaveCount(0);
+  // The settings control sits in the footer flow, never fixed over the page.
+  const settings = page.getByRole("button", { name: "Cookie settings" });
+  await expect(settings).toHaveCount(1);
+  await expect(
+    page.locator("#site-footer").getByRole("button", { name: "Cookie settings" }),
+  ).toHaveCount(1);
+  expect(await settings.evaluate((element) => getComputedStyle(element).position)).not.toBe(
+    "fixed",
+  );
 });
 
 test("Russian machine chrome is localized", async ({ page }) => {

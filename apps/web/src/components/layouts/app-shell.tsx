@@ -7,6 +7,7 @@ import { ProjectionDock } from "@/components/molecules/projection-dock";
 import { ProjectionDockEnhancer } from "@/components/molecules/projection-dock-enhancer";
 import { ConsentedAnalytics } from "@/components/organisms/consented-analytics";
 import { CookieConsent } from "@/components/organisms/cookie-consent";
+import { CookiePreferencesTrigger } from "@/components/molecules/cookie-preferences-trigger";
 import { getEnv } from "@/lib/env";
 import { publicAnalyticsConfig } from "@/lib/public-analytics";
 import { Link } from "@/lib/i18n/navigation";
@@ -90,6 +91,7 @@ export async function AppShell({
 
 async function SiteFooter({ docsHref }: { docsHref: string }) {
   const tf = await getTranslations("footer");
+  const tc = await getTranslations("consent");
   const tm = await getTranslations("machine");
   const th = await getTranslations("hub");
   const saasPublicPages = isFeatureEnabled("saas_public_pages");
@@ -172,6 +174,10 @@ async function SiteFooter({ docsHref }: { docsHref: string }) {
           <p className="font-mono text-[11px] tracking-wide text-muted-foreground">
             {tf("licenseLine", { year: 2026 })}
           </p>
+          {/* Withdrawing consent stays one click away for every visitor, in the page flow. */}
+          {process.env.NEXT_PUBLIC_COOKIE_CONSENT_ENABLED !== "false" ? (
+            <CookiePreferencesTrigger label={tc("manage")} />
+          ) : null}
           <div
             data-ui={UI.navigation.shortcuts}
             className="hidden items-center gap-2 font-mono text-[11px] text-muted-foreground lg:flex"

@@ -13,10 +13,11 @@ validation is ``canonize(from_json_bytes(data))``.
 
 import json
 import math
-import unicodedata
 from typing import cast
 
 import rfc8785
+
+from ai_stp_foundation import unicodedata
 
 type JsonValue = bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"] | None
 

@@ -18,6 +18,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, cast
 
+from . import installation
 from .common import binary_digest, environment, write_skill
 
 PREFIX = "ai-stp-qualification-"
@@ -186,6 +187,39 @@ def qualify(executable: Path, root: Path) -> dict[str, Any]:
     }
 
 
+def qualify_installed(
+    executable: Path, engine: Path, root: Path, engine_proof: dict[str, Any]
+) -> dict[str, Any]:
+    case = installation.Installation(
+        engine, root / "i", "ANTIGRAVITY_HOME", home_relative_vendor_root=".gemini"
+    )
+    case.environment["NO_COLOR"] = "1"
+    name = PREFIX + "installed-antigravity"
+    (case.source / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: Controlled native installation fixture\n---\n"
+        "Format only caller-supplied fixture text.\n",
+        encoding="utf-8",
+    )
+    receipt = case.install("antigravity", "skill", name, "global")
+    announced = session_commands(executable, case.project, case.environment)
+    assert announced.get(name) == "Controlled native installation fixture", announced
+    removal = case.remove(receipt)
+    case.apply(removal)
+    assert name not in session_commands(executable, case.project, case.environment)
+    case.removed()
+    return {
+        "state": "passed",
+        "evidence_kind": "native_engine_vendor_configuration_read",
+        "engine": engine_proof,
+        "install_and_remove_receipts_idempotent": True,
+        "original_context_preserved_across_selected_view": True,
+        "vendor_announced_installed_skill": True,
+        "skill_absent_after_removal_in_fresh_session": True,
+        "unowned_preserved_and_pending_cleared": True,
+        "inference_turns_started": 0,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--distribution", type=Path, required=True)
@@ -203,6 +237,12 @@ def main() -> None:
         executable, version = prepare(arguments.distribution, root)
         digest = binary_digest(executable)
         result = qualify(executable.resolve(), root / "q")
+        engine = installation.prepare(root, source)
+        result["installed_configuration"] = (
+            qualify_installed(executable.resolve(), engine[0], root, engine[1])
+            if engine is not None
+            else {"state": "not_selected"}
+        )
     proof = {
         "schema_version": 1,
         "source_sha": source,

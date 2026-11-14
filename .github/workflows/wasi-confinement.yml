@@ -11,6 +11,18 @@ concurrency:
   group: wasi-confinement-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # No tool reports usage to its maker (the switches of nddev-ci's telemetry action).
+  DO_NOT_TRACK: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+  BUN_DO_NOT_TRACK: '1'
+  ASTRO_TELEMETRY_DISABLED: '1'
+  HOMEBREW_NO_ANALYTICS: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DISABLE_TELEMETRY: '1'
+  SEMGREP_SEND_METRICS: 'off'
+  HF_HUB_DISABLE_TELEMETRY: '1'
+
 jobs:
   component:
     runs-on: ubuntu-26.04
@@ -21,7 +33,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           python-version: '3.15.2'
       - uses: ./.github/actions/project-rust
@@ -31,7 +43,7 @@ jobs:
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-component-compile-one-portable-component-without-third-party-guest-dependencies
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -56,7 +68,7 @@ jobs:
           persist-credentials: false
       - name: Prepare the declared hosted SDKs
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           python-version: '3.15.2'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -65,7 +77,7 @@ jobs:
           path: ${{ runner.temp }}/wasi-component
       - name: Prepare the pinned native WASI runtime archive
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           manifest: .github/wasi-runtime/${{ runner.os }}.json
           directory: ${{ runner.temp }}/wasi-runtime-asset
@@ -73,6 +85,6 @@ jobs:
         env:
           ARTIFACT: ${{ runner.temp }}/wasi-component
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@1a409d4ee632eb594e58a6b291ce9e5a0ef51da2
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-confinement-verify-runtime-digest-and-exercise-the-identical-guest-component

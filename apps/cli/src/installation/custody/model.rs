@@ -85,6 +85,22 @@ impl Root {
         }
         Ok(target)
     }
+    /// The recorded root, or `None` once its directory no longer exists.
+    ///
+    /// A root that is present but replaced or unreadable still refuses: only
+    /// absence is an answer, because an absent directory overlaps nothing.
+    pub(super) fn open_existing(&self) -> Result<Option<Target>> {
+        match Target::resolve(&self.path, ".ai-stp-native") {
+            Err(error) if error.is_missing_path() => Ok(None),
+            resolved => {
+                let target = native(resolved)?;
+                if Self::capture(&target)? != *self {
+                    return Err(invalid());
+                }
+                Ok(Some(target))
+            }
+        }
+    }
 }
 
 /// Stable logical ownership is established by the native runtime, never by

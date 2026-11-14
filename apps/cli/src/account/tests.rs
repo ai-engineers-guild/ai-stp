@@ -633,6 +633,7 @@ fn account_flow_keeps_secrets_private_and_recovers_without_reexchanging()
         continuations: Vec::new(),
         result,
         machine: true,
+        silent: false,
         text: None,
         warnings,
     };

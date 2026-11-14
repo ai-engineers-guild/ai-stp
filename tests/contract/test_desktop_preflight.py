@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
+import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -80,7 +83,7 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
     native = next(
         step
         for step in steps.values()
-        if step.get("with", {}).get("recipe") == "ci-desktop-installed-native-corporate-profiles"
+        if step.get("with", {}).get("recipe") == "ci-desktop-installed-native-corporate"
     )
     preparation = next(
         step
@@ -88,9 +91,13 @@ def test_reusable_release_keeps_mandatory_application_acceptance() -> None:
         if step.get("with", {}).get("recipe") == "ci-native-corporate-prepare"
     )
     personal = steps["Retain installed macOS and Windows personal results"]
-    corporate = steps["Retain installed native corporate profile results"]
+    corporate = steps["Retain installed native corporate profile and checkout results"]
     condition = "(runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only"
     assert native["if"] == preparation["if"] == personal["if"] == corporate["if"] == condition
+    controller = steps["Check native Desktop controllers before package builds"]
+    assert controller["if"] == condition
+    assert controller["with"]["recipe"] == "ci-desktop-native-controller-check"
+    assert order.index(controller["name"]) < order.index("Tauri build")
     assert native["env"]["AI_STP_POSTGRESQL_ASSETS"] == "${{ runner.temp }}/postgresql-sdk"
     for retained in [personal, corporate]:
         assert retained["with"]["if-no-files-found"] == "error"
@@ -174,3 +181,39 @@ def test_native_corporate_consumer_refuses_before_provisioning_on_a_developer_ho
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     with pytest.raises(AssertionError, match="Native fixtures require hosted CI"):
         consumer.main()
+
+
+@pytest.mark.parametrize(
+    "controller",
+    [
+        ".github/scripts/qualify-installed-macos-desktop.swift",
+        ".github/scripts/qualify-installed-windows-desktop.ps1",
+    ],
+)
+def test_native_controllers_use_existing_canonical_message_keys(controller: str) -> None:
+    catalog = json.loads(Path("apps/desktop/src/locales/en.json").read_text())
+    prefixes = {key.split(".")[0] for key in catalog}
+    literals = re.findall(
+        r"""['"]([a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9]*)['"]""",
+        Path(controller).read_text(),
+    )
+    references = {key for key in literals if key.split(".")[0] in prefixes}
+    assert references
+    assert references <= catalog.keys(), sorted(references - catalog.keys())
+
+
+def test_native_controller_compilation_refuses_an_unowned_host() -> None:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("GITHUB_", "RUNNER_"))
+    }
+    result = subprocess.run(
+        [sys.executable, "-m", "tests.support.native_desktop_controller"],
+        env=environment,
+        check=False,
+        capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert b"Native fixtures require hosted CI" in result.stderr

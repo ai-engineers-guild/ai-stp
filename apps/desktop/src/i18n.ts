@@ -172,5 +172,5 @@ export function formatClock(seconds: number): string {
 export function useText(): Text {
   const { t } = useTranslation(undefined, { i18n });
   return ((key: MessageKey, values?: Record<string, string | number | Date>) =>
-    t(key, values)) as Text;
+    values === undefined ? t(key) : t(key, values)) as Text;
 }

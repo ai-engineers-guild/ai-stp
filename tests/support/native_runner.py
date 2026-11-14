@@ -7,8 +7,17 @@ import os
 import platform
 from pathlib import Path
 
+#: A dedicated Linux build host qualifies a vendor that hosted runners cannot
+#: run without an account. It accepts the same OS-user state writes a hosted
+#: runner does and is selected only by this exact value.
+BUILD_HOST = "linux-build-host"
+
 
 def disposable_runner() -> None:
+    if os.environ.get("AI_STP_NATIVE_QUALIFICATION_HOST") == BUILD_HOST:
+        assert platform.system() == "Linux", "The build host qualifies Linux only"
+        assert os.environ.get("GITHUB_ACTIONS") is None
+        return
     assert os.environ.get("GITHUB_ACTIONS") == "true", "Native fixtures require hosted CI"
     assert os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted"
     assert (

@@ -360,7 +360,10 @@ ci-web-e2e-build-and-run-the-browser-scenarios shard:
     # Serial execution is untouched — `fullyParallel: false` and one
     # worker still hold inside each shard, so the process-local mock
     # state the suite depends on is exactly as isolated as before.
-    bun run test:e2e -- --shard=${1:?one browser shard is required}/2
+    # The shard comes as index/total: macOS runs the suite whole, since its five concurrent
+    # runners are the binding constraint and a second shard repeats the fixed cost.
+    [[ "${1:?one browser shard is required}" =~ ^[0-9]+/[0-9]+$ ]]
+    bun run test:e2e -- --shard="$1"
 
 # Web profiles feature profile builds.
 [group('ci')]
@@ -400,10 +403,16 @@ ci-desktop-probe-the-packaged-cli-resource-tree:
 ci-desktop-installed-personal-workspace:
     bash .github/scripts/qualify-installed-native-desktop.sh
 
-# Preserve the installed personal journey and qualify native corporate profile GUI.
+# Check the native controller before compiling or packaging the application.
 [group('ci')]
 [private]
-ci-desktop-installed-native-corporate-profiles:
+ci-desktop-native-controller-check:
+    python -m tests.support.native_desktop_controller
+
+# Preserve installed personal/profile journeys and qualify native checkout recovery.
+[group('ci')]
+[private]
+ci-desktop-installed-native-corporate:
     uv run --no-sync python -m tests.native_contract.verify_native_desktop_corporate
 
 # Current Dev admission and distinct evidence for manual native-owner diagnosis.
@@ -516,13 +525,21 @@ ci-safety-runtime-build:
     test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
     [[ "${AI_STP_SAFETY_RUNTIME_SOURCE}" =~ ^[0-9a-f]{40}$ ]]
     case "${AI_STP_SAFETY_RUNTIME_ARCH}" in amd64|arm64) ;; *) exit 1 ;; esac
+    # Every run reads Dev's layers; only a push to Dev writes them, and only the image's own layers
+    # (mode=min). The repository has 10 GB of Actions cache, and the intermediate stages of two
+    # architectures in mode=max took a third of it and evicted the Rust and historical-writer
+    # caches the native jobs wait on.
+    cache_to=()
+    if [[ "${GITHUB_EVENT_NAME:-}" == push && "${GITHUB_REF:-}" == refs/heads/dev ]]; then
+      cache_to=(--cache-to "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH},mode=min")
+    fi
     docker buildx build --load --progress=plain \
       --platform "linux/${AI_STP_SAFETY_RUNTIME_ARCH}" \
       --target worker-safety --file deploy/docker/Dockerfile.app \
       --tag "${AI_STP_SAFETY_RUNTIME_IMAGE}" \
       --label "org.opencontainers.image.revision=${AI_STP_SAFETY_RUNTIME_SOURCE}" \
       --cache-from "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH}" \
-      --cache-to "type=gha,version=2,scope=ai-stp-safety-${AI_STP_SAFETY_RUNTIME_ARCH},mode=max" .
+      "${cache_to[@]}" .
 
 [group('ci')]
 [private]
@@ -532,7 +549,7 @@ ci-safety-runtime-test:
     test "${GITHUB_ACTIONS}" = true
     test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
     test -n "${AI_STP_SAFETY_RUNTIME_PROOF_DIR}"
-    # This profile is loaded only in the disposable runner, never a contour host.
+    # This profile is loaded only in the disposable runner, never a shared host.
     sudo apparmor_parser --skip-cache -r deploy/apparmor/ai-stp-worker
     trap 'sudo apparmor_parser --remove deploy/apparmor/ai-stp-worker' EXIT
     just setup-python
@@ -569,6 +586,17 @@ ci-native-vendor-cursor:
 [private]
 ci-native-vendor-antigravity:
     python -m tests.native_vendor.antigravity --distribution tests/native_vendor/antigravity-distribution --proof "${AI_STP_ANTIGRAVITY_PROOF}"
+
+# Rehearse a RustFS upgrade on an owned volume: the current production pin writes,
+# the candidate pin reads everything back. AI_STP_RUSTFS_CANDIDATE names the new image.
+[group('ci')]
+[private]
+[script('bash')]
+ci-rustfs-upgrade-rehearsal:
+    set -euo pipefail
+    current="$(sed -n 's/^ *image: \(rustfs\/rustfs:[^ ]*\)$/\1/p' deploy/compose.prod.yml)"
+    test -n "${current}" && test -n "${AI_STP_RUSTFS_CANDIDATE}"
+    uv run --no-sync python -m tests.native_contract.verify_rustfs_upgrade --old "${current}" --new "${AI_STP_RUSTFS_CANDIDATE}" --proof "${AI_STP_RUSTFS_PROOF}"
 
 # Native OpenCode read-only skills and original installed removal recovery.
 [group('ci')]

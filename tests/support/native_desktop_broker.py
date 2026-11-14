@@ -18,6 +18,12 @@ FAILURE_PREFIX = b"AI_STP_NATIVE_DESKTOP_FAILURE_V1 "
 STAGE_PREFIX = b"AI_STP_NATIVE_DESKTOP_STAGE_V1 "
 INPUT_PREFIX = b"AI_STP_NATIVE_DESKTOP_INPUT_V1 "
 OPTION_PREFIX = b"AI_STP_NATIVE_DESKTOP_OPTION_V1 "
+ERRORS_PREFIX = b"AI_STP_NATIVE_DESKTOP_ERRORS_V1 "
+_ERROR_CODE = (
+    rb"(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+"
+    rb"|(?:check|state|event|panic):[a-z][a-z0-9_]{0,39})"
+)
+ERROR_CODES = re.compile(_ERROR_CODE + rb"(?:," + _ERROR_CODE + rb"){0,15}")
 STAGES = frozenset(
     {
         b"owner",
@@ -44,6 +50,12 @@ STAGES = frozenset(
         b"context",
         b"selection",
         b"restart",
+        b"checkout_preview",
+        b"checkout_request",
+        b"checkout_confirmation",
+        b"checkout_restart",
+        b"checkout_reconciliation",
+        b"checkout_binding",
         b"complete",
     }
 )
@@ -91,7 +103,8 @@ def _option_diagnostic(payload: bytes) -> dict[str, Any]:
 
 
 def _input_diagnostic(payload: bytes) -> dict[str, Any]:
-    """Accept only input lengths and nullable native focus state, never field text."""
+    """Accept only input lengths, nullable native focus state and the focused control's
+    UI Automation type, never field text or element names."""
     refused = "Native fixture input diagnostic refused"
     if len(payload) > 512:
         raise ValueError(refused)
@@ -111,7 +124,15 @@ def _input_diagnostic(payload: bytes) -> dict[str, Any]:
         "keyboard_focus_owned",
         "keyboard_focus_is_root",
         "pressed_modifiers",
+        "element_available",
+        "element_enabled",
+        "focused_control_type",
     }:
+        raise ValueError(refused)
+    focused = result["focused_control_type"]
+    if focused is not None and (
+        type(focused) is not str or not re.fullmatch(r"ControlType\.[A-Za-z]{1,32}", focused)
+    ):
         raise ValueError(refused)
     expected, observed, modifiers = (
         result["expected_length"],
@@ -130,6 +151,8 @@ def _input_diagnostic(payload: bytes) -> dict[str, Any]:
         "foreground_owned",
         "keyboard_focus_owned",
         "keyboard_focus_is_root",
+        "element_available",
+        "element_enabled",
     ]:
         if result[key] is not None and type(result[key]) is not bool:
             raise ValueError(refused)
@@ -176,6 +199,7 @@ def run_owner(
     failure_line: int | None = None
     option_diagnostic: dict[str, Any] | None = None
     input_diagnostic: dict[str, Any] | None = None
+    error_codes: str | None = None
     with errors.open("xb") as error_stream:
         process = subprocess.Popen(
             arguments,
@@ -213,6 +237,12 @@ def run_owner(
                     if option_diagnostic is not None:
                         raise ValueError("Native fixture option diagnostic repeated")
                     option_diagnostic = _option_diagnostic(record.removeprefix(OPTION_PREFIX))
+                    continue
+                if record.startswith(ERRORS_PREFIX):
+                    codes = record.removeprefix(ERRORS_PREFIX).strip()
+                    if error_codes is not None or ERROR_CODES.fullmatch(codes) is None:
+                        raise ValueError("Native fixture error codes refused")
+                    error_codes = codes.decode("ascii")
                     continue
                 if record.startswith(FAILURE_PREFIX):
                     location = record.removeprefix(FAILURE_PREFIX).strip()
@@ -253,6 +283,7 @@ def run_owner(
                 or failure_line is not None
                 or option_diagnostic is not None
                 or input_diagnostic is not None
+                or error_codes is not None
             ):
                 details = (
                     "; option diagnostic=" + json.dumps(option_diagnostic, sort_keys=True)
@@ -261,6 +292,8 @@ def run_owner(
                 )
                 if input_diagnostic is not None:
                     details += "; input diagnostic=" + json.dumps(input_diagnostic, sort_keys=True)
+                if error_codes is not None:
+                    details += "; visible error codes=" + error_codes
                 raise ValueError(
                     f"Native Desktop owner did not complete its approval journey at {stage}; "
                     f"controller line {failure_line}{details}"

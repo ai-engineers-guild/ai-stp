@@ -281,6 +281,7 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         "flag",
         "modifiers_bool",
         "modifiers_high",
+        "focused_text",
         "malformed",
         "not_object",
         "oversize",
@@ -320,6 +321,9 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         "keyboard_focus_owned": False,
         "keyboard_focus_is_root": False,
         "pressed_modifiers": 0,
+        "element_available": True,
+        "element_enabled": True,
+        "focused_control_type": "ControlType.Document",
     }
     if case == "nullable":
         for key in payload:
@@ -345,6 +349,8 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         payload["pressed_modifiers"] = True
     if case == "modifiers_high":
         payload["pressed_modifiers"] = 32
+    if case == "focused_text":
+        payload["focused_control_type"] = "PRIVATE-CANARY"
     encoded = (
         "{PRIVATE-CANARY"
         if case == "malformed"
@@ -375,5 +381,55 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         assert json.loads(observed) == payload
     assert codes == (["PRIVATE-CANARY"] if case == "success_claim" else [])
     assert marker.read_text() == "completed"
+    assert "PRIVATE-CANARY" not in str(refused.value)
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("codes", "case"),
+    [
+        ("AI_STP_PRECONDITION_FAILED", "valid"),
+        ("AI_STP_PRECONDITION_FAILED,IPC_THROW", "valid"),
+        ("CONTEXT_VIEW,check:checkout_root", "valid"),
+        ("CONTEXT_VIEW,check:Private-Path", "refused"),
+        ("PRIVATE", "refused"),
+        ("PRIVATE-CANARY", "refused"),
+        ("AI_STP_PRECONDITION_FAILED,ai_stp_private", "refused"),
+        ("state:request_button,state:review_region_disabled", "valid"),
+        (",".join(f"AI_STP_{letter}" for letter in "ABCDEFGHIJKLMNOP"), "valid"),
+        (",".join(f"AI_STP_{letter}" for letter in "ABCDEFGHIJKLMNOPQ"), "refused"),
+        ("state:app_started,event:id_1000,panic:at_src_lib_rs_12", "valid"),
+        ("process:ended_by_pwsh", "refused"),
+        ("AI_STP_PRECONDITION_FAILED", "repeated"),
+    ],
+)
+def test_native_failure_reports_only_closed_visible_error_codes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], codes: str, case: str
+) -> None:
+    child = r"""
+import pathlib,sys
+print("private UI PRIVATE-CANARY",flush=True)
+print("AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_request",flush=True)
+print("AI_STP_NATIVE_DESKTOP_ERRORS_V1 "+sys.argv[1],flush=True)
+if sys.argv[2]=="repeated":
+ print("AI_STP_NATIVE_DESKTOP_ERRORS_V1 "+sys.argv[1],flush=True)
+print("AI_STP_NATIVE_DESKTOP_FAILURE_V1 1147",flush=True)
+pathlib.Path(sys.argv[3]).write_text("completed")
+sys.exit(3)
+"""
+    marker = tmp_path / "completed"
+    expected = (
+        "at checkout_request; controller line 1147; visible error codes=" + codes
+        if case == "valid"
+        else "Native fixture error codes refused"
+    )
+    with pytest.raises(ValueError, match=expected) as refused:
+        run_owner(
+            [sys.executable, "-u", "-c", child, codes, case, str(marker)],
+            environment=dict(os.environ),
+            errors=tmp_path / "errors",
+            nonce="a" * 64,
+            approve=lambda _: None,
+        )
     assert "PRIVATE-CANARY" not in str(refused.value)
     assert capsys.readouterr().out == ""

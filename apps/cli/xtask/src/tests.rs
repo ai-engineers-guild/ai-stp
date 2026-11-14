@@ -58,10 +58,11 @@ fn payload(target: &str) -> Result<Files> {
     }
     let inventory = sbom::inventory(&metadata, &lock, VERSION, REVISION, target, &hash(&binary))?;
     let name = release::binary(target)?;
-    let manifest = json!({"schema_version":2,"package":"ai-stp-cli","version":VERSION,"release_channel":"stable","source_commit":REVISION,"target":target,"binary":name,"binary_sha256":hash(&binary),"license_sha256":hash(b"license"),"sbom":release::SBOM,"sbom_sha256":hash(&inventory)});
+    let manifest = json!({"schema_version":3,"package":"ai-stp-cli","version":VERSION,"release_channel":"stable","source_commit":REVISION,"target":target,"binary":name,"binary_sha256":hash(&binary),"license_sha256":hash(b"license"),"notice_sha256":hash(b"notice"),"sbom":release::SBOM,"sbom_sha256":hash(&inventory)});
     Ok(Files::from([
         (name.into(), binary),
         ("LICENSE".into(), b"license".to_vec()),
+        ("NOTICE".into(), b"notice".to_vec()),
         (release::SBOM.into(), inventory),
         ("release.json".into(), encoded(&manifest)?),
     ]))

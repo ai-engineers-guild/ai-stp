@@ -32,7 +32,7 @@ pub(crate) fn sync(check: bool) -> Result<()> {
     let repo = root();
     let cli = repo.join("apps/cli");
     let output = cli.join("resources");
-    let mut sources = BTreeSet::from([PathBuf::from("LICENSE")]);
+    let mut sources = BTreeSet::from([PathBuf::from("LICENSE"), PathBuf::from("NOTICE")]);
     for source in files(&cli.join("src"))? {
         if source.extension().is_none_or(|extension| extension != "rs") {
             continue;

@@ -114,3 +114,40 @@ it("clears stale company metadata when the current selected view is invalid", as
   expect(useContexts.getState().views).toEqual([]);
   expect(useContexts.getState().result?.ok).toBe(false);
 });
+
+it("applies a choice made while a background read is still finishing", async () => {
+  let finish!: (result: CmdResult) => void;
+  vi.mocked(transport.cmdRunRead)
+    .mockResolvedValueOnce(list(A))
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    )
+    .mockResolvedValueOnce(list(B));
+  await useContexts.getState().refresh(true);
+  const reading = useContexts.getState().refresh(true);
+  expect(useContexts.getState().loading).toBe(true);
+  const plan = {
+    schema_version: 1,
+    change: { action: "select", context: { context_id: B } },
+  };
+  const digest = `sha256:${"b".repeat(64)}`;
+  vi.mocked(transport.cliPlan).mockResolvedValue(
+    ok({ plan, plan_digest: digest }),
+  );
+  vi.mocked(transport.cmdProfileApply).mockResolvedValue(ok({}));
+  const choosing = useContexts.getState().select(B);
+  finish(list(A));
+  await reading;
+  const result = await choosing;
+  expect(result.ok).toBe(true);
+  expect(transport.cmdProfileApply).toHaveBeenCalledWith(
+    "context apply",
+    plan,
+    digest,
+    true,
+  );
+  expect(useContexts.getState().selected?.id).toBe(B);
+});

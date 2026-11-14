@@ -8,8 +8,9 @@ silently reinterpret stored keys.
 from __future__ import annotations
 
 import re
-import unicodedata
 from typing import Final
+
+from ai_stp_foundation import unicodedata
 
 IDENTITY_NORMALIZATION_VERSION: Final[str] = "identity-normalization/1"
 HANDLE_PATTERN: Final[str] = r"^[a-z](?:[a-z0-9]|-[a-z0-9]){0,31}$"
