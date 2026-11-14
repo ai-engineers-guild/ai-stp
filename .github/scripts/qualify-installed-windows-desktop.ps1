@@ -394,10 +394,15 @@ function Click-NativeControl([System.Diagnostics.Process] $Process, $Element) {
         $scroll.ScrollIntoView()
     }
     # A page transition can briefly cover the control; the click waits until the
-    # point resolves to it, within the shared observation deadline.
+    # point resolves to it, within the shared observation deadline. Meanwhile UI
+    # Automation may throw rather than answer, which is the same "not yet".
     $point = Wait-Observation $Process 'native clickable point on the intended control' ({
-        $candidate = $Element.GetClickablePoint()
-        $hit = [System.Windows.Automation.AutomationElement]::FromPoint($candidate)
+        try {
+            $candidate = $Element.GetClickablePoint()
+            $hit = [System.Windows.Automation.AutomationElement]::FromPoint($candidate)
+        } catch [System.Windows.Automation.NoClickablePointException], [System.Windows.Automation.ElementNotAvailableException] {
+            return $null
+        }
         for ($depth = 0; $depth -lt 6 -and $null -ne $hit; $depth++) {
             if ([System.Windows.Automation.Automation]::Compare($hit, $Element)) { return $candidate }
             $hit = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($hit)
