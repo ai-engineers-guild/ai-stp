@@ -256,7 +256,8 @@ async def qualify(
     assert {row.activity_kind for row in native_rows} == {"load"}
     # Replaying a delivered session adds nothing on the server.
     await hook(binary, home, state, event)
-    await run("corporate", "usage", "flush", "--context", context)
+    replayed = await run("corporate", "usage", "flush", "--context", context)
+    assert replayed["pending"] == 0, replayed
     assert await rows() == before + queued
 
     removal = await run(
@@ -270,7 +271,7 @@ async def qualify(
         receipt["review_digest"],
     )
     await prepare(removal)
-    await run(
+    removed = await run(
         "configuration",
         "native",
         "apply",
@@ -279,9 +280,11 @@ async def qualify(
         "--plan-digest",
         removal["plan_digest"],
     )
+    assert removed["configuration_changed"] is True, removed
     # After removal the session belongs to no owned component.
     await hook(binary, home, state, {**event, "session_id": "native-usage-after-removal"})
-    assert (await run("corporate", "usage", "status", "--context", context))["pending"] == 0
+    after = await run("corporate", "usage", "status", "--context", context)
+    assert after["pending"] == 0, after
     assert (await run("corporate", "usage", "disable", "--context", context))["enabled"] is False
     return {
         "native_hook_usage_http": "passed",
