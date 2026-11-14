@@ -535,6 +535,26 @@ async def qualify(
             ),
             flush=True,
         )
+        from tests.native_contract.verify_corporate_harnesses import qualify as qualify_harnesses
+
+        print(
+            json.dumps(
+                await qualify_harnesses(
+                    binary=binary,
+                    home=home,
+                    state=state,
+                    app=app,
+                    organization=organization,
+                    project=project,
+                    account=account,
+                    context=named_context,
+                    connection=retained_connection,
+                    binding=named_binding,
+                    checkout=named_checkout,
+                )
+            ),
+            flush=True,
+        )
         return
     after_refusal = await refused(binary, home, old_arguments)
     assert after_refusal.error == baseline_refusal.error and not old_key.exists()

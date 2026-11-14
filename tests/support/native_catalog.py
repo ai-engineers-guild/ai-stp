@@ -18,7 +18,8 @@ from ai_stp_foundation.refs import ComponentRef
 from ai_stp_passports import ComponentVersionPassport, ScopeAdaptation, seal_adaptation
 from ai_stp_passports.envelope import derive_revision_id
 from ai_stp_passports.projections import build_projection
-from ai_stp_platform.models import CatalogMetadata, ObjectLocation
+from ai_stp_platform.catalog_search import upsert_catalog_search_projection
+from ai_stp_platform.models import CatalogIdentity, CatalogMetadata, ObjectLocation
 from ai_stp_platform.storage import ImmutableObjectStore
 from ai_stp_sources import freeze_setup_definition
 
@@ -83,21 +84,79 @@ async def store_fixture_artifacts(
     The fixture component 1.2 and setup 1.0 passports are resealed around the
     stored bytes; storage stays bound to each passport's original publisher.
     """
-    adaptations, payloads = zip(
-        *(
-            projection(name, scope if name == harness else "global")
-            for name in ("claude-code", "codex")
-        ),
-        strict=True,
-    )
-    component = (
+    harnesses = [harness] + [name for name in ("claude-code", "codex") if name != harness]
+    component = await _row(db, FIXTURE_COMPONENT_ID, "1.2")
+    setup = await _row(db, FIXTURE_SETUP_ID, "1.0")
+    return await _reseal(db, store, component, setup, harness, harnesses, scope)
+
+
+async def _row(db: AsyncSession, stable_id: str, version: str) -> CatalogMetadata:
+    return (
         await db.scalars(
             select(CatalogMetadata).where(
-                CatalogMetadata.stable_id == FIXTURE_COMPONENT_ID,
-                CatalogMetadata.version == "1.2",
+                CatalogMetadata.stable_id == stable_id, CatalogMetadata.version == version
             )
         )
     ).one()
+
+
+async def _clone(db: AsyncSession, source: CatalogMetadata, stable_id: str) -> CatalogMetadata:
+    """A new catalog line with the source row's publication, under `stable_id`."""
+    columns = {
+        column.key: getattr(source, column.key)
+        for column in CatalogMetadata.__table__.columns
+        if column.key != "id"
+    }
+    document = dict(source.passport_document or {})
+    document["stable_id"] = stable_id
+    row = CatalogMetadata(**{**columns, "stable_id": stable_id, "passport_document": document})
+    db.add(row)
+    name = "native-" + stable_id.replace("_", "-").lower()
+    db.add(
+        CatalogIdentity(
+            stable_id=stable_id,
+            owner_account_id=source.owner_account_id,
+            canonical_name=name,
+            canonical_name_normalized=name,
+        )
+    )
+    await db.flush()
+    return row
+
+
+async def store_harness_setup(
+    db: AsyncSession, store: ImmutableObjectStore, *, harness: str, index: int
+) -> StoredFixture:
+    """A separate component and setup line projecting one skill to `harness` at project scope.
+
+    Each harness gets its own stable ids, so one checkout can hold the setups of
+    every harness at once without one resealed line replacing another.
+    """
+    suffix = f"01JQZK7B8N4M6P2R9T5V0X{index:04d}"
+    component = await _clone(db, await _row(db, FIXTURE_COMPONENT_ID, "1.2"), f"component_{suffix}")
+    setup = await _clone(db, await _row(db, FIXTURE_SETUP_ID, "1.0"), f"setup_{suffix}")
+    stored = await _reseal(db, store, component, setup, harness, [harness], "project")
+    for row in (component, setup):
+        await upsert_catalog_search_projection(
+            db, object_kind=row.object_kind, stable_id=row.stable_id
+        )
+    return stored
+
+
+async def _reseal(
+    db: AsyncSession,
+    store: ImmutableObjectStore,
+    component: CatalogMetadata,
+    setup: CatalogMetadata,
+    harness: str,
+    harnesses: list[str],
+    scope: str,
+) -> StoredFixture:
+    """Reseal `component` around real skill projections and `setup` around it."""
+    adaptations, payloads = zip(
+        *(projection(name, scope if name == harness else "global") for name in harnesses),
+        strict=True,
+    )
     document: dict[str, Any] = dict(component.passport_document or {})
     document["adaptations"] = list(adaptations)
     document["artifact"] = {
@@ -118,23 +177,15 @@ async def store_fixture_artifacts(
         )
         for payload in payloads
     ]
-    setup = (
-        await db.scalars(
-            select(CatalogMetadata).where(
-                CatalogMetadata.stable_id == FIXTURE_SETUP_ID,
-                CatalogMetadata.version == "1.0",
-            )
-        )
-    ).one()
     setup_document: dict[str, Any] = dict(setup.passport_document or {})
     reference = ComponentRef(
-        stable_id=FIXTURE_COMPONENT_ID,
-        version="1.2",
+        stable_id=component.stable_id,
+        version=str(component.version),
         passport_digest=component.passport_digest,
     )
     definition = freeze_setup_definition(
-        setup_id=FIXTURE_SETUP_ID,
-        version="1.0",
+        setup_id=setup.stable_id,
+        version=str(setup.version),
         harness_id=harness,
         input_digest="sha256:" + "0" * 64,
         publisher_id=str(setup_document["owner_id"]),
@@ -158,8 +209,8 @@ async def store_fixture_artifacts(
         artifact_format=definition.format,
         components=[
             {
-                "stable_id": FIXTURE_COMPONENT_ID,
-                "version": "1.2",
+                "stable_id": component.stable_id,
+                "version": component.version,
                 "passport_digest": component.passport_digest,
             }
         ],
