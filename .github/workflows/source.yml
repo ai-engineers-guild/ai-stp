@@ -35,6 +35,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       wasi: ${{ steps.select.outputs.wasi }}
+      cli: ${{ steps.select.outputs.cli }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -463,16 +464,19 @@ jobs:
           PRIVATE_REPOSITORY: ${{ github.event.repository.private }}
           PHASE: ${{ github.event_name == 'pull_request' && 'integration' || 'full' }}
           WASI_SELECTED: ${{ needs.native-experiments.outputs.wasi }}
+          CLI_SELECTED: ${{ needs.native-experiments.outputs.cli }}
         run: |
           set -euo pipefail
           jq -c 'to_entries | map({job: .key, result: .value.result})' <<< "${RESULTS}"
           printf 'Qualification phase: %s\n' "${PHASE}"
           jq -e --argjson private "${PRIVATE_REPOSITORY}" --arg phase "${PHASE}" \
-            --arg wasi "${WASI_SELECTED}" '
+            --arg wasi "${WASI_SELECTED}" --arg cli "${CLI_SELECTED}" '
             type == "object" and length == 23 and
             ($phase == "integration" or $phase == "full") and
             ($wasi == "true" or $wasi == "false") and
             ($phase != "full" or $wasi == "true") and
+            ($cli == "true" or $cli == "false") and
+            ($phase != "full" or $cli == "true") and
             all(to_entries[];
               if .key == "analysis" then
                 .value.result == (if $private then "skipped" else "success" end)
@@ -481,6 +485,8 @@ jobs:
                 .value.result == "success"
               elif .key == "wasi-confinement" then
                 .value.result == (if $wasi == "true" then "success" else "skipped" end)
+              elif .key == "cli" then
+                .value.result == (if $cli == "true" then "success" else "skipped" end)
               elif (.key | startswith("integration-")) then
                 .value.result == (if $phase == "integration" then "success" else "skipped" end)
               else
@@ -511,7 +517,10 @@ jobs:
           fi
 
   cli:
-    if: github.event_name != 'pull_request'
+    # A pull request that touches the native CLI or its corporate fixtures runs
+    # the Linux leg, so a broken corporate journey is caught before the merge.
+    needs: native-experiments
+    if: needs.native-experiments.outputs.cli == 'true'
     name: cli-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     # A cold Windows build takes about 25 minutes before the consumer proof.
@@ -519,7 +528,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, macos-26, windows-latest]
+        os: >-
+          ${{ github.event_name == 'pull_request'
+          && fromJSON('["ubuntu-26.04"]')
+          || fromJSON('["ubuntu-26.04", "macos-26", "windows-latest"]') }}
     env:
       CARGO_BUILD_JOBS: "2"
       CARGO_INCREMENTAL: "0"

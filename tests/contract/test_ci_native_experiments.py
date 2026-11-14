@@ -20,7 +20,9 @@ def workflow() -> dict[str, Any]:
     return yaml.safe_load((ROOT / ".github/workflows/source.yml").read_text())
 
 
-def accepted(results: dict[str, dict[str, str]], phase: str, private: bool, wasi: str) -> bool:
+def accepted(
+    results: dict[str, dict[str, str]], phase: str, private: bool, wasi: str, cli: str = ""
+) -> bool:
     script = workflow()["jobs"]["qualification"]["steps"][0]["run"]
     environment = {
         **os.environ,
@@ -28,6 +30,7 @@ def accepted(results: dict[str, dict[str, str]], phase: str, private: bool, wasi
         "PHASE": phase,
         "PRIVATE_REPOSITORY": str(private).lower(),
         "WASI_SELECTED": wasi,
+        "CLI_SELECTED": cli or ("true" if phase == "full" else "false"),
     }
     result = subprocess.run(
         ["bash", "-c", script],
@@ -57,6 +60,25 @@ def test_every_owning_job_is_joined_into_qualification() -> None:
         "macos-26",
         "windows-2025",
     }
+
+
+def test_a_pull_request_requires_the_selected_native_cli_leg() -> None:
+    jobs = workflow()["jobs"]
+    assert jobs["cli"]["needs"] == "native-experiments"
+    assert jobs["cli"]["if"] == "needs.native-experiments.outputs.cli == 'true'"
+    expected: dict[str, dict[str, str]] = {}
+    for name in jobs["qualification"]["needs"]:
+        always = {"secrets", "native-experiments", "rust-dependencies", "python-dependencies"}
+        selected = name in always | {"analysis", "cli"} or name.startswith("integration-")
+        expected[name] = {"result": "success" if selected else "skipped"}
+    assert accepted(expected, "integration", False, "false", "true")
+    # A selected leg that did not run, or ran unselected, refuses the gate.
+    assert not accepted(expected, "integration", False, "false", "false")
+    skipped = {**expected, "cli": {"result": "skipped"}}
+    assert not accepted(skipped, "integration", False, "false", "true")
+    assert accepted(skipped, "integration", False, "false", "false")
+    for invalid in ["TRUE", "unknown"]:
+        assert not accepted(expected, "integration", False, "false", invalid)
 
 
 @pytest.mark.parametrize("phase", ["integration", "full"])
