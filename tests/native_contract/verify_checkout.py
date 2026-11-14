@@ -511,28 +511,6 @@ async def qualify(
         **common, connection=connection, device=device, label="named"
     )
     assert retained_connection is not None
-    from tests.native_contract.verify_corporate_usage import qualify as qualify_usage
-
-    print(
-        json.dumps(
-            await qualify_usage(
-                binary=binary,
-                home=home,
-                state=state,
-                app=app,
-                run=run,
-                enact=enact,
-                organization=organization,
-                project=project,
-                account=account,
-                context=named_context,
-                connection=retained_connection,
-                binding=named_binding,
-                checkout=named_checkout,
-            )
-        ),
-        flush=True,
-    )
     after_refusal = await refused(binary, home, old_arguments)
     assert after_refusal.error == baseline_refusal.error and not old_key.exists()
     after_receipts = {
@@ -580,4 +558,28 @@ async def qualify(
         connection=retained_connection,
         foreign_context=foreign_context,
         historical_consumers=historical_consumers,
+    )
+    # Usage runs last: the registry leaves format 57 during it, and the
+    # journeys and retirement above each begin from 57.
+    from tests.native_contract.verify_corporate_usage import qualify as qualify_usage
+
+    print(
+        json.dumps(
+            await qualify_usage(
+                binary=binary,
+                home=home,
+                state=state,
+                app=app,
+                run=run,
+                enact=enact,
+                organization=organization,
+                project=project,
+                account=account,
+                context=named_context,
+                connection=retained_connection,
+                binding=named_binding,
+                checkout=named_checkout,
+            )
+        ),
+        flush=True,
     )
