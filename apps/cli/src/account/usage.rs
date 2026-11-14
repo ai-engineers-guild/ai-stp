@@ -24,6 +24,9 @@ const OWNER: &[u8] = b"ai-stp native runtime usage v1\n";
 const LIMIT: u64 = 262144;
 const QUEUE_LIMIT: usize = 4096;
 const SEND_LIMIT: usize = 64;
+/// Acknowledged signal identities kept so a replayed vendor session is not
+/// queued again; the oldest beyond this bound are forgotten.
+const DELIVERED_LIMIT: usize = 8192;
 static BATCH: wire::Schema = wire::Schema::new(include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/resources/schemas/v1/runtime-usage-event-batch.schema.json"
@@ -190,6 +193,39 @@ fn pending_names(dir: &OwnedDirectory) -> Result<Vec<String>> {
     Ok(names)
 }
 
+/// The marker an acknowledged `event_<hex>` leaves behind. It holds no content:
+/// the server already has the event, and the name alone refuses a replay.
+fn delivered_name(event_id: &str) -> Result<String> {
+    let hex = event_id.strip_prefix("event_").ok_or_else(invalid)?;
+    if hex.len() != 32 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(invalid());
+    }
+    Ok(format!("delivered_{hex}"))
+}
+
+/// Forget the oldest acknowledged markers beyond `DELIVERED_LIMIT`.
+fn prune_delivered(dir: &OwnedDirectory) -> Result<()> {
+    let mut markers = Vec::new();
+    for entry in dir.directory.entries().map_err(|_| invalid())? {
+        let entry = entry.map_err(|_| invalid())?;
+        let name = entry.file_name().into_string().map_err(|_| invalid())?;
+        if name.starts_with("delivered_") {
+            let modified = entry
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .map_err(|_| invalid())?;
+            markers.push((modified, name));
+        }
+    }
+    if markers.len() > DELIVERED_LIMIT {
+        markers.sort();
+        for (_, name) in &markers[..markers.len() - DELIVERED_LIMIT] {
+            dir.directory.remove_file(name).map_err(|_| invalid())?;
+        }
+    }
+    Ok(())
+}
+
 fn view(context: &Context, record: Option<&Record>, pending: usize) -> Result<Value> {
     Ok(
         json!({"context_id":context.context_id,"organization_id":organization(context)?,
@@ -351,6 +387,9 @@ pub fn record(root: &Path, context_id: &str, signal: &planning::UsageSignal<'_>)
     let held = load(&dir, &context)?.ok_or_else(invalid)?;
     if !held.enabled || held.revision != revision {
         return Err(invalid());
+    }
+    if dir.read_file(&delivered_name(event_id)?, LIMIT)?.is_some() {
+        return view(&context, Some(&held), pending_names(&dir)?.len());
     }
     if let Some(existing) = dir.read_file(&name, LIMIT)? {
         let previous = wire::parse(&existing)?;
@@ -541,14 +580,15 @@ pub fn flush(root: &Path, context_id: &str) -> Result<Value> {
         }
     }
     for (name, _, observation) in &pending {
-        if acknowledged.contains(
-            observation["event"]["event_id"]
-                .as_str()
-                .ok_or_else(invalid)?,
-        ) {
+        let event_id = observation["event"]["event_id"]
+            .as_str()
+            .ok_or_else(invalid)?;
+        if acknowledged.contains(event_id) {
+            dir.atomic(&delivered_name(event_id)?, b"")?;
             dir.directory.remove_file(name).map_err(|_| invalid())?;
         }
     }
+    prune_delivered(&dir)?;
     dir.sync()?;
     held.outcome = Some(if rejected { "refused" } else { "acknowledged" }.into());
     if rejected {
@@ -580,6 +620,39 @@ mod tests {
         }
         assert!(pending_names(&first)?.is_empty());
         assert_eq!(second.read_file(name, LIMIT)?, Some(b"second".to_vec()));
+        Ok(())
+    }
+
+    #[test]
+    fn delivered_markers_refuse_replay_and_stay_bounded() -> Result<()> {
+        let root = tempfile::tempdir().map_err(|_| invalid())?;
+        let dir = OwnedDirectory::open(root.path(), &directory_name("context_a"), OWNER, true)?
+            .ok_or_else(invalid)?;
+        let id = "event_0123456789abcdef0123456789abcdef";
+        assert_eq!(
+            delivered_name(id)?,
+            "delivered_0123456789abcdef0123456789abcdef"
+        );
+        assert!(delivered_name("event_../x").is_err());
+        for index in 0..DELIVERED_LIMIT + 2 {
+            dir.atomic(&delivered_name(&format!("event_{index:032x}"))?, b"")?;
+        }
+        prune_delivered(&dir)?;
+        let kept = dir
+            .directory
+            .entries()
+            .map_err(|_| invalid())?
+            .filter(|entry| {
+                entry.as_ref().is_ok_and(|entry| {
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with("delivered_")
+                })
+            })
+            .count();
+        assert_eq!(kept, DELIVERED_LIMIT);
+        assert!(pending_names(&dir)?.is_empty());
         Ok(())
     }
 
