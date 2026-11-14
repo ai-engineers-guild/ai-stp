@@ -204,6 +204,17 @@ compose_service_volume() {
   printf '%s\n' "${volume}"
 }
 
+running_services() {
+  # The named services that have a running container. A standby the first
+  # release with it has not started yet is no writer to hold or resume.
+  local service
+  for service in "$@"; do
+    [[ -n "$(compose ps -q --status running "${service}" 2>/dev/null)" ]] &&
+      printf '%s\n' "${service}"
+  done
+  return 0
+}
+
 start_serving_services() {
   # Replace the serving containers of a release whose one-shot stages --
   # migrate, storage migration, seed -- the caller has already run in order.
