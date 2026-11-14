@@ -69,7 +69,7 @@ RUN apt-get -o Acquire::Check-Valid-Until=false update \
     && chown appuser:appuser /var/lib/ai_stp /var/lib/ai_stp/osv
 USER appuser
 
-FROM golang:1.27.3-trixie@sha256:af1bfc2614ebb1dbd31af514b78740fd678850e76498762b425ecee4c5c6ea80 AS go-tools
+FROM golang:1.27.4-trixie@sha256:b54b2639de8c1bfe538ec5ffc45f29b1932235ac5f6d63c059853646677112d9 AS go-tools
 COPY scripts/safety/versions.env /tmp/safety-versions.env
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
