@@ -40,7 +40,9 @@ struct Directory {
 
 impl Directory {
     fn open(path: &Path) -> Result<Self> {
-        let path = path.canonicalize().map_err(|_| invalid())?;
+        // The same resolved spelling as a registered project root: on Windows a
+        // verbatim prefix would make one physical root two different paths.
+        let path = PathBuf::from(files::location(path).map_err(|_| invalid())?);
         let held =
             Dir::open_ambient_dir(&path, cap_std::ambient_authority()).map_err(|_| invalid())?;
         let identity = identity(&held)?;
