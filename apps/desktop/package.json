@@ -28,7 +28,7 @@
     "i18next": "27.1.1",
     "i18next-icu": "2.7.0",
     "intl-messageformat": "12.1.5",
-    "lucide-react": "1.71.0",
+    "lucide-react": "1.72.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-i18next": "18.0.1",
@@ -39,7 +39,7 @@
     "js-yaml": "5.5.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.6",
+    "@biomejs/biome": "2.6.7",
     "@hey-api/openapi-ts": "0.99.0",
     "@tailwindcss/vite": "4.3.5",
     "@tauri-apps/cli": "2.12.4",
@@ -48,13 +48,13 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.3.0",
     "jsdom": "31.0.0",
-    "knip": "6.45.0",
+    "knip": "6.45.1",
     "oxlint": "1.93.0",
-    "oxlint-tsgolint": "7.0.2006",
-    "prettier": "3.9.10",
+    "oxlint-tsgolint": "7.0.2007",
+    "prettier": "3.10.1",
     "tailwindcss": "4.3.5",
     "typescript": "6.0.3",
-    "vite": "8.3.7",
+    "vite": "8.3.8",
     "vitest": "5.1.0",
     "typescript7": "npm:typescript@7.0.2"
   }
