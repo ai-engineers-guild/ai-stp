@@ -200,6 +200,13 @@ async def qualify(
         assert removed["configuration_changed"] is True, removed
 
     installed: dict[str, tuple[dict[str, Any], str]] = {}
+    import hashlib, os, stat
+    for control in sorted(checkout.glob(".*-setup-system")):
+        for item in sorted(control.rglob("*")):
+            mode = stat.S_IMODE(item.stat().st_mode)
+            digest = hashlib.sha256(item.read_bytes()).hexdigest()[:12] if item.is_file() else "-"
+            print(json.dumps({"debug_control": str(item.relative_to(checkout)), "mode": oct(mode), "size": item.stat().st_size if item.is_file() else 0, "sha": digest}), flush=True)
+    print(json.dumps({"debug_top": sorted(os.listdir(checkout))}), flush=True)
     for harness in HARNESSES:
         if harness == "antigravity":
             continue
