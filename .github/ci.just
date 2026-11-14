@@ -543,7 +543,7 @@ ci-safety-runtime-test:
     test "${GITHUB_ACTIONS}" = true
     test -n "${AI_STP_SAFETY_RUNTIME_IMAGE}"
     test -n "${AI_STP_SAFETY_RUNTIME_PROOF_DIR}"
-    # This profile is loaded only in the disposable runner, never a contour host.
+    # This profile is loaded only in the disposable runner, never a shared host.
     sudo apparmor_parser --skip-cache -r deploy/apparmor/ai-stp-worker
     trap 'sudo apparmor_parser --remove deploy/apparmor/ai-stp-worker' EXIT
     just setup-python
