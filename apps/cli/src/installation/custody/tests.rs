@@ -378,6 +378,60 @@ fn independent_contribution_owners_preserve_each_other_and_unowned_fields()
 }
 
 #[test]
+fn a_deleted_claimed_root_does_not_block_another_target() -> std::result::Result<(), Box<dyn Error>>
+{
+    let (_temporary, metadata, path) = fixture()?;
+    let first = target(&path)?;
+    let mut custody = Custody::open(&metadata)?;
+    let installed = custody.review(
+        operation(),
+        &[Change {
+            subject: subject("deleted-project", &first)?,
+            desired: vec![desired(&first, b"guidance")?],
+        }],
+    )?;
+    custody.prepare(&installed, &installed.digest()?)?;
+    custody.start(&installed)?;
+    put(&path.join("AGENTS.md"), b"guidance")?;
+    custody.complete(&installed)?;
+    drop(first);
+    std::fs::remove_dir_all(&path)?;
+    let other = path.with_file_name("other");
+    std::fs::create_dir(&other)?;
+    let second = target(&other)?;
+    let review = custody.review(
+        operation(),
+        &[Change {
+            subject: subject("other-project", &second)?,
+            desired: vec![desired(&second, b"guidance")?],
+        }],
+    )?;
+    assert!(!review.digest()?.is_empty());
+    assert_eq!(
+        claim_count(&custody)?,
+        1,
+        "the deleted root keeps its recorded claim"
+    );
+    // A replaced root is not absent: it still refuses.
+    std::fs::create_dir(&path)?;
+    let nested = path.join("nested");
+    std::fs::create_dir(&nested)?;
+    let nested = target(&nested)?;
+    assert!(
+        custody
+            .review(
+                operation(),
+                &[Change {
+                    subject: subject("replaced-project", &nested)?,
+                    desired: vec![desired(&nested, b"nested")?],
+                }],
+            )
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
 fn existing_unowned_contribution_and_overlapping_root_roles_are_not_adopted()
 -> std::result::Result<(), Box<dyn Error>> {
     let (_temporary, metadata, path) = fixture()?;

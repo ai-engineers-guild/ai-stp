@@ -334,7 +334,12 @@ impl Custody {
                             return Err(invalid());
                         }
                     } else {
-                        let other = reference.subject.root.open()?;
+                        // The claims of a deleted root stay recorded for their
+                        // own operation, but no longer share a directory with
+                        // this target.
+                        let Some(other) = reference.subject.root.open_existing()? else {
+                            continue;
+                        };
                         crate::files::physical::require_disjoint(
                             &native(target.directory())?,
                             &native(other.directory())?,
