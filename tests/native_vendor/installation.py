@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from release_scripts.cli_artifacts import check_checksum_files, digest, names
-from tests.support.native_runner import disposable_runner
+from tests.support.native_runner import BUILD_HOST, disposable_runner
 
 from .common import environment
 
@@ -36,7 +36,11 @@ def prepare(root: Path, source: str) -> tuple[Path, dict[str, Any]] | None:
     diagnostic = bool(producer)
     assert bool(expected_source) == diagnostic
     if diagnostic:
-        assert producer.isdecimal() and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+        # A diagnostic engine comes from a dispatched run, or to the build host.
+        assert producer.isdecimal() and (
+            os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+            or os.environ.get("AI_STP_NATIVE_QUALIFICATION_HOST") == BUILD_HOST
+        )
         assert re.fullmatch(r"[0-9a-f]{40}", expected_source)
     else:
         expected_source = source
