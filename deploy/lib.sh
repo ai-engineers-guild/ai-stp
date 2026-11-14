@@ -285,15 +285,16 @@ current_git_commit() {
 }
 
 # The CI-built images of one commit, as the image settings compose reads.
+# The CI library's image workflow tags each image sha-<commit> under the owner.
 use_registry_images() {
   local commit="$1" prefix="${AI_STP_IMAGE_REGISTRY:-ghcr.io/ai-engineers-guild/ai-stp}"
   [[ "${commit}" =~ ^[0-9a-f]{40}$ ]] || die "registry_images_need_a_full_commit"
-  export AI_STP_IMAGE_API="${prefix}/api:${commit}"
-  export AI_STP_IMAGE_WORKER="${prefix}/worker:${commit}"
-  export AI_STP_IMAGE_WORKER_SAFETY="${prefix}/worker-safety:${commit}"
-  export AI_STP_IMAGE_CONTENT_IMPORT="${prefix}/content-import:${commit}"
-  export AI_STP_IMAGE_WEB="${prefix}/web:${commit}"
-  export AI_STP_IMAGE_DOCS="${prefix}/docs:${commit}"
+  export AI_STP_IMAGE_API="${prefix}-api:sha-${commit}"
+  export AI_STP_IMAGE_WORKER="${prefix}-worker:sha-${commit}"
+  export AI_STP_IMAGE_WORKER_SAFETY="${prefix}-worker-safety:sha-${commit}"
+  export AI_STP_IMAGE_CONTENT_IMPORT="${prefix}-content-import:sha-${commit}"
+  export AI_STP_IMAGE_WEB="${prefix}-web:sha-${commit}"
+  export AI_STP_IMAGE_DOCS="${prefix}-docs:sha-${commit}"
 }
 
 # The pulled digest of every registry image, one `image_<name>=<digest>` line each.

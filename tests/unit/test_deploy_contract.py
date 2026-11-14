@@ -611,9 +611,9 @@ def test_registry_mode_names_ci_images_of_the_exact_commit(tmp_path: Path) -> No
         env={"PATH": "/usr/bin:/bin", "AI_STP_ROOT": str(tmp_path)},
     )
     assert result.stdout.split() == [
-        f"ghcr.io/ai-engineers-guild/ai-stp/api:{commit}",
-        f"ghcr.io/ai-engineers-guild/ai-stp/worker-safety:{commit}",
-        f"ghcr.io/ai-engineers-guild/ai-stp/web:{commit}",
+        f"ghcr.io/ai-engineers-guild/ai-stp-api:sha-{commit}",
+        f"ghcr.io/ai-engineers-guild/ai-stp-worker-safety:sha-{commit}",
+        f"ghcr.io/ai-engineers-guild/ai-stp-web:sha-{commit}",
     ]
     refused = subprocess.run(
         ["bash", "-c", "source deploy/lib.sh && use_registry_images main"],
