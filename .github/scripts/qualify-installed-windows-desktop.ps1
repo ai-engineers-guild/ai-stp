@@ -80,11 +80,19 @@ trap {
                     $null = $codes.Add($state)
                 }
             }
+        } catch {
+            $null = $codes.Add('state:scan_windows_failed')
+        }
+        try {
             # The launched app's own exit code and panic location separate a crash
             # from a lost window; the panic message itself is never reported.
             if ($null -ne $process -and $process.WaitForExit(5000)) {
                 $null = $codes.Add('process:app_exit_' + ('{0:x8}' -f $process.ExitCode))
             }
+        } catch {
+            $null = $codes.Add('state:scan_exit_code_failed')
+        }
+        try {
             if ($null -ne $process) {
                 $desktopId = '0x{0:x}' -f $process.Id
                 $audit = @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
@@ -107,6 +115,10 @@ trap {
                     }
                 }
             }
+        } catch {
+            $null = $codes.Add('state:scan_audit_failed')
+        }
+        try {
             foreach ($entry in @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
                 LogName = 'Application'; ProviderName = 'Microsoft-Windows-ProcessExitMonitor'
                 StartTime = (Get-Date).AddMinutes(-15)
@@ -121,8 +133,16 @@ trap {
                     }
                 }
             }
+        } catch {
+            $null = $codes.Add('state:scan_exit_monitor_failed')
+        }
+        try {
             $reporting = Get-Service -Name WerSvc -ErrorAction SilentlyContinue
             $null = $codes.Add('state:wersvc_' + $(if ($null -eq $reporting) { 'absent' } else { ([string] $reporting.Status).ToLowerInvariant() }))
+        } catch {
+            $null = $codes.Add('state:scan_error_reporting_failed')
+        }
+        try {
             $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
             if (Test-Path -LiteralPath $errors) {
                 foreach ($line in @(Select-String -LiteralPath $errors -Pattern '^ai-stp-desktop lifecycle: ([a-z-]{1,40})$')) {
@@ -135,6 +155,10 @@ trap {
                     $null = $codes.Add('panic:at_' + $place.Substring([Math]::Max(0, $place.Length - 36)))
                 }
             }
+        } catch {
+            $null = $codes.Add('state:scan_app_log_failed')
+        }
+        try {
             # Crash, hang and error-report events name the failing module without its data.
             foreach ($entry in @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
                 LogName = 'Application'; Id = 1000, 1001, 1002; StartTime = (Get-Date).AddMinutes(-15)
@@ -149,13 +173,17 @@ trap {
                     }
                 }
             }
+        } catch {
+            $null = $codes.Add('state:scan_crash_events_failed')
+        }
+        try {
             foreach ($helper in @('ai-stp-desktop-cli', 'git', 'git-credential-manager', 'WerFault', 'msedgewebview2')) {
                 if (@(Get-Process -Name $helper -ErrorAction SilentlyContinue).Count) {
                     $null = $codes.Add('process:' + $helper.ToLowerInvariant().Replace('-', '_'))
                 }
             }
         } catch {
-            $null = $codes.Add('state:window_scan_failed')
+            $null = $codes.Add('state:scan_helpers_failed')
         }
         if (!$codes.Count) { $null = $codes.Add('state:nothing_visible') }
         # The broker admits at most sixteen closed codes.
