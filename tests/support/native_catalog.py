@@ -150,8 +150,11 @@ async def store_fixture_artifacts(
     )
     setup_document.update(
         harness_id=harness,
-        # No exact harness release is declared: the consumer machine runs no vendor.
+        # No exact harness release or platform is declared: the consumer runs no
+        # vendor, on every native CI platform.
         supported_harness_versions=[],
+        supported_os=[],
+        supported_arch=[],
         artifact_format=definition.format,
         components=[
             {
