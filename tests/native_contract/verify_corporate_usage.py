@@ -17,10 +17,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from tests.native_contract.verify_ownership import cli_environment
 from tests.support.catalog_seed import FIXTURE_SETUP_ID
+from tests.support.native_catalog import store_fixture_artifacts
 
 from ai_stp_api.session import issue_session
 from ai_stp_platform.organization_models import CorporateCatalogAssignment
 from ai_stp_platform.runtime_usage_models import RuntimeUsageEvent
+from ai_stp_platform.storage import ImmutableObjectStore
 
 Native = Any
 
@@ -96,6 +98,13 @@ async def qualify(
             },
         )
         assert saved.status_code == 200, saved.text
+        # The seeded setup has no stored bytes; store a real Claude Code setup behind it.
+        store = ImmutableObjectStore(
+            settings=app.state.settings.storage, client=app.state.object_client
+        )
+        async with app.state.sessionmaker() as db:
+            await store_fixture_artifacts(db, store, harness="claude-code")
+            await db.commit()
         # Earlier precedence controls retire the employee's Claude Code decision;
         # put that exact decision back for this installation.
         async with app.state.sessionmaker() as db:
