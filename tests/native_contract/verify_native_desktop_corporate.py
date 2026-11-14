@@ -1,4 +1,4 @@
-"""Installed native corporate profile GUI against actual API and PostgreSQL."""
+"""Installed native corporate profiles and checkout against actual API/PostgreSQL."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import os
 import secrets
 import shutil
 import socket
-import subprocess
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any, cast
@@ -17,9 +17,11 @@ import uvicorn
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select
+from tests.native_contract.verify_checkout import LostAcknowledgements
 from tests.support.api_settings import close_api_log_files, make_settings, make_test_auth
-from tests.support.corporate_fixture import seed_corporate
+from tests.support.corporate_fixture import create_checkout_fixture, seed_corporate
 from tests.support.native_desktop_broker import PROTOCOL, run_owner
+from tests.support.native_files import file_protection
 from tests.support.native_postgres import cluster
 from tests.support.native_runner import disposable_runner, report_stage
 from tests.support.postgres import isolated_database
@@ -47,6 +49,20 @@ CONTROLS = frozenset(
 )
 
 
+CHECKOUT_CONTROLS = frozenset(
+    {
+        "committed_checkout_preview",
+        "request_exact_plan_and_confirmation",
+        "confirmation_exact_plan_and_confirmation",
+        "committed_reply_lost",
+        "original_operation_reconciled_after_restart",
+        "binding_exact_plan_and_confirmation",
+        "original_link_and_device_preserved",
+        "unowned_checkout_bytes_and_identity_preserved",
+    }
+)
+
+
 def read_result(path: Path) -> dict[str, Any]:
     assert path.is_file() and not path.is_symlink(), "Native owner did not retain its result"
     with path.open("rb") as source:
@@ -60,6 +76,11 @@ def read_result(path: Path) -> dict[str, Any]:
 async def prove(root: Path, database_url: str) -> dict[str, Any]:
     source = os.environ["GITHUB_SHA"]
     nonce = secrets.token_hex(32)
+    checkout = root / "checkout"
+    canary = b"PRIVATE=installed-native-corporate-unowned\n"
+    git = create_checkout_fixture(checkout, canary, dict(os.environ))
+    original_root = (checkout.stat().st_dev, checkout.stat().st_ino)
+    original_protection = file_protection(checkout / ".env")
     private_result = root / "native-corporate-journey.json"
     personal_result = Path(os.environ["RUNNER_TEMP"]) / "installed-personal-desktop.json"
     assert not personal_result.exists() and not private_result.exists()
@@ -72,8 +93,10 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
             )
         )
         async with app.router.lifespan_context(app):
+            faults = LostAcknowledgements(app)
+            faults.lose_next = "/v1/projects/links"
             server = uvicorn.Server(
-                uvicorn.Config(app, lifespan="off", access_log=False, log_level="error")
+                uvicorn.Config(faults, lifespan="off", access_log=False, log_level="error")
             )
             serving = asyncio.create_task(server.serve(sockets=[listener]))
             try:
@@ -93,6 +116,8 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                     "organization_id": organization,
                     "project_id": project,
                     "result_path": str(private_result),
+                    "checkout_root": str(checkout),
+                    "git_executable": str(git),
                 }
                 fixture = root / "native-owner.json"
                 with fixture.open("x", encoding="utf-8") as output:
@@ -154,18 +179,56 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                     "context_and_preferences_survive_geometry_recovery",
                 }
                 assert all(value is True for value in geometry.values())
-                assert observed["schema_version"] == 1 and observed["source_sha"] == source
+                assert observed["schema_version"] == 2 and observed["source_sha"] == source
                 assert observed["desktop_process_stopped"] is True
                 assert set(observed["controls"]) == CONTROLS
                 assert all(value is True for value in observed["controls"].values())
+                assert set(observed["checkout_controls"]) == CHECKOUT_CONTROLS
+                assert all(value is True for value in observed["checkout_controls"].values())
+                assert faults.committed_acknowledgements_lost == 1
+                assert (checkout / ".env").read_bytes() == canary
+                assert file_protection(checkout / ".env") == original_protection
+                assert (checkout.stat().st_dev, checkout.stat().st_ino) == original_root
+                binding = observed["checkout"]
+                assert set(binding) == {
+                    "request_operation_id",
+                    "confirmation_operation_id",
+                    "adoption_operation_id",
+                    "context_id",
+                    "local_project_id",
+                    "link_id",
+                }
+                assert all(
+                    isinstance(value, str) and 1 <= len(value) <= 128 for value in binding.values()
+                )
+                assert (
+                    len(
+                        {
+                            binding[key]
+                            for key in (
+                                "request_operation_id",
+                                "confirmation_operation_id",
+                                "adoption_operation_id",
+                            )
+                        }
+                    )
+                    == 3
+                )
                 device_id = observed["enrolled_device_id"]
                 assert isinstance(device_id, str) and 1 <= len(device_id) <= 128
                 async with app.state.sessionmaker() as db:
                     device = await db.get(Device, device_id)
                     assert device is not None and device.account_id == account
                     assert device.state == "active"
-                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 0
                     await set_tenant_scope(db, organization)
+                    assert await db.scalar(select(func.count()).select_from(ProjectLink)) == 1
+                    link = await db.get(ProjectLink, binding["link_id"])
+                    assert link is not None and link.state == "linked"
+                    assert (
+                        link.organization_id == organization and link.remote_project_id == project
+                    )
+                    assert link.actor_account_id == account and link.device_id == device_id
+                    assert link.local_project_id == binding["local_project_id"]
                     for model in [InstallationHeartbeat, InstallationHeartbeatEvent]:
                         assert (
                             await db.scalar(
@@ -176,8 +239,8 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                             == 0
                         )
                 return {
-                    "schema_version": 1,
-                    "evidence_kind": "installed_native_corporate_profile_gui",
+                    "schema_version": 2,
+                    "evidence_kind": "installed_native_corporate_profile_checkout_gui",
                     "source_sha": source,
                     "fixture_run_id": os.environ["GITHUB_RUN_ID"],
                     "fixture_run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
@@ -188,40 +251,19 @@ async def prove(root: Path, database_url: str) -> dict[str, Any]:
                     },
                     "normal_window_controls": geometry,
                     "corporate_profile_controls": observed["controls"],
+                    "corporate_checkout_controls": observed["checkout_controls"],
+                    "committed_acknowledgements_lost": faults.committed_acknowledgements_lost,
                     "synthetic_browser_approvals": approvals,
                     "actual_api_postgresql": True,
                     "reading_context_sends_no_heartbeat": True,
                     "desktop_process_stopped": True,
                     "live_sso_account_linking_qualified": False,
-                    "native_corporate_checkout_gui_qualified": False,
+                    "native_corporate_checkout_gui_qualified": True,
                     "release_authorized": False,
                 }
             finally:
                 server.should_exit = True
                 await asyncio.wait_for(serving, timeout=30)
-
-
-def check_native_controller() -> None:
-    """Expose compiler/parser diagnostics before private runtime output begins."""
-    if os.environ["RUNNER_OS"] == "macOS":
-        arguments = [
-            "swiftc",
-            "-typecheck",
-            ".github/scripts/qualify-installed-macos-desktop.swift",
-        ]
-    else:
-        arguments = [
-            "pwsh",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "$tokens = $null; $errors = $null; "
-            "[void][System.Management.Automation.Language.Parser]::ParseFile("
-            "(Join-Path (Get-Location) '.github/scripts/qualify-installed-windows-desktop.ps1'),"
-            "[ref]$tokens,[ref]$errors); "
-            "if ($errors.Count) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }",
-        ]
-    subprocess.run(arguments, check=True, timeout=120)
 
 
 def main() -> None:
@@ -230,7 +272,6 @@ def main() -> None:
     assert os.environ["GITHUB_WORKFLOW"] in {"check", "desktop"}
     assert os.environ["GITHUB_EVENT_NAME"] in {"push", "workflow_dispatch"}
     assert not os.environ.get("AI_STP_DESKTOP_DIAGNOSTIC_SOURCE")
-    check_native_controller()
     temporary = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
     root = Path(tempfile.mkdtemp(prefix="ai-stp-native-desktop-corporate-", dir=temporary))
     root.chmod(0o700)
@@ -261,7 +302,13 @@ def main() -> None:
                 os.environ[key] = value
         # Refused ownership never authorizes deleting potentially live fixture state.
         if complete:
-            shutil.rmtree(root)
+            shutil.rmtree(root, onexc=writable_and_retry)
+
+
+def writable_and_retry(function: Any, path: str, _error: BaseException) -> None:
+    """Git writes its objects read-only, which Windows refuses to unlink."""
+    Path(path).chmod(stat.S_IWRITE)
+    function(path)
 
 
 if __name__ == "__main__":

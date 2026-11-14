@@ -11,7 +11,110 @@ trap {
     if ($_.Exception.Data.Contains('native_controller_source_line')) {
         $location = [int] $_.Exception.Data['native_controller_source_line']
     }
+    # Report only the closed engine error codes the app shows, never their messages.
+    try {
+        $codes = [System.Collections.Generic.SortedSet[string]]::new()
+        $owners = @(Get-Process -Name 'ai-stp-desktop' -ErrorAction SilentlyContinue)
+        if (!$owners.Count) { $null = $codes.Add('state:no_app_process') }
+        foreach ($owner in $owners) {
+            if ($owner.MainWindowHandle -eq [IntPtr]::Zero) {
+                $null = $codes.Add('state:no_app_window')
+                continue
+            }
+            $window = [System.Windows.Automation.AutomationElement]::FromHandle($owner.MainWindowHandle)
+            # Engine details are collapsed; open them so their closed code is in the tree.
+            foreach ($summary in $window.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::NameProperty, (Text 'error.engineDetails')
+                )
+            )) {
+                $pattern = $null
+                if ($summary.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref] $pattern)) {
+                    try { $pattern.Expand() } catch {}
+                } elseif ($summary.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref] $pattern)) {
+                    try { $pattern.Invoke() } catch {}
+                }
+            }
+            Start-Sleep -Milliseconds 300
+            # Which closed checkout landmarks are on screen, by presence only.
+            foreach ($landmark in @(
+                @('checkoutPreview.reviewLinkRequest', 'request_button'),
+                @('checkoutPreview.reviewCorporateCheckoutChange', 'review_region'),
+                @('checkoutPreview.exactCheckoutPlan', 'plan_details'),
+                @('checkoutPreview.checkingCheckoutAndCurrentCompanyAccess', 'checkout_busy'),
+                @('error.requestFailed', 'request_failed')
+            )) {
+                $found = $window.FindFirst(
+                    [System.Windows.Automation.TreeScope]::Descendants,
+                    [System.Windows.Automation.PropertyCondition]::new(
+                        [System.Windows.Automation.AutomationElement]::NameProperty, (Text $landmark[0])
+                    )
+                )
+                if ($null -ne $found) {
+                    $enabled = if ($found.Current.IsEnabled) { '' } else { '_disabled' }
+                    $null = $codes.Add('state:' + $landmark[1] + $enabled)
+                }
+            }
+            $texts = $window.FindAll(
+                [System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.PropertyCondition]::new(
+                    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                    [System.Windows.Automation.ControlType]::Text
+                )
+            )
+            foreach ($text in $texts) {
+                $name = $text.Current.Name
+                if ($codes.Count -ge 8) { break }
+                if ($name -cmatch '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$' -and $name.Length -le 64) {
+                    $null = $codes.Add($name)
+                } elseif ($name -cmatch '\(check: ([a-z_]{1,40})\)') {
+                    $null = $codes.Add('check:' + $Matches[1])
+                }
+            }
+        }
+        try {
+            $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
+            if (Test-Path -LiteralPath $errors) {
+                foreach ($line in @(Select-String -LiteralPath $errors -Pattern '^ai-stp-desktop lifecycle: ([a-z-]{1,40})$')) {
+                    $null = $codes.Add('state:app_' + ($line.Matches[0].Groups[1].Value -replace '-', '_'))
+                }
+                $panic = Select-String -LiteralPath $errors -Pattern 'panicked at ([^\s:]+):(\d+)' | Select-Object -Last 1
+                if ($null -ne $panic) {
+                    $parts = @($panic.Matches[0].Groups[1].Value -split '[\\/]' | Select-Object -Last 2)
+                    $place = (($parts -join '_') + '_' + $panic.Matches[0].Groups[2].Value).ToLowerInvariant() -replace '[^a-z0-9_]', '_'
+                    $null = $codes.Add('panic:at_' + $place.Substring([Math]::Max(0, $place.Length - 36)))
+                }
+            }
+        } catch {
+            $null = $codes.Add('state:scan_app_log_failed')
+        }
+        try {
+            # Crash, hang and error-report events name the failing module without its data.
+            foreach ($entry in @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
+                LogName = 'Application'; Id = 1000, 1001, 1002; StartTime = (Get-Date).AddMinutes(-15)
+            })) {
+                if ($entry.Message -cmatch 'ai-stp-desktop|msedgewebview2|WebView2') {
+                    $null = $codes.Add('event:id_' + $entry.Id)
+                    if ($entry.Id -eq 1000 -and $entry.Properties.Count -gt 6) {
+                        $module = ([string] $entry.Properties[3].Value).ToLowerInvariant() -replace '[^a-z0-9]', '_'
+                        $null = $codes.Add('event:module_' + $module.Substring(0, [Math]::Min(30, $module.Length)))
+                        $code = ([string] $entry.Properties[6].Value).ToLowerInvariant() -replace '[^a-z0-9]', ''
+                        $null = $codes.Add('event:code_' + $code.Substring(0, [Math]::Min(30, $code.Length)))
+                    }
+                }
+            }
+        } catch {
+            $null = $codes.Add('state:scan_crash_events_failed')
+        }
+        if (!$codes.Count) { $null = $codes.Add('state:nothing_visible') }
+        # The broker admits at most sixteen closed codes.
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + (@($codes | Select-Object -First 16) -join ','))
+    } catch {
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 state:scan_failed')
+    }
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FAILURE_V1 ' + $location)
+    if ($null -ne $process -and !$process.HasExited) { Stop-Process -Id $process.Id }
     [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
     throw $_
 }
@@ -44,10 +147,19 @@ if (!(Test-Path -LiteralPath $app -PathType Leaf) -or !(Test-Path -LiteralPath $
 
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 installed')
 
+function Read-NativeText([string[]] $Command) {
+    $text = (& $cli @Command --json) -join "`n"
+    $result = $text | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or !$result.ok) {
+        # The closed error code is content-free; messages and details stay private.
+        $code = if ($result.error.code -cmatch '^[a-z0-9_.-]{1,64}$') { $result.error.code } else { 'unknown' }
+        throw "Installed CLI readback failed ($code)"
+    }
+    return [pscustomobject]@{ Text = $text; Data = $result.data }
+}
+
 function Read-Native([string[]] $Command) {
-    $result = & $cli @Command --json | ConvertFrom-Json
-    if ($LASTEXITCODE -ne 0 -or !$result.ok) { throw 'Installed CLI readback failed' }
-    return $result.data
+    return (Read-NativeText $Command).Data
 }
 
 function Wait-Element([System.Diagnostics.Process] $Process, [string] $Name, $ControlType, [bool] $AllowDisabled = $false) {
@@ -281,17 +393,17 @@ function Click-NativeControl([System.Diagnostics.Process] $Process, $Element) {
     if ($Element.TryGetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern, [ref] $scroll)) {
         $scroll.ScrollIntoView()
     }
-    $point = $Element.GetClickablePoint()
-    $hit = [System.Windows.Automation.AutomationElement]::FromPoint($point)
-    $matched = $false
-    for ($depth = 0; $depth -lt 6 -and $null -ne $hit; $depth++) {
-        if ([System.Windows.Automation.Automation]::Compare($hit, $Element)) {
-            $matched = $true
-            break
+    # A page transition can briefly cover the control; the click waits until the
+    # point resolves to it, within the shared observation deadline.
+    $point = Wait-Observation $Process 'native clickable point on the intended control' ({
+        $candidate = $Element.GetClickablePoint()
+        $hit = [System.Windows.Automation.AutomationElement]::FromPoint($candidate)
+        for ($depth = 0; $depth -lt 6 -and $null -ne $hit; $depth++) {
+            if ([System.Windows.Automation.Automation]::Compare($hit, $Element)) { return $candidate }
+            $hit = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($hit)
         }
-        $hit = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($hit)
-    }
-    if (!$matched) { throw 'Native clickable point does not identify the intended control' }
+        return $null
+    }.GetNewClosure())
     $injected = [NativeDesktopInput]::ClickAt(
         $Process.MainWindowHandle, [int][Math]::Floor($point.X), [int][Math]::Floor($point.Y)
     )
@@ -330,6 +442,22 @@ function Focus-KeyboardLink([System.Diagnostics.Process] $Process, $Target) {
         }
         $injected = [NativeDesktopInput]::PreviousTab()
         Write-Host ('Native focus traversal keyboard events accepted: ' + $injected)
+        # An undelivered Shift+Tab leaves focus on the same control; repeat only that.
+        for ($repeat = 1; $repeat -le 2; $repeat++) {
+            $deadline = [Diagnostics.Stopwatch]::StartNew()
+            while ($deadline.Elapsed.TotalSeconds -lt 3) {
+                $now = [System.Windows.Automation.AutomationElement]::FocusedElement
+                if ($null -ne $now -and ($null -eq $previous -or
+                    ![System.Windows.Automation.Automation]::Compare($now, $previous))) { break }
+                Start-Sleep -Milliseconds 100
+            }
+            $now = [System.Windows.Automation.AutomationElement]::FocusedElement
+            if ($null -ne $now -and ($null -eq $previous -or
+                ![System.Windows.Automation.Automation]::Compare($now, $previous))) { break }
+            if ([NativeDesktopInput]::PressedModifiers() -ne 0) { break }
+            $injected = [NativeDesktopInput]::PreviousTab()
+            Write-Host ('Native focus traversal repeated after an undelivered Shift+Tab: ' + $injected)
+        }
         $next = Wait-Observation $Process 'actual keyboard focus transition' ({
             $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
             if ($null -eq $focused -or [NativeDesktopInput]::PressedModifiers() -ne 0 -or
@@ -380,6 +508,7 @@ function Write-InputFailure([System.Diagnostics.Process] $Process, $Element, [in
         expected_length = $ExpectedLength; observed_length = $null; unchanged = $null
         automation_focused = $null; foreground_owned = $null
         keyboard_focus_owned = $null; keyboard_focus_is_root = $null; pressed_modifiers = $null
+        element_available = $null; element_enabled = $null; focused_control_type = $null
     }
     try {
         $observed = Read-EditValue $Element
@@ -397,6 +526,17 @@ function Write-InputFailure([System.Diagnostics.Process] $Process, $Element, [in
     try { $record.keyboard_focus_owned = [NativeDesktopInput]::KeyboardFocusOwned($Process.MainWindowHandle) } catch {}
     try { $record.keyboard_focus_is_root = [NativeDesktopInput]::KeyboardFocusIsRoot($Process.MainWindowHandle) } catch {}
     try { $record.pressed_modifiers = [NativeDesktopInput]::PressedModifiers() } catch {}
+    try {
+        $record.element_enabled = $Element.Current.IsEnabled
+        $record.element_available = $true
+    } catch [System.Windows.Automation.ElementNotAvailableException] {
+        $record.element_available = $false
+    } catch {}
+    try {
+        # Only UI Automation's closed control type name, never an element name or value.
+        $type = [System.Windows.Automation.AutomationElement]::FocusedElement.Current.ControlType.ProgrammaticName
+        if ($type -cmatch '^ControlType\.[A-Za-z]{1,32}$') { $record.focused_control_type = $type }
+    } catch {}
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_INPUT_V1 ' + ($record | ConvertTo-Json -Compress))
 }
 
@@ -468,8 +608,27 @@ function Enter-Context(
         if ($CountReplacement) { $script:contextTextReplacements++ }
     }
     Assert-KeyboardTarget $Process $field
-    $injected = [NativeDesktopInput]::TypeText($Label)
-    Write-Host ('Native text keyboard events accepted: ' + $injected)
+    # A re-render can move automation focus off the edit between the focus check
+    # and the keystrokes; then the edit stays exactly as it was. Repeat only such
+    # an undelivered entry, never one that changed the field.
+    $delivered = $false
+    for ($attempt = 1; $attempt -le 3 -and !$delivered; $attempt++) {
+        if ($attempt -gt 1) {
+            $field = Wait-Element $Process (Text $FieldKey) ([System.Windows.Automation.ControlType]::Edit)
+            Focus-Control $Process $field
+            Click-NativeControl $Process $field
+            Assert-KeyboardTarget $Process $field
+            Write-Host ('Native text entry repeated after an undelivered attempt: ' + $attempt)
+        }
+        $current = Read-EditValue $field
+        $injected = [NativeDesktopInput]::TypeText($Label)
+        Write-Host ('Native text keyboard events accepted: ' + $injected)
+        $deadline = [Diagnostics.Stopwatch]::StartNew()
+        while ($deadline.Elapsed.TotalSeconds -lt 5 -and (Read-EditValue $field) -ceq $current) {
+            Start-Sleep -Milliseconds 100
+        }
+        $delivered = (Read-EditValue $field) -cne $current
+    }
     try {
         $null = Wait-Observation $Process 'entered context label' ({
             if ((Read-EditValue $field) -ceq $Label) { return $true }
@@ -484,8 +643,11 @@ function Enter-Context(
     }
 }
 
-function Read-ProfilePlan([System.Diagnostics.Process] $Process, [string] $Locale = 'en') {
-    $region = Wait-Element $Process (Text 'profiles.reviewNativeProfilePlan' $Locale) $null $true
+function Read-PublicPlan(
+    [System.Diagnostics.Process] $Process, [string] $Locale = 'en',
+    [string] $RegionKey = 'profiles.reviewNativeProfilePlan'
+) {
+    $region = Wait-Element $Process (Text $RegionKey $Locale) $null $true
     return Wait-Observation $Process 'exact public profile plan' ({
         $nodes = $region.FindAll(
             [System.Windows.Automation.TreeScope]::Descendants,
@@ -512,7 +674,7 @@ function Read-ProfilePlan([System.Diagnostics.Process] $Process, [string] $Local
                 if ($document -is [System.Collections.IDictionary] -and (
                     ($document.Contains('change') -and
                         $document.change -is [System.Collections.IDictionary] -and
-                        $document.change.Contains('context')) -or
+                        ($document.change.Contains('context') -or $document.change.Contains('snapshot'))) -or
                     ($document.Contains('connection_id') -and $document.Contains('origin') -and
                         $document.Contains('label'))
                 )) {
@@ -529,7 +691,7 @@ function Read-ProfilePlan([System.Diagnostics.Process] $Process, [string] $Local
 }
 
 function Read-Review([System.Diagnostics.Process] $Process, [string] $Locale = 'en') {
-    $public = Read-ProfilePlan $Process $Locale
+    $public = Read-PublicPlan $Process $Locale
     if (!$public.Document.Contains('change') -or
         !$public.Document.change.Contains('context')) {
         throw 'Displayed profile review does not contain a context plan'
@@ -555,20 +717,22 @@ function Assert-Review($Review, [string] $Action, [string] $Label, [string] $Ide
     return $Review.Context.context_id
 }
 
-function Confirm-Review([System.Diagnostics.Process] $Process) {
-    $confirmation = Wait-Element $Process (Text 'profiles.iReviewedThisExactPlanAndAuthorizeThisLocal') (
-        [System.Windows.Automation.ControlType]::CheckBox
-    )
-    $toggle = $confirmation.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+function Confirm-ExactReview(
+    [System.Diagnostics.Process] $Process, [string] $CheckKey, [string] $ApplyKey
+) {
+    $confirmation = Wait-Element $Process (Text $CheckKey) ([System.Windows.Automation.ControlType]::CheckBox)
+    $toggle = Require-Pattern $confirmation ([System.Windows.Automation.TogglePattern]::Pattern) 'native review confirmation'
     if ($toggle.Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off) {
-        throw 'Context review was already confirmed'
+        throw 'Native review was already confirmed'
     }
-    $apply = Wait-Element $Process (Text 'profiles.applyReviewedChange') (
-        [System.Windows.Automation.ControlType]::Button
-    ) $true
-    if ($apply.Current.IsEnabled) { throw 'Unconfirmed context review was applicable' }
+    $apply = Wait-Element $Process (Text $ApplyKey) ([System.Windows.Automation.ControlType]::Button) $true
+    if ($apply.Current.IsEnabled) { throw 'Unconfirmed native review was applicable' }
     $toggle.Toggle()
-    Invoke-Control (Wait-Element $Process (Text 'profiles.applyReviewedChange') ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process (Text $ApplyKey) ([System.Windows.Automation.ControlType]::Button))
+}
+
+function Confirm-Review([System.Diagnostics.Process] $Process) {
+    Confirm-ExactReview $Process 'profiles.iReviewedThisExactPlanAndAuthorizeThisLocal' 'profiles.applyReviewedChange'
     $null = Wait-Observation $Process 'context review completion' ({
         $window = [System.Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
         $condition = [System.Windows.Automation.PropertyCondition]::new(
@@ -892,7 +1056,7 @@ function Read-CorporateFixture {
         throw 'Native corporate fixture file is not owned and bounded'
     }
     $value = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json -AsHashtable
-    if ($value.Count -ne 8 -or $value.protocol -cne 'ai-stp-native-desktop-fixture/1' -or
+    if ($value.Count -ne 10 -or $value.protocol -cne 'ai-stp-native-desktop-fixture/1' -or
         $value.nonce -cnotmatch '^[0-9a-f]{64}$' -or $value.source_sha -cne $Source -or
         $value.origin -cnotmatch '^http://127[.]0[.]0[.]1:[1-9][0-9]{0,4}$' -or
         [IO.Path]::GetFullPath($value.result_path) -cne (Join-Path $file.DirectoryName 'native-corporate-journey.json')) {
@@ -902,6 +1066,11 @@ function Read-CorporateFixture {
         if ($value[$key] -isnot [string] -or $value[$key].Length -lt 1 -or $value[$key].Length -gt 128) {
             throw 'Native corporate fixture identity is invalid'
         }
+    }
+    if ([IO.Path]::GetFullPath($value.checkout_root) -cne (Join-Path $file.DirectoryName 'checkout') -or
+        ![IO.Path]::IsPathFullyQualified($value.git_executable) -or
+        !(Test-Path -LiteralPath $value.git_executable -PathType Leaf)) {
+        throw 'Native corporate checkout fixture differs'
     }
     if (Test-Path -LiteralPath $value.result_path) { throw 'Native corporate result already exists' }
     return $value
@@ -960,7 +1129,7 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
     Invoke-Control (Wait-Element $Process (Text 'profiles.reviewConnectionCreation') ([System.Windows.Automation.ControlType]::Button))
     Invoke-Control (Wait-Element $Process (Text 'profiles.exactPublicPlan') $null $true)
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 connection')
-    $plan = Read-ProfilePlan $Process
+    $plan = Read-PublicPlan $Process
     if ($plan.Document.label -cne 'Native company connection' -or $plan.Document.origin -cne $Fixture.origin -or
         $plan.Document.provider -cne 'github' -or $plan.Document.connection_id -isnot [string] -or
         !$plan.Document.connection_id) { throw 'Displayed connection plan changed intent' }
@@ -1051,6 +1220,134 @@ function Test-CorporateJourney([System.Diagnostics.Process] $Process, $Fixture, 
         throw 'Corporate sign-in replaced the original native identity'
     }
     return [pscustomobject]@{ Context = $context; Connection = $connection; Device = $device }
+}
+
+
+function Assert-CheckoutIntent(
+    $Public, $Fixture, $Corporate, [string] $Action, [string] $Request = ''
+) {
+    $plan = $Public.Document
+    $snapshot = $plan.change.snapshot
+    if ($plan.operation_id -isnot [string] -or !$plan.operation_id -or $plan.operation_id.Length -gt 128 -or
+        $plan.change.action -cne $Action -or $snapshot.context.context_id -cne $Corporate.Context -or
+        $snapshot.account.origin -cne $Fixture.origin -or $snapshot.account.account_id -cne $Fixture.account_id -or
+        $snapshot.account.device_id -cne $Corporate.Device -or
+        $snapshot.account.connection.connection_id -cne $Corporate.Connection -or
+        $snapshot.organization.organization_id -cne $Fixture.organization_id -or
+        $snapshot.target.remote_project_id -cne $Fixture.project_id -or
+        $snapshot.local_project.local_project_id -isnot [string] -or !$snapshot.local_project.local_project_id -or
+        @($snapshot.local_project.root.identity).Count -ne 2) {
+        throw 'Displayed checkout plan changed its original authority'
+    }
+    foreach ($path in @($plan.checkout_root, $snapshot.local_project.root.path)) {
+        if ($path.utf8_base64 -isnot [string] -or $path.utf8_base64.Length -gt 43692 -or
+            [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($path.utf8_base64)) -cne $Fixture.checkout_root -or
+            $path.display -cne $Fixture.checkout_root.Normalize([Text.NormalizationForm]::FormC)) {
+            throw 'Displayed checkout plan changed its physical path'
+        }
+    }
+    if ($Request -and $plan.change.request_operation_id -cne $Request) {
+        throw 'Displayed checkout plan replaced the original request'
+    }
+    return [pscustomobject]@{ Operation = $plan.operation_id; Local = $snapshot.local_project.local_project_id }
+}
+
+function Start-CorporateCheckout([System.Diagnostics.Process] $Process, $Fixture, $Corporate) {
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_preview')
+    # Fixture preparation uses the installed public engine, never application IPC.
+    $preparedText = Read-NativeText @('project', 'passport', 'plan', '--root', $Fixture.checkout_root)
+    $prepared = $preparedText.Data
+    $local = $prepared.plan.operation.passport.stable_id
+    if ($prepared.plan_digest -cnotmatch '^sha256:[0-9a-f]{64}$' -or $local -isnot [string] -or !$local) {
+        throw 'Owned checkout passport preparation differs'
+    }
+    $preparation = Join-Path ([IO.Path]::GetDirectoryName($Fixture.result_path)) 'checkout-passport.json'
+    # Keep the engine's exact plan values: a PowerShell object round trip turns
+    # timestamp strings into DateTime and writes them back in another form.
+    $document = [System.Text.Json.JsonDocument]::Parse($preparedText.Text)
+    try {
+        $planText = $document.RootElement.GetProperty('data').GetProperty('plan').GetRawText()
+    } finally { $document.Dispose() }
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($planText)
+    $stream = [IO.File]::Open($preparation, [IO.FileMode]::CreateNew)
+    try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
+    $null = Read-Native @('local', 'apply', '--plan', $preparation, '--plan-digest', $prepared.plan_digest)
+    Invoke-Control (Wait-Element $Process (Text 'shell.company') ([System.Windows.Automation.ControlType]::Hyperlink))
+    Invoke-Control (Wait-Element $Process 'Read projects' ([System.Windows.Automation.ControlType]::Button))
+    $null = Wait-Element $Process 'Installed shared project' $null
+    Invoke-Control (Wait-Element $Process (Text 'corporate.reviewLocalCheckout') ([System.Windows.Automation.ControlType]::Button))
+    Enter-Context $Process $Fixture.checkout_root 'checkoutPreview.checkoutDirectory' $false
+    Enter-Context $Process $Fixture.git_executable 'checkoutPreview.gitExecutableOptional' $false
+    Invoke-Control (Wait-Element $Process (Text 'checkoutPreview.previewCheckout') ([System.Windows.Automation.ControlType]::Button))
+    $null = Wait-Element $Process (Text 'checkoutPreview.checkoutVerifiedForReview') $null
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_request')
+    Invoke-Control (Wait-Element $Process (Text 'checkoutPreview.reviewLinkRequest') ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process (Text 'checkoutPreview.exactCheckoutPlan') $null $true)
+    $requestPlan = Read-PublicPlan $Process 'en' 'checkoutPreview.reviewCorporateCheckoutChange'
+    $request = Assert-CheckoutIntent $requestPlan $Fixture $Corporate 'request'
+    if ($request.Local -cne $local) { throw 'Checkout review changed its registered local project' }
+    Confirm-ExactReview $Process 'checkoutPreview.iReviewedThisExactCheckoutPlanAndAuthorizeIts' 'checkoutPreview.applyReviewedCheckoutChange'
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_confirmation')
+    Invoke-Control (Wait-Element $Process (Text 'checkoutPreview.reviewLinkConfirmation') ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process (Text 'checkoutPreview.exactCheckoutPlan') $null $true)
+    $confirmationPlan = Read-PublicPlan $Process 'en' 'checkoutPreview.reviewCorporateCheckoutChange'
+    $confirmation = Assert-CheckoutIntent $confirmationPlan $Fixture $Corporate 'confirm' $request.Operation
+    if ($confirmation.Local -cne $local -or $confirmation.Operation -ceq $request.Operation) {
+        throw 'Checkout confirmation changed its original operation'
+    }
+    Confirm-ExactReview $Process 'checkoutPreview.iReviewedThisExactCheckoutPlanAndAuthorizeIts' 'checkoutPreview.applyReviewedCheckoutChange'
+    $null = Wait-Element $Process (Text 'error.requestFailed') $null
+    $unconfirmed = Read-Native @('corporate', 'project', 'link', 'show', '--operation', $confirmation.Operation)
+    if ($unconfirmed.state -cne 'applying' -or $unconfirmed.plan_digest -cne $confirmationPlan.Digest) {
+        throw 'Lost checkout reply did not retain the original pending confirmation'
+    }
+    return [pscustomobject]@{
+        Request = $request.Operation; Confirmation = $confirmation.Operation
+        ConfirmationDigest = $confirmationPlan.Digest; Local = $local
+    }
+}
+
+function Resume-CorporateCheckout([System.Diagnostics.Process] $Process, $Fixture, $Corporate, $Pending) {
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_reconciliation')
+    Invoke-Control (Wait-Element $Process (Text 'shell.activity') ([System.Windows.Automation.ControlType]::Hyperlink))
+    Invoke-Control (Wait-Element $Process (Text 'checkoutOperations.readCheckoutHistory') ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process ((Text 'checkoutOperations.inspect') + ' ' + $Pending.Confirmation) (
+        [System.Windows.Automation.ControlType]::Button
+    ))
+    Confirm-ExactReview $Process 'checkoutOperations.iReviewedThisOriginalIntentAndAuthorizeOutcomeReconciliation' 'checkoutOperations.reconcileOriginalOutcome'
+    $null = Wait-Element $Process (Text 'checkoutOperations.reviewOriginalLocalBinding') ([System.Windows.Automation.ControlType]::Button)
+    $reconciled = Read-Native @('corporate', 'project', 'link', 'show', '--operation', $Pending.Confirmation)
+    if ($reconciled.state -cne 'completed' -or $reconciled.operation_id -cne $Pending.Confirmation -or
+        $reconciled.plan_digest -cne $Pending.ConfirmationDigest) {
+        throw 'Checkout reconciliation replaced the original confirmation'
+    }
+    $root = Wait-Element $Process (Text 'checkoutOperations.registeredCheckoutForBinding') ([System.Windows.Automation.ControlType]::Edit)
+    if ((Read-EditValue $root) -cne $Fixture.checkout_root) {
+        throw 'Checkout recovery did not retain the original directory'
+    }
+    Enter-Context $Process $Fixture.git_executable 'checkoutOperations.trustedGitExecutableForCheckoutReviewOptional' $false
+    [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_binding')
+    Invoke-Control (Wait-Element $Process (Text 'checkoutOperations.reviewOriginalLocalBinding') ([System.Windows.Automation.ControlType]::Button))
+    Invoke-Control (Wait-Element $Process (Text 'checkoutOperations.exactRetainedCheckoutNextPlan') $null $true)
+    $plan = Read-PublicPlan $Process 'en' 'checkoutOperations.reviewRetainedCheckoutNextChange'
+    $adoption = Assert-CheckoutIntent $plan $Fixture $Corporate 'adopt' $Pending.Request
+    if ($adoption.Local -cne $Pending.Local -or $adoption.Operation -ceq $Pending.Request -or
+        $adoption.Operation -ceq $Pending.Confirmation) {
+        throw 'Checkout adoption replaced the original project or operation'
+    }
+    Confirm-ExactReview $Process 'checkoutOperations.iReviewedThisExactRetainedCheckoutChangeAndAuthorize' 'checkoutOperations.applyReviewedOriginalCheckoutChange'
+    $null = Wait-Element $Process (Text 'checkoutOperations.originalCorporateProjectBindingReceiptSaved') $null
+    $retained = Read-Native @('corporate', 'project', 'link', 'show', '--operation', $adoption.Operation)
+    if ($retained.state -cne 'completed' -or $retained.plan_digest -cne $plan.Digest -or
+        $retained.effect.link.state -cne 'linked' -or $retained.effect.link.link_id -isnot [string] -or
+        !$retained.effect.link.link_id) {
+        throw 'Installed checkout binding does not match its original receipt'
+    }
+    return [ordered]@{
+        request_operation_id = $Pending.Request; confirmation_operation_id = $Pending.Confirmation
+        adoption_operation_id = $adoption.Operation; context_id = $Corporate.Context
+        local_project_id = $adoption.Local; link_id = $retained.effect.link.link_id
+    }
 }
 
 function Test-PersonalJourney([System.Diagnostics.Process] $Process) {
@@ -1204,6 +1501,20 @@ try {
         if ((Read-Native @('device', 'show') | ConvertTo-Json -Depth 10 -Compress) -cne $identity) {
             throw 'Corporate restart changed the original device identity'
         }
+        $pendingCheckout = Start-CorporateCheckout $process $corporateFixture $corporate
+        Close-Desktop $process
+        [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 checkout_restart')
+        $process = Start-Process -FilePath $app -PassThru -RedirectStandardOutput (
+            Join-Path $env:RUNNER_TEMP 'desktop-private-out.log'
+        ) -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'desktop-private-error.log')
+        Show-Desktop $process
+        $null = Wait-Element $process (Text 'language.label') ([System.Windows.Automation.ControlType]::ComboBox)
+        Assert-SelectedContext $process $corporate.Context
+        $checkout = Resume-CorporateCheckout $process $corporateFixture $corporate $pendingCheckout
+        Assert-CorporateSession $corporateFixture $corporate.Connection
+        if ((Read-Native @('device', 'show') | ConvertTo-Json -Depth 10 -Compress) -cne $identity) {
+            throw 'Checkout recovery changed the original enrolled identity'
+        }
     }
     Close-Desktop $process
     if ($null -ne $corporateFixture) {
@@ -1215,8 +1526,16 @@ try {
             'context_view_selection_explicit', 'corporate_context_survives_restart',
             'original_device_survives_restart', 'original_account_and_origin_preserved'
         )) { $controls[$key] = $true }
+        $checkoutControls = [ordered]@{}
+        foreach ($key in @(
+            'committed_checkout_preview', 'request_exact_plan_and_confirmation',
+            'confirmation_exact_plan_and_confirmation', 'committed_reply_lost',
+            'original_operation_reconciled_after_restart', 'binding_exact_plan_and_confirmation',
+            'original_link_and_device_preserved', 'unowned_checkout_bytes_and_identity_preserved'
+        )) { $checkoutControls[$key] = $true }
         $result = [ordered]@{
-            schema_version = 1; source_sha = $Source; controls = $controls
+            schema_version = 2; source_sha = $Source; controls = $controls
+            checkout_controls = $checkoutControls; checkout = $checkout
             enrolled_device_id = $corporate.Device; desktop_process_stopped = $process.HasExited
         } | ConvertTo-Json -Depth 5
         $stream = [IO.File]::Open($corporateFixture.result_path, [IO.FileMode]::CreateNew)
@@ -1227,9 +1546,8 @@ try {
     }
 } catch {
     if (!$corporateStarted) { Save-NativeFailureImage $process }
+    # The failure scan reads the live app first; the trap ends the app afterwards.
     throw
-} finally {
-    if (!$process.HasExited) { Stop-Process -Id $process.Id }
 }
 
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 complete')

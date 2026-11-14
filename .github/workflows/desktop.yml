@@ -92,6 +92,12 @@ jobs:
           python-version: '3.15.2'
           node-version: ${{ env.NODE_VERSION }}
           bun-version: ${{ env.BUN_VERSION }}
+      - name: Check native Desktop controllers before package builds
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
+        uses: >-
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+        with:
+          recipe: ci-desktop-native-controller-check
       - uses: ./.github/actions/project-rust
         with:
           components: clippy,rustfmt
@@ -312,7 +318,7 @@ jobs:
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
         with:
           recipe: ci-native-corporate-prepare
-      - name: Qualify installed personal and corporate profiles on macOS and Windows
+      - name: Qualify installed native profiles and corporate checkout recovery
         if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
         timeout-minutes: 12
         uses: >-
@@ -320,8 +326,8 @@ jobs:
         env:
           AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
         with:
-          recipe: ci-desktop-installed-native-corporate-profiles
-      - name: Retain installed native corporate profile results
+          recipe: ci-desktop-installed-native-corporate
+      - name: Retain installed native corporate profile and checkout results
         if: (runner.os == 'macOS' || runner.os == 'Windows') && !inputs.packages_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:

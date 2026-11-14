@@ -31,7 +31,7 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from tests.native_contract.verify_checkout import LostAcknowledgements
 from tests.support.api_settings import make_settings, make_test_auth
-from tests.support.corporate_fixture import seed_corporate
+from tests.support.corporate_fixture import create_checkout_fixture, seed_corporate
 from tests.support.postgres import isolated_database
 
 from ai_stp_api.app import create_app
@@ -1070,37 +1070,13 @@ def installed_journey(
         assert unicodedata.normalize("NFC", str(checkout)) == str(neighbor)
         project_ids: list[str] = []
         for index, directory in enumerate((checkout, neighbor)):
-            directory.mkdir()
-            (directory / ".env").write_bytes(
+            create_checkout_fixture(
+                directory,
                 b"PRIVATE=installed-corporate-unowned\n"
                 if index == 0
-                else b"PRIVATE=installed-nfc-neighbor\n"
+                else b"PRIVATE=installed-nfc-neighbor\n",
+                environment,
             )
-            (directory / ".env").chmod(0o640)
-            for args in (
-                ["init", "--initial-branch=main"],
-                ["commit", "--allow-empty", "-m", f"installed corporate fixture {index}"],
-            ):
-                subprocess.run(
-                    [
-                        "/usr/bin/git",
-                        "-C",
-                        str(directory),
-                        "-c",
-                        "user.name=Installed fixture",
-                        "-c",
-                        "user.email=installed@example.invalid",
-                        *args,
-                    ],
-                    check=True,
-                    capture_output=True,
-                    env={
-                        **environment,
-                        "GIT_CONFIG_NOSYSTEM": "1",
-                        "GIT_CONFIG_GLOBAL": os.devnull,
-                    },
-                    timeout=15,
-                )
             passport = native(
                 binary, environment, ["project", "passport", "plan", "--root", str(directory)]
             )

@@ -182,7 +182,7 @@ func native(_ cli: URL, _ arguments: [String]) throws -> [String: Any] {
 }
 
 
-struct ProfilePlan {
+struct PublicPlan {
     let raw: String
     let digest: String
     let document: [String: Any]
@@ -313,12 +313,35 @@ func key(_ process: Process, _ code: CGKeyCode, flags: CGEventFlags = []) throws
     up.post(tap: .cghidEventTap)
 }
 
+/// The bundle of the application that holds keyboard focus, for a failure report.
+func focusedBundle() -> String {
+    NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "none"
+}
+
 func enter(_ process: Process, _ field: AXUIElement, _ value: String) throws {
+    // Another application on the runner, such as a browser opened earlier in the
+    // journey, can take focus mid-entry; refocus and enter the whole value again.
+    for attempt in 1...3 {
+        do {
+            try enterOnce(process, field, value)
+            return
+        } catch let failure as FocusLost {
+            if attempt == 3 {
+                throw ProbeFailure("Keyboard input lost its owned application to \(failure.bundle)")
+            }
+            FileHandle.standardError.write("Keyboard focus moved to \(failure.bundle); entering again\n".data(using: .utf8)!)
+        }
+    }
+}
+
+struct FocusLost: Error { let bundle: String }
+
+func enterOnce(_ process: Process, _ field: AXUIElement, _ value: String) throws {
     try focus(process, field)
     try key(process, 0, flags: .maskCommand)
     for scalar in value.unicodeScalars {
-        try check(process.isRunning && ownsKeyboard(process),
-            "Keyboard input lost its owned application")
+        try check(process.isRunning, "Installed Desktop exited during keyboard input")
+        if !ownsKeyboard(process) { throw FocusLost(bundle: focusedBundle()) }
         var characters = Array(String(scalar).utf16)
         guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
             let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)
@@ -334,8 +357,9 @@ func enter(_ process: Process, _ field: AXUIElement, _ value: String) throws {
     }
 }
 
-func profilePlan(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -> ProfilePlan {
-    let region = try visible(process, catalogs.text("profiles.reviewNativeProfilePlan", locale))
+func readPublicPlan(_ process: Process, _ catalogs: Catalogs, _ locale: String,
+    regionKey: String = "profiles.reviewNativeProfilePlan") throws -> PublicPlan {
+    let region = try visible(process, catalogs.text(regionKey, locale))
     var observation = "not observed"
     do {
         return try wait("exact public context plan") {
@@ -356,6 +380,7 @@ func profilePlan(_ process: Process, _ catalogs: Catalogs, _ locale: String) thr
                         let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] {
                         jsonValues += 1
                         if (object["change"] as? [String: Any])?["context"] is [String: Any] ||
+                            (object["change"] as? [String: Any])?["snapshot"] is [String: Any] ||
                             (object["connection_id"] is String && object["origin"] is String && object["label"] is String) {
                             document = object
                             raw = value
@@ -367,7 +392,7 @@ func profilePlan(_ process: Process, _ catalogs: Catalogs, _ locale: String) thr
             let roleSummary = roles.keys.sorted().map { "\($0)=\(roles[$0]!)" }.joined(separator: ",")
             observation = "nodes=\(nodes), strings=\(strings), JSON=\(jsonValues), plan=\(raw != nil), digest=\(digest != nil), roles=[\(roleSummary)]"
             guard let document = document, let raw = raw, let digest = digest else { return nil }
-            return ProfilePlan(raw: raw, digest: digest, document: document)
+            return PublicPlan(raw: raw, digest: digest, document: document)
         }
     } catch {
         throw ProbeFailure("\(error); native review observation: \(observation)")
@@ -375,7 +400,7 @@ func profilePlan(_ process: Process, _ catalogs: Catalogs, _ locale: String) thr
 }
 
 func review(_ process: Process, _ catalogs: Catalogs, _ locale: String) throws -> Review {
-    let publicPlan = try profilePlan(process, catalogs, locale)
+    let publicPlan = try readPublicPlan(process, catalogs, locale)
     guard let change = publicPlan.document["change"] as? [String: Any],
         let context = change["context"] as? [String: Any], let action = change["action"] as? String
     else { throw ProbeFailure("Displayed profile review does not contain a context plan") }
@@ -391,22 +416,28 @@ func validate(_ review: Review, _ action: String, _ label: String, _ identifier:
     return id
 }
 
-func confirm(_ process: Process, _ catalogs: Catalogs) throws {
-    let confirmation = try visible(process, catalogs.text("profiles.iReviewedThisExactPlanAndAuthorizeThisLocal"), role: kAXCheckBoxRole)
+func authorizeReviewed(_ process: Process, _ catalogs: Catalogs, _ checkKey: String, _ applyKey: String) throws {
+    let confirmation = try visible(process, catalogs.text(checkKey), role: kAXCheckBoxRole, enabled: true)
     try check((attribute(confirmation, kAXValueAttribute) as? NSNumber)?.intValue == 0,
-        "Context review was already confirmed")
-    let apply = try visible(process, catalogs.text("profiles.applyReviewedChange"), role: kAXButtonRole)
-    try check(attribute(apply, kAXEnabledAttribute) as? Bool == false, "Unconfirmed context review was applicable")
+        "Native review was already confirmed")
+    let apply = try visible(process, catalogs.text(applyKey), role: kAXButtonRole)
+    try check(attribute(apply, kAXEnabledAttribute) as? Bool == false, "Unconfirmed native review was applicable")
     try press(confirmation)
-    try press(visible(process, catalogs.text("profiles.applyReviewedChange"), role: kAXButtonRole, enabled: true))
+    try press(visible(process, catalogs.text(applyKey), role: kAXButtonRole, enabled: true))
+}
+
+func confirm(_ process: Process, _ catalogs: Catalogs) throws {
+    try authorizeReviewed(process, catalogs, "profiles.iReviewedThisExactPlanAndAuthorizeThisLocal",
+        "profiles.applyReviewedChange")
     _ = try wait("context review completion") {
         try check(process.isRunning, "Installed Desktop exited during context apply")
         return match(application(process), label: try catalogs.text("profiles.reviewNativeProfilePlan"), role: nil, enabled: false) == nil ? true : nil
     }
 }
 
-func openPublicPlan(_ process: Process, _ catalogs: Catalogs) throws {
-    let disclosure = try visible(process, catalogs.text("profiles.exactPublicPlan"), role: kAXDisclosureTriangleRole, enabled: true)
+func openPublicPlan(_ process: Process, _ catalogs: Catalogs,
+    _ labelKey: String = "profiles.exactPublicPlan") throws {
+    let disclosure = try visible(process, catalogs.text(labelKey), role: kAXDisclosureTriangleRole, enabled: true)
     func expanded() -> Bool? {
         if let value = attribute(disclosure, kAXExpandedAttribute) as? Bool { return value }
         if let value = attribute(disclosure, kAXValueAttribute) as? NSNumber,
@@ -564,6 +595,9 @@ struct CorporateFixture {
     let origin: String
     let account: String
     let organization: String
+    let project: String
+    let checkout: URL
+    let git: String
     let result: URL
 
     init(_ path: String, _ environment: [String: String]) throws {
@@ -577,7 +611,7 @@ struct CorporateFixture {
             properties.isSymbolicLink == false && (properties.fileSize ?? 16385) <= 16384,
             "Native corporate fixture file is not owned and bounded")
         guard let value = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String],
-            value.count == 8, value["protocol"] == "ai-stp-native-desktop-fixture/1",
+            value.count == 10, value["protocol"] == "ai-stp-native-desktop-fixture/1",
             value["source_sha"] == source, let nonce = value["nonce"],
             nonce.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil,
             let origin = value["origin"],
@@ -586,7 +620,11 @@ struct CorporateFixture {
             let organization = value["organization_id"], !organization.isEmpty, organization.utf8.count <= 128,
             let project = value["project_id"], !project.isEmpty, project.utf8.count <= 128,
             let result = value["result_path"],
-            result == url.deletingLastPathComponent().appendingPathComponent("native-corporate-journey.json").path
+            result == url.deletingLastPathComponent().appendingPathComponent("native-corporate-journey.json").path,
+            let checkout = value["checkout_root"],
+            checkout == url.deletingLastPathComponent().appendingPathComponent("checkout").path,
+            let git = value["git_executable"], git.hasPrefix("/"),
+            FileManager.default.fileExists(atPath: git)
         else { throw ProbeFailure("Native corporate fixture contract differs") }
         try check(!FileManager.default.fileExists(atPath: result), "Native corporate result already exists")
         self.nonce = nonce
@@ -594,6 +632,9 @@ struct CorporateFixture {
         self.origin = origin
         self.account = account
         self.organization = organization
+        self.project = project
+        self.checkout = URL(fileURLWithPath: checkout)
+        self.git = git
         self.result = URL(fileURLWithPath: result)
     }
 }
@@ -661,7 +702,7 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     try pressNamed(process, catalogs.text("profiles.reviewConnectionCreation"), role: kAXButtonRole)
     try openPublicPlan(process, catalogs)
     corporateStage("connection")
-    let plan = try profilePlan(process, catalogs, "en").document
+    let plan = try readPublicPlan(process, catalogs, "en").document
     guard plan["label"] as? String == "Native company connection", plan["origin"] as? String == fixture.origin,
         plan["provider"] as? String == "github", let connection = plan["connection_id"] as? String, !connection.isEmpty
     else { throw ProbeFailure("Displayed connection plan changed intent") }
@@ -742,6 +783,136 @@ func corporate(_ process: Process, _ cli: URL, _ catalogs: Catalogs, _ fixture: 
     let observed = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
     try check(observed == identity, "Corporate sign-in replaced the original native identity")
     return (context, connection, device)
+}
+
+
+struct PendingCheckout {
+    let request: String
+    let confirmation: String
+    let confirmationDigest: String
+    let context: String
+    let localProject: String
+}
+
+func checkoutIntent(_ publicPlan: PublicPlan, _ fixture: CorporateFixture, _ context: String,
+    _ connection: String, _ device: String, _ action: String, _ request: String? = nil) throws -> (String, String) {
+    let plan = publicPlan.document
+    guard let operation = plan["operation_id"] as? String, !operation.isEmpty, operation.utf8.count <= 128,
+        let change = plan["change"] as? [String: Any], change["action"] as? String == action,
+        let snapshot = change["snapshot"] as? [String: Any],
+        (snapshot["context"] as? [String: Any])?["context_id"] as? String == context,
+        let account = snapshot["account"] as? [String: Any],
+        account["origin"] as? String == fixture.origin, account["account_id"] as? String == fixture.account,
+        account["device_id"] as? String == device,
+        (account["connection"] as? [String: Any])?["connection_id"] as? String == connection,
+        (snapshot["organization"] as? [String: Any])?["organization_id"] as? String == fixture.organization,
+        (snapshot["target"] as? [String: Any])?["remote_project_id"] as? String == fixture.project,
+        let local = snapshot["local_project"] as? [String: Any],
+        let localID = local["local_project_id"] as? String, !localID.isEmpty,
+        let root = local["root"] as? [String: Any], (root["identity"] as? [String])?.count == 2
+    else { throw ProbeFailure("Displayed checkout plan changed its original authority") }
+    for value in [plan["checkout_root"], root["path"]] {
+        guard let path = value as? [String: Any], let encoded = path["utf8_base64"] as? String,
+            encoded.utf8.count <= 43692, Data(base64Encoded: encoded) == Data(fixture.checkout.path.utf8),
+            path["display"] as? String == fixture.checkout.path.precomposedStringWithCanonicalMapping
+        else { throw ProbeFailure("Displayed checkout plan changed its physical path") }
+    }
+    if let expected = request {
+        try check(change["request_operation_id"] as? String == expected,
+            "Displayed checkout plan replaced the original request")
+    }
+    return (operation, localID)
+}
+
+func beginCorporateCheckout(_ process: Process, _ cli: URL, _ catalogs: Catalogs,
+    _ fixture: CorporateFixture, _ context: String, _ connection: String, _ device: String) throws -> PendingCheckout {
+    corporateStage("checkout_preview")
+    // Fixture preparation uses the installed public engine, never application IPC.
+    let prepared = try native(cli, ["project", "passport", "plan", "--root", fixture.checkout.path])
+    guard let passport = prepared["plan"] as? [String: Any], let digest = prepared["plan_digest"] as? String,
+        digest.range(of: "^sha256:[0-9a-f]{64}$", options: .regularExpression) != nil,
+        let local = ((passport["operation"] as? [String: Any])?["passport"] as? [String: Any])?["stable_id"] as? String
+    else { throw ProbeFailure("Owned checkout passport preparation differs") }
+    let preparation = fixture.checkout.deletingLastPathComponent().appendingPathComponent("checkout-passport.json")
+    try JSONSerialization.data(withJSONObject: passport, options: [.sortedKeys]).write(to: preparation, options: [.withoutOverwriting])
+    try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: preparation.path)
+    _ = try native(cli, ["local", "apply", "--plan", preparation.path, "--plan-digest", digest])
+    try pressNamed(process, catalogs.text("shell.company"), role: "AXLink")
+    try pressNamed(process, "Read projects",
+        role: kAXButtonRole)
+    _ = try visible(process, "Installed shared project")
+    try pressNamed(process, catalogs.text("corporate.reviewLocalCheckout"), role: kAXButtonRole)
+    try enter(process, visible(process, catalogs.text("checkoutPreview.checkoutDirectory"), role: kAXTextFieldRole, enabled: true),
+        fixture.checkout.path)
+    try enter(process, visible(process, catalogs.text("checkoutPreview.gitExecutableOptional"), role: kAXTextFieldRole, enabled: true),
+        fixture.git)
+    try pressNamed(process, catalogs.text("checkoutPreview.previewCheckout"), role: kAXButtonRole)
+    _ = try visible(process, catalogs.text("checkoutPreview.checkoutVerifiedForReview"))
+    corporateStage("checkout_request")
+    try pressNamed(process, catalogs.text("checkoutPreview.reviewLinkRequest"), role: kAXButtonRole)
+    try openPublicPlan(process, catalogs, "checkoutPreview.exactCheckoutPlan")
+    let requestPlan = try readPublicPlan(process, catalogs, "en", regionKey: "checkoutPreview.reviewCorporateCheckoutChange")
+    let (request, requestLocal) = try checkoutIntent(requestPlan, fixture, context, connection, device, "request")
+    try check(requestLocal == local, "Checkout review changed its registered local project")
+    try authorizeReviewed(process, catalogs, "checkoutPreview.iReviewedThisExactCheckoutPlanAndAuthorizeIts",
+        "checkoutPreview.applyReviewedCheckoutChange")
+    corporateStage("checkout_confirmation")
+    try pressNamed(process, catalogs.text("checkoutPreview.reviewLinkConfirmation"), role: kAXButtonRole)
+    try openPublicPlan(process, catalogs, "checkoutPreview.exactCheckoutPlan")
+    let confirmationPlan = try readPublicPlan(process, catalogs, "en", regionKey: "checkoutPreview.reviewCorporateCheckoutChange")
+    let (confirmation, confirmationLocal) = try checkoutIntent(confirmationPlan, fixture, context, connection, device, "confirm", request)
+    try check(confirmationLocal == local && confirmation != request, "Checkout confirmation changed its original operation")
+    try authorizeReviewed(process, catalogs, "checkoutPreview.iReviewedThisExactCheckoutPlanAndAuthorizeIts",
+        "checkoutPreview.applyReviewedCheckoutChange")
+    _ = try visible(process, catalogs.text("error.requestFailed"))
+    let unconfirmed = try native(cli, ["corporate", "project", "link", "show", "--operation", confirmation])
+    try check(unconfirmed["state"] as? String == "applying" &&
+        unconfirmed["plan_digest"] as? String == confirmationPlan.digest,
+        "Lost checkout reply did not retain the original pending confirmation")
+    return PendingCheckout(request: request, confirmation: confirmation, confirmationDigest: confirmationPlan.digest,
+        context: context, localProject: local)
+}
+
+func resumeCorporateCheckout(_ process: Process, _ cli: URL, _ catalogs: Catalogs,
+    _ fixture: CorporateFixture, _ pending: PendingCheckout, _ connection: String, _ device: String) throws -> [String: String] {
+    corporateStage("checkout_reconciliation")
+    try pressNamed(process, catalogs.text("shell.activity"), role: "AXLink")
+    try pressNamed(process, catalogs.text("checkoutOperations.readCheckoutHistory"), role: kAXButtonRole)
+    try pressNamed(process, catalogs.text("checkoutOperations.inspect") + " " + pending.confirmation, role: kAXButtonRole)
+    try authorizeReviewed(process, catalogs, "checkoutOperations.iReviewedThisOriginalIntentAndAuthorizeOutcomeReconciliation",
+        "checkoutOperations.reconcileOriginalOutcome")
+    _ = try visible(process, catalogs.text("checkoutOperations.reviewOriginalLocalBinding"), role: kAXButtonRole, enabled: true)
+    let reconciled = try native(cli, ["corporate", "project", "link", "show", "--operation", pending.confirmation])
+    try check(reconciled["state"] as? String == "completed" &&
+        reconciled["operation_id"] as? String == pending.confirmation &&
+        reconciled["plan_digest"] as? String == pending.confirmationDigest,
+        "Checkout reconciliation replaced the original confirmation")
+    let root = try visible(process, catalogs.text("checkoutOperations.registeredCheckoutForBinding"),
+        role: kAXTextFieldRole, enabled: true)
+    try check(attribute(root, kAXValueAttribute) as? String == fixture.checkout.path,
+        "Checkout recovery did not retain the original directory")
+    try enter(process, visible(process, catalogs.text("checkoutOperations.trustedGitExecutableForCheckoutReviewOptional"),
+        role: kAXTextFieldRole, enabled: true), fixture.git)
+    corporateStage("checkout_binding")
+    try pressNamed(process, catalogs.text("checkoutOperations.reviewOriginalLocalBinding"), role: kAXButtonRole)
+    try openPublicPlan(process, catalogs, "checkoutOperations.exactRetainedCheckoutNextPlan")
+    let plan = try readPublicPlan(process, catalogs, "en", regionKey: "checkoutOperations.reviewRetainedCheckoutNextChange")
+    let (adoption, local) = try checkoutIntent(plan, fixture, pending.context, connection, device, "adopt", pending.request)
+    try check(local == pending.localProject && adoption != pending.request && adoption != pending.confirmation,
+        "Checkout adoption replaced the original project or operation")
+    try authorizeReviewed(process, catalogs, "checkoutOperations.iReviewedThisExactRetainedCheckoutChangeAndAuthorize",
+        "checkoutOperations.applyReviewedOriginalCheckoutChange")
+    _ = try visible(process, catalogs.text("checkoutOperations.originalCorporateProjectBindingReceiptSaved"))
+    let retained = try native(cli, ["corporate", "project", "link", "show", "--operation", adoption])
+    guard retained["state"] as? String == "completed", retained["plan_digest"] as? String == plan.digest,
+        let effect = retained["effect"] as? [String: Any], let link = effect["link"] as? [String: Any],
+        link["state"] as? String == "linked", let linkID = link["link_id"] as? String, !linkID.isEmpty
+    else { throw ProbeFailure("Installed checkout binding does not match its original receipt") }
+    return [
+        "request_operation_id": pending.request, "confirmation_operation_id": pending.confirmation,
+        "adoption_operation_id": adoption, "context_id": pending.context,
+        "local_project_id": local, "link_id": linkID,
+    ]
 }
 
 func prove() throws {
@@ -837,6 +1008,16 @@ func prove() throws {
         try corporateSession(cli, fixture, connection)
         let observed = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
         try check(observed == identity, "Corporate restart changed the original device identity")
+        let pendingCheckout = try beginCorporateCheckout(process, cli, catalogs, fixture, context, connection, device)
+        try close(process)
+        corporateStage("checkout_restart")
+        process = try launch(app)
+        _ = try visible(process, catalogs.text("language.label"), role: kAXPopUpButtonRole, enabled: true)
+        try selected(cli, context)
+        let checkout = try resumeCorporateCheckout(process, cli, catalogs, fixture, pendingCheckout, connection, device)
+        try corporateSession(cli, fixture, connection)
+        let afterCheckout = try JSONSerialization.data(withJSONObject: native(cli, ["device", "show"]), options: [.sortedKeys])
+        try check(afterCheckout == identity, "Checkout recovery changed the original enrolled identity")
         try close(process)
         let keys = [
             "installed_personal_journey_retained", "connection_exact_plan_and_confirmation",
@@ -846,8 +1027,15 @@ func prove() throws {
             "original_device_survives_restart", "original_account_and_origin_preserved",
         ]
         let retained: [String: Any] = [
-            "schema_version": 1, "source_sha": fixture.source,
+            "schema_version": 2, "source_sha": fixture.source,
             "controls": Dictionary(uniqueKeysWithValues: keys.map { ($0, true) }),
+            "checkout_controls": Dictionary(uniqueKeysWithValues: [
+                "committed_checkout_preview", "request_exact_plan_and_confirmation",
+                "confirmation_exact_plan_and_confirmation", "committed_reply_lost",
+                "original_operation_reconciled_after_restart", "binding_exact_plan_and_confirmation",
+                "original_link_and_device_preserved", "unowned_checkout_bytes_and_identity_preserved",
+            ].map { ($0, true) }),
+            "checkout": checkout,
             "enrolled_device_id": device, "desktop_process_stopped": !process.isRunning,
         ]
         try JSONSerialization.data(withJSONObject: retained, options: [.sortedKeys]).write(to: fixture.result, options: [.withoutOverwriting])
