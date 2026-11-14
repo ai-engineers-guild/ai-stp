@@ -984,7 +984,7 @@ pub fn dispatch(matches: &ArgMatches) -> Result<Value> {
             "configuration_installation": if cfg!(target_os = "linux") { "supported" } else { "unavailable" },
             "native_authoring_harnesses": config::HARNESSES,
             "native_inventory":{"available":crate::platform::current().is_some(),"coverage":"owned_native_only","foreground_only":true},
-            "native_runtime_usage":{"available":crate::platform::current().is_some(),"coverage":"owned_component_signals","sources":["agent_reported","native_hook"],"hook_harnesses":["claude-code","codex","cursor","grok-build"],"foreground_flush":true,"automatic_hook_registration":false},
+            "native_runtime_usage":{"available":crate::platform::current().is_some(),"coverage":"owned_component_signals","sources":["agent_reported","native_hook"],"hook_harnesses":["claude-code","codex","cursor","grok-build"],"hook_coverage_unknown":["antigravity","opencode","pi"],"foreground_flush":true,"automatic_hook_registration":false},
             "native_configuration":{"available":crate::platform::current().is_some(),"harnesses":config::HARNESSES,
                 "operations":["plan","prepare","apply","status","cancel","confirm","remove","retire","custody","effective","pending"],
                 "process_handoff":true,"vendor_programs_managed":false,"runtime_loading_observed":false},
