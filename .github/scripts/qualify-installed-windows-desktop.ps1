@@ -121,6 +121,8 @@ trap {
                     }
                 }
             }
+            $reporting = Get-Service -Name WerSvc -ErrorAction SilentlyContinue
+            $null = $codes.Add('state:wersvc_' + $(if ($null -eq $reporting) { 'absent' } else { ([string] $reporting.Status).ToLowerInvariant() }))
             $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
             if (Test-Path -LiteralPath $errors) {
                 foreach ($line in @(Select-String -LiteralPath $errors -Pattern '^ai-stp-desktop lifecycle: ([a-z-]{1,40})$')) {
@@ -179,6 +181,9 @@ $exitMonitor = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SilentProcess
 $null = New-Item -Force -Path $exitOptions, $exitMonitor
 $null = New-ItemProperty -Force -Path $exitOptions -Name GlobalFlag -PropertyType DWord -Value 0x200
 $null = New-ItemProperty -Force -Path $exitMonitor -Name ReportingMode -PropertyType DWord -Value 0
+# Exit monitoring and crash events are written by Windows Error Reporting.
+Set-Service -Name WerSvc -StartupType Manual -ErrorAction SilentlyContinue
+Start-Service -Name WerSvc -ErrorAction SilentlyContinue
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'PowerShell 7 is required' }
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 owner')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes

@@ -1198,6 +1198,7 @@ async fn task_list(state: tauri::State<'_, Arc<AppState>>) -> Result<CmdResult, 
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            eprintln!("ai-stp-desktop lifecycle: started");
             let name = if cfg!(windows) {
                 "cli/ai-stp-desktop-cli.exe"
             } else {
