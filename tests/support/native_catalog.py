@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, cast
 
 from sqlalchemy import select
@@ -22,6 +24,17 @@ from ai_stp_sources import freeze_setup_definition
 
 ARTIFACT_DOMAIN = "ai-stp:artifact:v1"
 PASSPORT_DOMAIN = "ai-stp:passport:v1"
+SURFACES = Path(__file__).resolve().parents[2] / "apps/cli/src/projection/surfaces.json"
+
+
+def native_surface(harness: str, scope: str) -> dict[str, Any]:
+    """The configuration surface the native engine projects `harness` at `scope` through."""
+    catalog = json.loads(SURFACES.read_bytes())
+    return next(
+        item["profile"]
+        for item in catalog["profiles"]
+        if item["harness_id"] == harness and item["target_scope"] == scope
+    )
 
 
 def projection(harness: str, scope: str = "global") -> tuple[dict[str, JsonValue], bytes]:
@@ -30,7 +43,18 @@ def projection(harness: str, scope: str = "global") -> tuple[dict[str, JsonValue
         digest=digest_bytes(ARTIFACT_DOMAIN, body), size=len(body), harness_id=harness, scope=scope
     )
     adaptation = cast(list[dict[str, JsonValue]], fields["adaptations"])[0]
-    adapted = ScopeAdaptation.model_validate(cast(list[object], adaptation["scope_adaptations"])[0])
+    raw = cast(list[dict[str, Any]], adaptation["scope_adaptations"])[0]
+    if scope != "global":
+        # The engine admits a project projection only through its own surface.
+        surface = native_surface(harness, scope)
+        raw["required_surface"] = {
+            "profile_id": surface["profile_id"],
+            "profile_digest": surface["digest"],
+            "bundle_format": "ai-stp-bundle/2",
+        }
+        skills = next(name for name in surface["native_namespaces"] if name.endswith("skills"))
+        raw["members"][0]["path"] = f"{skills}/demo/SKILL.md"
+    adapted = ScopeAdaptation.model_validate(raw)
     payload = build_projection(adapted, {adapted.members[0].path: body})
     raw = adapted.model_dump(mode="json")
     raw["projection_artifact"] = {
