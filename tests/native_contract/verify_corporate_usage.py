@@ -190,10 +190,18 @@ async def qualify(
         ),
         encoding="utf-8",
     )
+
+    async def prepare(review: dict[str, Any]) -> dict[str, Any]:
+        """Prepare in the same state directory the plan was reviewed in."""
+        path = home / f"{review['plan']['operation_id']}.json"
+        path.write_text(json.dumps(review["plan"]), encoding="utf-8")
+        arguments = ("--plan", str(path), "--plan-digest", review["plan_digest"])
+        return await run("configuration", "native", "prepare", *arguments)
+
     review = await run(
         "configuration", "native", "plan", "--context", context, "--input", str(request)
     )
-    await enact(review, "configuration", "native", "prepare")
+    await prepare(review)
     operation, digest = review["plan"]["operation_id"], review["plan_digest"]
     receipt = await run(
         "configuration", "native", "apply", "--operation", operation, "--plan-digest", digest
@@ -261,7 +269,7 @@ async def qualify(
         "--plan-digest",
         receipt["review_digest"],
     )
-    await enact(removal, "configuration", "native", "prepare")
+    await prepare(removal)
     await run(
         "configuration",
         "native",
