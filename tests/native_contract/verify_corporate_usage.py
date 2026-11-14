@@ -218,8 +218,29 @@ async def qualify(
     assert receipt["original_context"]["context_id"] == context
 
     session = "native-usage-session-0001"
-    event = {"session_id": session, "cwd": str(checkout / "src"), "hook_event_name": "SessionStart"}
+    # Canaries in the fields a vendor event carries beside the two the hook reads,
+    # and in the checkout itself: none may reach the outbox or the server.
+    canary = "ai-stp-usage-canary-7f3c9e"
+    event = {
+        "session_id": session,
+        "cwd": str(checkout / "src"),
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "prompt": f"{canary}-prompt",
+        "transcript_path": str(checkout / f"{canary}-transcript.jsonl"),
+        "model": f"{canary}-model",
+    }
     (checkout / "src").mkdir(exist_ok=True)
+    (checkout / "src" / "secret.env").write_text(f"TOKEN={canary}-file\n", encoding="utf-8")
+
+    def leaked(directory: Path) -> list[str]:
+        """Files under `directory` holding a canary or the raw vendor session id."""
+        return [
+            str(path)
+            for path in directory.rglob("*")
+            if path.is_file()
+            and (canary.encode() in path.read_bytes() or session.encode() in path.read_bytes())
+        ]
 
     async def rows() -> int:
         async with app.state.sessionmaker() as db:
@@ -234,6 +255,7 @@ async def qualify(
     await hook(binary, home, state, event)
     queued = (await run("corporate", "usage", "status", "--context", context))["pending"]
     assert queued >= 1
+    assert leaked(state) == [], leaked(state)
     # The same vendor session is one observation per component, never a second event.
     await hook(binary, home, state, event)
     assert (await run("corporate", "usage", "status", "--context", context))["pending"] == queued
@@ -259,6 +281,10 @@ async def qualify(
         )
     native_rows = [row for row in stored if row.source == "native_hook"]
     assert len(native_rows) == queued
+    for row in native_rows:
+        columns = {column.key: getattr(row, column.key) for column in row.__table__.columns}
+        text = repr(columns)
+        assert canary not in text and session not in text, columns
     assert {row.harness for row in native_rows} == {"claude-code"}
     assert {row.project_id for row in native_rows} == {project}
     assert {row.activity_kind for row in native_rows} == {"load"}
@@ -303,4 +329,5 @@ async def qualify(
         "outside_checkout_ignored": True,
         "removed_installation_ignored": True,
         "hook_stdout_bytes": 0,
+        "canaries_absent_from_outbox_and_server": True,
     }
