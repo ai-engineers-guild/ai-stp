@@ -128,7 +128,7 @@ services:
     restart: "no"
     logging: *default-logging
 
-  api:
+  api: &api
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -176,6 +176,20 @@ services:
     init: true
     restart: always
     logging: *default-logging
+
+  # The standby runs the same release on a second loopback port. The deploy
+  # replaces the two one after the other, and the edge sends a request the
+  # stopped one refuses to the other, so a release has no window in which
+  # no upstream serves.
+  api-standby:
+    <<: *api
+    ports:
+      - "${AI_STP_API_STANDBY_BIND:-127.0.0.1:58085}:8000"
+    networks:
+      # web and the importer reach the API as `api`; either container answers.
+      internal:
+        aliases: [api]
+      edge: {}
 
   content-import:
     # One-shot after migrate + healthy API. Web waits for exit 0 (SPEC-054).
@@ -336,7 +350,7 @@ services:
     restart: always
     logging: *default-logging
 
-  web:
+  web: &web
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.web
@@ -382,7 +396,12 @@ services:
     restart: always
     logging: *default-logging
 
-  docs:
+  web-standby:
+    <<: *web
+    ports:
+      - "${AI_STP_WEB_STANDBY_BIND:-127.0.0.1:58084}:3000"
+
+  docs: &docs
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.docs
@@ -403,6 +422,11 @@ services:
       start_period: 5s
     restart: always
     logging: *default-logging
+
+  docs-standby:
+    <<: *docs
+    ports:
+      - "${AI_STP_DOCS_STANDBY_BIND:-127.0.0.1:58086}:8080"
 
 
 networks:

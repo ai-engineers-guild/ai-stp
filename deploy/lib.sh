@@ -213,7 +213,12 @@ start_serving_services() {
   # migrate and seed containers, and compose did that after it had stopped the
   # api and web containers it was recreating: production answered 502 for about
   # a minute of every deploy while migrations ran a second and third time.
+  #
+  # Each serving container has a standby on a second port, and the edge
+  # retries a refused connection on the other one. Replacing them one at a
+  # time, each waiting for health, keeps one of the pair serving throughout.
   compose up -d --no-deps --wait api
+  compose up -d --no-deps --wait api-standby
   # The importer posts this release's snapshot to the API that is now healthy,
   # and web is replaced only after it exits 0 (SPEC-054 REQ-5404); a failure
   # stops here with the previous web still serving. An exited importer
@@ -222,6 +227,7 @@ start_serving_services() {
   compose rm -fs content-import >/dev/null 2>&1 || true
   compose run --rm --no-deps content-import
   compose up -d --no-deps --wait web docs
+  compose up -d --no-deps --wait web-standby docs-standby
   # The worker waits for both scanner sidecars to report healthy.
   compose up -d --no-deps --wait osv-refresh clamav-refresh
   compose up -d --no-deps --wait worker

@@ -426,9 +426,11 @@ def test_the_serving_bring_up_replaces_each_service_once_in_order(tmp_path: Path
     assert all(line.startswith(prefix) for line in recorded), recorded
     assert [line.removeprefix(prefix) for line in recorded] == [
         "up -d --no-deps --wait api",
+        "up -d --no-deps --wait api-standby",
         "rm -fs content-import",
         "run --rm --no-deps content-import",
         "up -d --no-deps --wait web docs",
+        "up -d --no-deps --wait web-standby docs-standby",
         "up -d --no-deps --wait osv-refresh clamav-refresh",
         "up -d --no-deps --wait worker",
     ]
@@ -555,7 +557,7 @@ def test_edge_refuses_malformed_server_action_probes() -> None:
     assert 'if ($method_next_action ~ "^POST:.{1,9}$")' in config
     assert "return 400;" in config
     catch_all = config.split("location / {", maxsplit=1)[1].split("}", maxsplit=1)[0]
-    assert "proxy_pass http://@@WEB_BIND@@" in catch_all
+    assert "proxy_pass http://ai_stp_web_@@SITE@@" in catch_all
 
 
 def test_edge_routes_the_google_compatibility_callback_to_the_api() -> None:
@@ -564,7 +566,34 @@ def test_edge_routes_the_google_compatibility_callback_to_the_api() -> None:
         "}", maxsplit=1
     )[0]
 
-    assert "proxy_pass http://@@API_BIND@@" in block
+    assert "proxy_pass http://ai_stp_api_@@SITE@@" in block
+
+
+def test_every_edge_upstream_has_a_standby_the_deploy_replaces_second() -> None:
+    """A release replaced the only api and web containers and the edge answered 502.
+
+    Each upstream now names the serving container and a backup on its own port,
+    nginx moves a refused connection to the other, and the bring-up replaces the
+    pair one after the other, so one of them serves throughout a release.
+    """
+    compose = Path("deploy/compose.prod.yml").read_text(encoding="utf-8")
+    lib = Path("deploy/lib.sh").read_text(encoding="utf-8")
+    for name, template, standby_bind in [
+        ("api", "ai-stp.conf.template", "API_STANDBY_BIND"),
+        ("web", "ai-stp.conf.template", "WEB_STANDBY_BIND"),
+        ("docs", "ai-stp-docs.conf.template", "DOCS_STANDBY_BIND"),
+    ]:
+        config = Path("deploy/nginx", template).read_text(encoding="utf-8")
+        upstream = config.split(f"upstream ai_stp_{name}_@@SITE@@ {{", maxsplit=1)[1]
+        upstream = upstream.split("}", maxsplit=1)[0]
+        assert f"server @@{name.upper()}_BIND@@ max_fails=1" in upstream
+        assert f"server @@{standby_bind}@@ backup;" in upstream
+        assert "proxy_next_upstream error timeout;" in config
+        assert f"  {name}-standby:\n    <<: *{name}\n" in compose
+        assert f"AI_STP_{standby_bind}" in compose
+        bring_up = [line.split() for line in lib.splitlines() if "up -d --no-deps --wait" in line]
+        primary = next(i for i, words in enumerate(bring_up) if name in words)
+        assert primary < next(i for i, words in enumerate(bring_up) if f"{name}-standby" in words)
 
 
 def test_no_workflow_carries_a_deployment_credential_or_reaches_the_target() -> None:
