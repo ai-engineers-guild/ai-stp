@@ -82,6 +82,12 @@ WEB_BIND="${AI_STP_WEB_BIND:-$(env_value AI_STP_WEB_BIND)}"
 readonly WEB_BIND="${WEB_BIND:-127.0.0.1:58081}"
 DOCS_BIND="${AI_STP_DOCS_BIND:-$(env_value AI_STP_DOCS_BIND)}"
 readonly DOCS_BIND="${DOCS_BIND:-127.0.0.1:58083}"
+API_STANDBY_BIND="${AI_STP_API_STANDBY_BIND:-$(env_value AI_STP_API_STANDBY_BIND)}"
+readonly API_STANDBY_BIND="${API_STANDBY_BIND:-127.0.0.1:58085}"
+WEB_STANDBY_BIND="${AI_STP_WEB_STANDBY_BIND:-$(env_value AI_STP_WEB_STANDBY_BIND)}"
+readonly WEB_STANDBY_BIND="${WEB_STANDBY_BIND:-127.0.0.1:58084}"
+DOCS_STANDBY_BIND="${AI_STP_DOCS_STANDBY_BIND:-$(env_value AI_STP_DOCS_STANDBY_BIND)}"
+readonly DOCS_STANDBY_BIND="${DOCS_STANDBY_BIND:-127.0.0.1:58086}"
 TLS_LINEAGE="${AI_STP_TLS_LINEAGE:-$(env_value AI_STP_TLS_LINEAGE)}"
 readonly TLS_LINEAGE="${TLS_LINEAGE:-${MAIN_PRIMARY}}"
 DOCS_TLS_LINEAGE="${AI_STP_DOCS_TLS_LINEAGE:-$(env_value AI_STP_DOCS_TLS_LINEAGE)}"
@@ -89,6 +95,9 @@ readonly DOCS_TLS_LINEAGE="${DOCS_TLS_LINEAGE:-${DOCS_PRIMARY}}"
 validate_bind "${API_BIND}" AI_STP_API_BIND
 validate_bind "${WEB_BIND}" AI_STP_WEB_BIND
 validate_bind "${DOCS_BIND}" AI_STP_DOCS_BIND
+validate_bind "${API_STANDBY_BIND}" AI_STP_API_STANDBY_BIND
+validate_bind "${WEB_STANDBY_BIND}" AI_STP_WEB_STANDBY_BIND
+validate_bind "${DOCS_STANDBY_BIND}" AI_STP_DOCS_STANDBY_BIND
 validate_lineage "${TLS_LINEAGE}" AI_STP_TLS_LINEAGE
 validate_lineage "${DOCS_TLS_LINEAGE}" AI_STP_DOCS_TLS_LINEAGE
 
@@ -98,8 +107,10 @@ render() (
     echo "skip ${template}: no host name configured"
     return 0
   fi
-  local host
+  local host site
   host="$(primary "${names}")"
+  # Upstream names are global to nginx, so each site's names carry its host.
+  site="${host//[^A-Za-z0-9]/_}"
   if [[ ! -s "/etc/letsencrypt/live/${lineage}/fullchain.pem" ]]; then
     echo "skip ${host}: no certificate under lineage '${lineage}'; run certbot first" >&2
     return 1
@@ -124,6 +135,10 @@ render() (
       -e "s|@@API_BIND@@|${API_BIND}|g" \
       -e "s|@@WEB_BIND@@|${WEB_BIND}|g" \
       -e "s|@@DOCS_BIND@@|${DOCS_BIND}|g" \
+      -e "s|@@API_STANDBY_BIND@@|${API_STANDBY_BIND}|g" \
+      -e "s|@@WEB_STANDBY_BIND@@|${WEB_STANDBY_BIND}|g" \
+      -e "s|@@DOCS_STANDBY_BIND@@|${DOCS_STANDBY_BIND}|g" \
+      -e "s|@@SITE@@|${site}|g" \
       "${ROOT}/deploy/nginx/${template}" > "${staged}" || return 2
   if "${existing}"; then
     cp --attributes-only --preserve=mode,ownership,xattr -- "${destination}" "${staged}" ||

@@ -7,6 +7,7 @@ import {
   checkoutPath,
   checkoutReceipt,
   checkoutReview,
+  checkoutReviewMismatch,
   type CheckoutAction,
   type CheckoutReview,
 } from "../checkoutLinks";
@@ -100,7 +101,17 @@ export default function CheckoutPreview({
         record(result.data?.preview),
         request ?? undefined,
       );
-      if (response.ok && !exact) response = checkoutFailure();
+      if (response.ok && !exact)
+        response = checkoutFailure(
+          checkoutReviewMismatch(
+            response,
+            action,
+            context,
+            project.id,
+            record(result.data?.preview),
+            request ?? undefined,
+          ) ?? undefined,
+        );
       setOperationResult(response);
       if (exact) setReview(exact);
     } finally {

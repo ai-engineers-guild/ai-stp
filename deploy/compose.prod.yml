@@ -55,12 +55,11 @@ services:
     # `api` waits on a healthy `rustfs` and never left `Created`, and the site
     # served 502 until the path was corrected (`#394`).
     #
-    # 1.0.1 replaced 1.0.0-beta.8, which sixteen published advisories (two
-    # critical) affect. The upgrade was rehearsed on a beta.8 volume seeded
-    # through `ImmutableObjectStore`: every object read back digest-verified,
-    # new writes and the private-bucket test passed, anonymous reads got 403.
+    # A new pin first passes the `rustfs-rehearsal` workflow on a volume the
+    # current pin wrote: every object reads back digest-verified, new writes
+    # succeed and anonymous reads are refused.
     # yamllint disable-line rule:line-length
-    image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+    image: rustfs/rustfs:1.0.5@sha256:b81d16a90ee25bd9511280127ca1471788c6e874cf0f0da759645f46b2dc1d74
     # The store receives exactly its own credential pair — which must equal the
     # AI_STP_STORAGE_* pair the API uses, and the deploy preflight compares
     # them before any effect. As with postgres, `env_file` would leak every
@@ -129,7 +128,7 @@ services:
     restart: "no"
     logging: *default-logging
 
-  api:
+  api: &api
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -177,6 +176,20 @@ services:
     init: true
     restart: always
     logging: *default-logging
+
+  # The standby runs the same release on a second loopback port. The deploy
+  # replaces the two one after the other, and the edge sends a request the
+  # stopped one refuses to the other, so a release has no window in which
+  # no upstream serves.
+  api-standby:
+    <<: *api
+    ports:
+      - "${AI_STP_API_STANDBY_BIND:-127.0.0.1:58085}:8000"
+    networks:
+      # web and the importer reach the API as `api`; either container answers.
+      internal:
+        aliases: [api]
+      edge: {}
 
   content-import:
     # One-shot after migrate + healthy API. Web waits for exit 0 (SPEC-054).
@@ -337,7 +350,7 @@ services:
     restart: always
     logging: *default-logging
 
-  web:
+  web: &web
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.web
@@ -383,7 +396,12 @@ services:
     restart: always
     logging: *default-logging
 
-  docs:
+  web-standby:
+    <<: *web
+    ports:
+      - "${AI_STP_WEB_STANDBY_BIND:-127.0.0.1:58084}:3000"
+
+  docs: &docs
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.docs
@@ -404,6 +422,11 @@ services:
       start_period: 5s
     restart: always
     logging: *default-logging
+
+  docs-standby:
+    <<: *docs
+    ports:
+      - "${AI_STP_DOCS_STANDBY_BIND:-127.0.0.1:58086}:8080"
 
 
 networks:

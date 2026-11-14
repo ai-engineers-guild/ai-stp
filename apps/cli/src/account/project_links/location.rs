@@ -399,7 +399,7 @@ fn make(
         Some(path) => PathBuf::from(files::location(&projects::open_root(path)?.0)?),
         None => held.checkout_root.clone(),
     };
-    let checkout_spelling = projects::open_root(&destination)?.0;
+    let checkout_spelling = PathBuf::from(files::location(&projects::open_root(&destination)?.0)?);
     state_stays_present(&owner, &destination)?;
     let (physical, git_physical) = physical(&destination)?;
     let checkout = checkout::observe(&destination, git)?;
