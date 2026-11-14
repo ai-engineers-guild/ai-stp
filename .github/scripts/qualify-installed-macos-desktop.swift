@@ -313,12 +313,35 @@ func key(_ process: Process, _ code: CGKeyCode, flags: CGEventFlags = []) throws
     up.post(tap: .cghidEventTap)
 }
 
+/// The bundle of the application that holds keyboard focus, for a failure report.
+func focusedBundle() -> String {
+    NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "none"
+}
+
 func enter(_ process: Process, _ field: AXUIElement, _ value: String) throws {
+    // Another application on the runner, such as a browser opened earlier in the
+    // journey, can take focus mid-entry; refocus and enter the whole value again.
+    for attempt in 1...3 {
+        do {
+            try enterOnce(process, field, value)
+            return
+        } catch let failure as FocusLost {
+            if attempt == 3 {
+                throw ProbeFailure("Keyboard input lost its owned application to \(failure.bundle)")
+            }
+            FileHandle.standardError.write("Keyboard focus moved to \(failure.bundle); entering again\n".data(using: .utf8)!)
+        }
+    }
+}
+
+struct FocusLost: Error { let bundle: String }
+
+func enterOnce(_ process: Process, _ field: AXUIElement, _ value: String) throws {
     try focus(process, field)
     try key(process, 0, flags: .maskCommand)
     for scalar in value.unicodeScalars {
-        try check(process.isRunning && ownsKeyboard(process),
-            "Keyboard input lost its owned application")
+        try check(process.isRunning, "Installed Desktop exited during keyboard input")
+        if !ownsKeyboard(process) { throw FocusLost(bundle: focusedBundle()) }
         var characters = Array(String(scalar).utf16)
         guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
             let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)
