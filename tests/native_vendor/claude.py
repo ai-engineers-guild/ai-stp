@@ -114,10 +114,12 @@ def write_agent(root: Path, name: str, description: str) -> Path:
     return path
 
 
-def hook_configuration(root: Path) -> tuple[dict[str, Any], Path]:
+def hook_configuration(root: Path, usage: list[str] | None = None) -> tuple[dict[str, Any], Path]:
+    """A SessionStart hook recording each dispatch; with `usage`, it also hands the
+    exact event to the ai-stp usage hook command and records how that exited."""
     script, receipt = root / "hook.py", root / "hook-events.jsonl"
     script.write_text(
-        "import json,sys\n"
+        "import json,subprocess,sys\n"
         "from pathlib import Path\n"
         "payload=sys.stdin.buffer.read(32769)\n"
         "assert len(payload)<=32768\n"
@@ -126,8 +128,13 @@ def hook_configuration(root: Path) -> tuple[dict[str, Any], Path]:
         # The fields the corporate usage hook reads to attribute a session.
         "assert isinstance(data['session_id'],str) and data['session_id']\n"
         "assert Path(data['cwd']).is_absolute()\n"
+        "row={'event':'SessionStart','source':'startup'}\n"
+        "if len(sys.argv)>2:\n"
+        " done=subprocess.run(sys.argv[2:],input=payload,capture_output=True,timeout=8)\n"
+        " row['usage_hook']={'exit':done.returncode,'stdout':len(done.stdout),"
+        "'stderr':len(done.stderr)}\n"
         "with Path(sys.argv[1]).open('a',encoding='utf-8') as stream:\n"
-        " stream.write(json.dumps({'event':'SessionStart','source':'startup'})+'\\n')\n",
+        " stream.write(json.dumps(row)+'\\n')\n",
         encoding="utf-8",
     )
     return (
@@ -140,7 +147,7 @@ def hook_configuration(root: Path) -> tuple[dict[str, Any], Path]:
                             {
                                 "type": "command",
                                 "command": sys.executable,
-                                "args": [str(script), str(receipt)],
+                                "args": [str(script), str(receipt), *(usage or [])],
                                 "timeout": 10,
                                 "onFailure": "block",
                             }
@@ -159,7 +166,12 @@ def hook_events(path: Path) -> list[dict[str, str]]:
     data = path.read_bytes()
     assert len(data) <= 32768 and data.endswith(b"\n")
     rows = [json.loads(line) for line in data.split(b"\n") if line]
-    assert rows and all(row == {"event": "SessionStart", "source": "startup"} for row in rows)
+    assert rows and all(
+        {key: row[key] for key in ("event", "source")}
+        == {"event": "SessionStart", "source": "startup"}
+        and set(row) <= {"event", "source", "usage_hook"}
+        for row in rows
+    )
     return rows
 
 
@@ -342,7 +354,18 @@ def qualify_installed_hook(
 ) -> dict[str, Any]:
     case = installation.Installation(engine, root / "i-hook", "CLAUDE_CONFIG_DIR")
     case.environment["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"
-    configuration, events = hook_configuration(case.root)
+    # The hook also dispatches the real event to the installed ai-stp usage hook.
+    usage = [
+        str(engine),
+        "corporate",
+        "usage",
+        "hook",
+        "--harness",
+        "claude-code",
+        "--state-dir",
+        str(case.state),
+    ]
+    configuration, events = hook_configuration(case.root, usage)
     (case.source / "settings.json").write_text(json.dumps(configuration), encoding="utf-8")
     receipt = case.install("claude-code", "hook", PREFIX + "installed-hook", "global")
     path = case.vendor_home / "settings.json"
@@ -350,6 +373,11 @@ def qualify_installed_hook(
     with reader(executable, case.project, case.environment, case.root / "reader.log") as rpc:
         rpc.initialize()
         observations = wait_hook_events(events, 1)
+        # Claude Code ran the usage hook on its own event: it exited 0 and wrote
+        # nothing to stdout or stderr, so it neither blocked nor fed the model.
+        assert all(
+            row.get("usage_hook") == {"exit": 0, "stdout": 0, "stderr": 0} for row in observations
+        ), observations
         removal = case.remove(receipt)
         case.run(case.apply_arguments(removal), refused=True)
         assert binary_digest(path) == expected
@@ -366,6 +394,7 @@ def qualify_installed_hook(
         "original_context_preserved_across_selected_view": True,
         "hook_event": "SessionStart",
         "hook_source": "startup",
+        "usage_hook_dispatched_by_vendor_exit_0_silent": True,
         "observations": len(observations),
         "active_reader_refusal_preserves_bytes": True,
         "original_removal_after_reader_exit": True,
