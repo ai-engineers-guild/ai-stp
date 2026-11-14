@@ -72,6 +72,7 @@ class QualificationTests(unittest.TestCase):
                 "PRIVATE_REPOSITORY": json.dumps(private),
                 "PHASE": phase,
                 "WASI_SELECTED": "true",
+                "CLI_SELECTED": "true" if phase == "full" else "false",
             },
         )
         return outcome.returncode == 0
@@ -146,6 +147,11 @@ class QualificationTests(unittest.TestCase):
             if name == "wasi-confinement":
                 self.assertEqual(job["needs"], "native-experiments")
                 self.assertEqual(job["if"], "needs.native-experiments.outputs.wasi == 'true'")
+                continue
+            if name == "cli":
+                # A pull request touching native code runs its Linux leg.
+                self.assertEqual(job["needs"], "native-experiments")
+                self.assertEqual(job["if"], "needs.native-experiments.outputs.cli == 'true'")
                 continue
             expected = (
                 "github.event_name == 'pull_request'"
