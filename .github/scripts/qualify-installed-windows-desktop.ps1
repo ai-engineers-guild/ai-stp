@@ -74,75 +74,6 @@ trap {
             }
         }
         try {
-            # Window and helper-process states explain a missing main window.
-            foreach ($owner in $owners) {
-                foreach ($state in [NativeDesktopInput]::TopLevelWindowStates([uint32] $owner.Id)) {
-                    $null = $codes.Add($state)
-                }
-            }
-        } catch {
-            $null = $codes.Add('state:scan_windows_failed')
-        }
-        try {
-            # The launched app's own exit code and panic location separate a crash
-            # from a lost window; the panic message itself is never reported.
-            if ($null -ne $process -and $process.WaitForExit(5000)) {
-                $null = $codes.Add('process:app_exit_' + ('{0:x8}' -f $process.ExitCode))
-            }
-        } catch {
-            $null = $codes.Add('state:scan_exit_code_failed')
-        }
-        try {
-            if ($null -ne $process) {
-                $desktopId = '0x{0:x}' -f $process.Id
-                $audit = @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
-                    LogName = 'Security'; Id = 4688, 4689; StartTime = (Get-Date).AddMinutes(-10)
-                })
-                foreach ($entry in $audit) {
-                    $data = @{}
-                    foreach ($field in ([xml] $entry.ToXml()).Event.EventData.Data) { $data[$field.Name] = [string] $field.'#text' }
-                    if ($entry.Id -eq 4689 -and $data['ProcessId'] -eq $desktopId) {
-                        $null = $codes.Add('event:desktop_exit_' + ($data['Status'] -replace '[^a-z0-9]', ''))
-                    }
-                    if ($entry.Id -eq 4688) {
-                        $name = [IO.Path]::GetFileNameWithoutExtension($data['NewProcessName']).ToLowerInvariant() -replace '[^a-z0-9]', '_'
-                        if ($data['ProcessId'] -eq $desktopId -or $data['ParentProcessName'] -match 'ai-stp-desktop\.exe$') {
-                            $null = $codes.Add('process:spawned_' + $name)
-                        }
-                        if ($name -eq 'taskkill' -and $data['CommandLine'] -match ('/PID\s+' + $process.Id + '\b')) {
-                            $null = $codes.Add('state:taskkill_targeted_desktop')
-                        }
-                    }
-                }
-            }
-        } catch {
-            $null = $codes.Add('state:scan_audit_failed')
-        }
-        try {
-            foreach ($entry in @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
-                LogName = 'Application'; ProviderName = 'Microsoft-Windows-ProcessExitMonitor'
-                StartTime = (Get-Date).AddMinutes(-15)
-            })) {
-                $values = @(([xml] $entry.ToXml()).Event.EventData.Data | ForEach-Object { [string] $_.'#text' })
-                if ($values.Count -ge 1 -and $values[0] -match 'ai-stp-desktop\.exe$') {
-                    if ($entry.Id -eq 3001 -and $values.Count -ge 3) {
-                        $killer = [IO.Path]::GetFileNameWithoutExtension($values[1]).ToLowerInvariant() -replace '[^a-z0-9]', '_'
-                        $null = $codes.Add('process:ended_by_' + $killer.Substring(0, [Math]::Min(28, $killer.Length)))
-                    } else {
-                        $null = $codes.Add('process:ended_by_itself')
-                    }
-                }
-            }
-        } catch {
-            $null = $codes.Add('state:scan_exit_monitor_failed')
-        }
-        try {
-            $reporting = Get-Service -Name WerSvc -ErrorAction SilentlyContinue
-            $null = $codes.Add('state:wersvc_' + $(if ($null -eq $reporting) { 'absent' } else { ([string] $reporting.Status).ToLowerInvariant() }))
-        } catch {
-            $null = $codes.Add('state:scan_error_reporting_failed')
-        }
-        try {
             $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
             if (Test-Path -LiteralPath $errors) {
                 foreach ($line in @(Select-String -LiteralPath $errors -Pattern '^ai-stp-desktop lifecycle: ([a-z-]{1,40})$')) {
@@ -176,15 +107,6 @@ trap {
         } catch {
             $null = $codes.Add('state:scan_crash_events_failed')
         }
-        try {
-            foreach ($helper in @('ai-stp-desktop-cli', 'git', 'git-credential-manager', 'WerFault', 'msedgewebview2')) {
-                if (@(Get-Process -Name $helper -ErrorAction SilentlyContinue).Count) {
-                    $null = $codes.Add('process:' + $helper.ToLowerInvariant().Replace('-', '_'))
-                }
-            }
-        } catch {
-            $null = $codes.Add('state:scan_helpers_failed')
-        }
         if (!$codes.Count) { $null = $codes.Add('state:nothing_visible') }
         # The broker admits at most sixteen closed codes.
         [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 ' + (@($codes | Select-Object -First 16) -join ','))
@@ -192,26 +114,13 @@ trap {
         [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_ERRORS_V1 state:scan_failed')
     }
     [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_FAILURE_V1 ' + $location)
+    if ($null -ne $process -and !$process.HasExited) { Stop-Process -Id $process.Id }
     [Console]::Error.WriteLine('Native owner call site: ' + $_.ScriptStackTrace)
     throw $_
 }
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows') {
     throw 'A disposable hosted Windows runner is required'
 }
-# The disposable runner records process creation and exit, so a failure can name what
-# ended the app. Only closed process names and codes leave the runner.
-$null = & auditpol.exe /set /subcategory:'Process Creation' /success:enable
-$null = & auditpol.exe /set /subcategory:'Process Termination' /success:enable
-$null = New-ItemProperty -Force -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -PropertyType DWord -Value 1
-# Silent process exit monitoring names the process that ended the app, or a self exit.
-$exitOptions = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ai-stp-desktop.exe'
-$exitMonitor = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SilentProcessExit\ai-stp-desktop.exe'
-$null = New-Item -Force -Path $exitOptions, $exitMonitor
-$null = New-ItemProperty -Force -Path $exitOptions -Name GlobalFlag -PropertyType DWord -Value 0x200
-$null = New-ItemProperty -Force -Path $exitMonitor -Name ReportingMode -PropertyType DWord -Value 0
-# Exit monitoring and crash events are written by Windows Error Reporting.
-Set-Service -Name WerSvc -StartupType Manual -ErrorAction SilentlyContinue
-Start-Service -Name WerSvc -ErrorAction SilentlyContinue
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'PowerShell 7 is required' }
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 owner')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
@@ -1602,9 +1511,8 @@ try {
     }
 } catch {
     if (!$corporateStarted) { Save-NativeFailureImage $process }
+    # The failure scan reads the live app first; the trap ends the app afterwards.
     throw
-} finally {
-    if (!$process.HasExited) { Stop-Process -Id $process.Id }
 }
 
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 complete')

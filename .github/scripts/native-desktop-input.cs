@@ -114,53 +114,6 @@ public static class NativeDesktopInput
     private static extern int DwmGetWindowAttribute(
         IntPtr window, uint attribute, out Rectangle value, uint size);
 
-    private delegate bool WindowVisitor(IntPtr window, IntPtr data);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool EnumWindows(WindowVisitor visitor, IntPtr data);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsWindowVisible(IntPtr window);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsIconic(IntPtr window);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool IsHungAppWindow(IntPtr window);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetWindow(IntPtr window, uint command);
-
-    [DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode)]
-    private static extern int GetClassName(IntPtr window, System.Text.StringBuilder name, int size);
-
-    // Closed states of the top-level windows of one process. Windows replaces a hung window on
-    // screen with a system "Ghost" window, so the process then has no visible main window.
-    public static string[] TopLevelWindowStates(uint process)
-    {
-        var states = new System.Collections.Generic.SortedSet<string>();
-        EnumWindows((window, data) => {
-            uint owner;
-            GetWindowThreadProcessId(window, out owner);
-            var name = new System.Text.StringBuilder(64);
-            GetClassName(window, name, name.Capacity);
-            if (name.ToString() == "Ghost" && IsWindowVisible(window))
-                states.Add("window:ghost");
-            if (owner != process)
-                return true;
-            states.Add(IsWindowVisible(window) ? "window:visible" : "window:hidden");
-            if (IsIconic(window)) states.Add("window:minimized");
-            if (IsHungAppWindow(window)) states.Add("window:hung");
-            if (GetWindow(window, 4) != IntPtr.Zero) states.Add("window:owned");
-            return true;
-        }, IntPtr.Zero);
-        return new System.Collections.Generic.List<string>(states).ToArray();
-    }
-
     public static int[] WorkArea(IntPtr window)
     {
         var info = new MonitorInfo { Size = (uint)Marshal.SizeOf(typeof(MonitorInfo)) };
