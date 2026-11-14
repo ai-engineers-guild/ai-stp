@@ -89,6 +89,7 @@ async def journeys(
     *,
     credential_store: str = "file",
     historical_consumers: bool = True,
+    usage_only: bool = False,
 ) -> None:
     home, state = root / "consumer", root / "state"
     home.mkdir()
@@ -1215,6 +1216,7 @@ async def journeys(
         old_recoveries=[recovery, missing],
         foreign_context=contexts[1],
         historical_consumers=historical_consumers,
+        usage_only=usage_only,
     )
 
 
@@ -1225,6 +1227,7 @@ async def prove(
     *,
     credential_store: str = "file",
     historical_consumers: bool = True,
+    usage_only: bool = False,
 ) -> None:
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -1255,6 +1258,7 @@ async def prove(
                     origin,
                     credential_store=credential_store,
                     historical_consumers=historical_consumers,
+                    usage_only=usage_only,
                 )
             finally:
                 server.should_exit = True
@@ -1274,6 +1278,23 @@ def main() -> None:
             os.environ["AI_STP_DB_URL"] = url
             command.upgrade(Config("alembic.ini"), "head")
             asyncio.run(prove(binary, url, Path(temporary)))
+        finally:
+            if saved is None:
+                os.environ.pop("AI_STP_DB_URL", None)
+            else:
+                os.environ["AI_STP_DB_URL"] = saved
+    # Corporate usage needs the native configuration format, which every
+    # journey after the named checkout predates, so it runs in its own store.
+    with (
+        tempfile.TemporaryDirectory(prefix="ai-stp-corporate-usage-") as temporary,
+        isolated_database(
+            "AI_STP_TEST_DB_URL is required for native corporate qualification"
+        ) as url,
+    ):
+        try:
+            os.environ["AI_STP_DB_URL"] = url
+            command.upgrade(Config("alembic.ini"), "head")
+            asyncio.run(prove(binary, url, Path(temporary), usage_only=True))
         finally:
             if saved is None:
                 os.environ.pop("AI_STP_DB_URL", None)

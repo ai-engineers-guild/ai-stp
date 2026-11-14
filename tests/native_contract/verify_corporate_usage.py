@@ -15,7 +15,7 @@ from typing import Any
 
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
-from tests.native_contract.verify_ownership import cli_environment
+from tests.native_contract.verify_ownership import cli_environment, native
 from tests.support.catalog_seed import FIXTURE_SETUP_ID
 from tests.support.native_catalog import store_fixture_artifacts
 
@@ -57,8 +57,6 @@ async def qualify(
     home: Path,
     state: Path,
     app: Any,
-    run: Native,
-    enact: Native,
     organization: str,
     project: str,
     account: str,
@@ -67,6 +65,16 @@ async def qualify(
     binding: str,
     checkout: Path,
 ) -> dict[str, Any]:
+    async def run(*arguments: str) -> dict[str, Any]:
+        return await native(binary, home, [*arguments, "--state-dir", str(state)])
+
+    async def enact(planned: dict[str, Any], *prefix: str) -> dict[str, Any]:
+        path = home / "usage-plan.json"
+        path.write_text(json.dumps(planned["plan"]), encoding="utf-8")
+        # An applied plan names its own state; apply takes no state selector.
+        arguments = [*prefix, "--plan", str(path), "--plan-digest", planned["plan_digest"]]
+        return await native(binary, home, arguments)
+
     async with app.state.sessionmaker() as db:
         issued = await issue_session(db, account_id=account, device_id=None, ttl_seconds=600)
         await db.commit()
