@@ -171,6 +171,36 @@ def sample(module: Any, driver_path: Path, root: Path) -> dict[str, Any]:
         driver.close()
 
 
+#: The responsiveness limit, relative to the released baseline measured on the
+#: same worker in the same ABBA run: the current p50 may exceed the baseline p50
+#: by at most 25 % plus 20 ms. Recent runs moved by up to about 18 % between the
+#: two sources, so the margin passes ordinary noise and refuses a real regression.
+LIMIT_RATIO = 1.25
+LIMIT_SLACK_MS = 20.0
+
+
+def regressions(summaries: dict[str, Any]) -> list[str]:
+    """Measures whose current p50 is beyond the limit over the baseline."""
+    base, current = summaries["baseline"], summaries["current"]
+    pairs = [
+        (key, base[key], current[key])
+        for key in ("usable_start_ms", "webview_usable_ms", "first_settings_renderer_ms")
+    ] + [
+        (
+            f"renderer_navigation.{route}",
+            base["renderer_navigation"][route],
+            current["renderer_navigation"][route],
+        )
+        for route in ("profiles", "settings", "overview")
+    ]
+    return [
+        f"{name}: current p50 {now['p50_ms']} ms > limit "
+        f"{round(before['p50_ms'] * LIMIT_RATIO + LIMIT_SLACK_MS, 2)} ms"
+        for name, before, now in pairs
+        if now["p50_ms"] > before["p50_ms"] * LIMIT_RATIO + LIMIT_SLACK_MS
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline-directory", type=Path, required=True)
@@ -303,6 +333,9 @@ def main() -> None:
     }
     args.out.write_text(json.dumps(proof, indent=2) + "\n")
     print(json.dumps({"installed_desktop_performance": summaries}), flush=True)
+    # The proof is written first, so a refused run still keeps its measurements.
+    if failed := regressions(summaries):
+        raise ValueError("Desktop responsiveness limit exceeded: " + "; ".join(failed))
 
 
 if __name__ == "__main__":
