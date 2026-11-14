@@ -8,6 +8,7 @@ import os
 import secrets
 import shutil
 import socket
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any, cast
@@ -301,7 +302,13 @@ def main() -> None:
                 os.environ[key] = value
         # Refused ownership never authorizes deleting potentially live fixture state.
         if complete:
-            shutil.rmtree(root)
+            shutil.rmtree(root, onexc=writable_and_retry)
+
+
+def writable_and_retry(function: Any, path: str, _error: BaseException) -> None:
+    """Git writes its objects read-only, which Windows refuses to unlink."""
+    Path(path).chmod(stat.S_IWRITE)
+    function(path)
 
 
 if __name__ == "__main__":
