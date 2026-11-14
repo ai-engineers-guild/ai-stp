@@ -444,11 +444,18 @@ func openPublicPlan(_ process: Process, _ catalogs: Catalogs,
             value.intValue == 0 || value.intValue == 1 { return value.intValue == 1 }
         return nil
     }
-    if expanded() != true {
+    // A Space press that lands while the review re-renders is lost, and the
+    // disclosure stays closed; press again only while it is still closed.
+    for attempt in 1...3 {
+        if expanded() == true { return }
         try focus(process, disclosure)
         try key(process, 49)
+        if (try? wait("expanded public plan disclosure", seconds: 15) {
+            expanded() == true ? true : nil
+        }) != nil { return }
+        if attempt == 3 { break }
     }
-    _ = try wait("expanded public plan disclosure") {
+    _ = try wait("expanded public plan disclosure", seconds: 1) {
         expanded() == true ? true : nil
     }
 }
