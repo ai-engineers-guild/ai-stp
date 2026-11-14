@@ -768,6 +768,19 @@ def second_company(
     assert contexts[second]["authority"]["organization"]["organization_id"] == organization
     assert contexts[second]["authority"]["account"]["account_id"] == account
     assert contexts[first]["authority"]["organization"]["organization_id"] != organization
+    # A checkout review opened in one company never follows a view switch.
+    preview = 'main section[aria-label="Corporate checkout preview"]'
+
+    def preview_open() -> bool:
+        return bool(driver.read("return !!document.querySelector(arguments[0]);", preview))
+
+    view(first, "Installed shared project", SECOND_COMPANY_PROJECT)
+    driver.click(driver.button("Review local checkout"))
+    driver.wait(preview_open, "checkout review in the first company")
+    view(second, SECOND_COMPANY_PROJECT, "Installed shared project")
+    assert not preview_open(), "a checkout review followed the switch to another company"
+    view(first, "Installed shared project", SECOND_COMPANY_PROJECT)
+    assert not preview_open(), "a dismissed checkout review returned after switching back"
     # The second company suspends this member: its reads stop, the first company's continue.
     suspend()
     current = native(binary, environment, ["context", "list"])["selected"]["context_id"]
@@ -800,6 +813,7 @@ def second_company(
     return {
         "foreign_organization_context_refused": envelope["error"]["code"],
         "removed_membership_reads_refused": True,
+        "pending_checkout_review_dropped_on_view_switch": True,
         "suspended_membership_reads_refused": True,
         "other_company_unaffected_by_suspension": True,
         "second_company_context": second,
