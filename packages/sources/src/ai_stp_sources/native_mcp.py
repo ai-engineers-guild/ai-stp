@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import re
 import tomllib
-import unicodedata
 from collections.abc import Mapping
 from decimal import Decimal
 from typing import cast
@@ -13,6 +12,7 @@ from urllib.parse import parse_qsl
 
 from pydantic import AnyUrl, ValidationError
 
+from ai_stp_foundation import unicodedata
 from ai_stp_sources.native_frontmatter import invalid
 
 _SENSITIVE = frozenset(
