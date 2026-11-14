@@ -26,7 +26,9 @@ def lose_enrollment_key(state: Path, device_id: str, credential_store: str) -> N
     relative = state.resolve(strict=True).relative_to(temporary)
     assert len(relative.parts) == 3
     assert relative.parts[0].startswith("ai-stp-native-corporate-")
-    assert relative.parts[1:] == ("corporate", "state")
+    # The main corporate run and its separate usage run each own one fixture.
+    assert relative.parts[1] in {"corporate", "corporate-usage"}
+    assert relative.parts[2] == "state"
     assert not path.exists(), "The OS-vault fault cannot delete a file-backend key"
     if platform.system() == "Darwin":
         observed = subprocess.run(
