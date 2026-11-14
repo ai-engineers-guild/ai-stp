@@ -17,6 +17,7 @@ import runpy
 import socket
 import sqlite3
 import subprocess
+import time
 import unicodedata
 from collections.abc import Callable
 from contextlib import closing
@@ -94,7 +95,23 @@ def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
         ),
         label,
     )
-    driver.click(option)
+    # WebKitGTK's native select popup sometimes swallows the option click without
+    # a change event; the app then never saw a choice. Count delivered events and
+    # repeat only an undelivered click, never a choice the app received.
+    driver.read(
+        "const e=arguments[0];e.__aiStpChanges=0;"
+        "e.addEventListener('change',()=>{e.__aiStpChanges++;});",
+        select_element,
+    )
+    for _ in range(3):
+        driver.click(option)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if driver.read("return arguments[0].__aiStpChanges;", select_element):
+                break
+            time.sleep(0.1)
+        if driver.read("return arguments[0].__aiStpChanges;", select_element):
+            break
 
     # Context switching disables this control until its native plan/apply and
     # refresh finish. Observe completion before sending another real key event.
@@ -107,7 +124,7 @@ def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
     except ValueError:
         state = driver.read(
             "const s=document.querySelector(arguments[0]);const e=s?.querySelector('select');"
-            "return JSON.stringify({value:e?.value,disabled:e?.disabled,"
+            "return JSON.stringify({value:e?.value,disabled:e?.disabled,changes:e?.__aiStpChanges,"
             "options:[...(e?.options??[])].map(o=>o.value),text:s?.innerText});",
             scope if scope != "main" else "main",
         )
