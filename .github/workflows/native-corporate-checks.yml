@@ -65,16 +65,18 @@ jobs:
         with:
           persist-credentials: false
       - name: Prepare the declared hosted SDK
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         with:
           python-version: '3.15.2'
           uv-version: '0.13.7'
       - uses: ./.github/actions/project-rust
       - name: Admit the exact current Dev qualification
         if: inputs.diagnostic_only
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         env:
           GH_TOKEN: ${{ github.token }}
           AI_STP_DESKTOP_DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_app_source }}
@@ -91,19 +93,22 @@ jobs:
           path: ${{ runner.temp }}/qualified-native-cli
       - name: Prepare the pinned official macOS PostgreSQL distribution
         if: runner.os == 'macOS'
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/release-assets@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         with:
           manifest: .github/postgresql-macOS.json
           directory: ${{ runner.temp }}/postgresql-sdk
       - name: Prepare the actual API fixture
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         with:
           recipe: ci-native-corporate-prepare
       - name: Admit native PostgreSQL startup and SCRAM authentication
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         env:
           AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
         with:
@@ -121,32 +126,37 @@ jobs:
             '.github/scripts/build-previous-native-cli.sh',
             '.github/scripts/previous-native-cache.py') }}
       - name: Build the immutable previous schema58 native writer
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         with:
           recipe: ci-cli-build-the-immutable-previous-schema58-native-writer
       - name: Build the qualified previous schema59 binding writer
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         with:
           recipe: ci-cli-build-the-qualified-previous-schema59-binding-writer
       - name: Verify the immutable released schema60 native writer
         env:
           GH_TOKEN: ${{ github.token }}
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         with:
           recipe: ci-cli-verify-the-immutable-released-schema60-native-writer
       - name: Verify the immutable released schema61 native writer
         env:
           GH_TOKEN: ${{ github.token }}
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         with:
           recipe: ci-cli-verify-the-immutable-released-schema61-native-writer
       - name: Run native corporate journeys against actual API/PostgreSQL
+        # nddev-ci v0.6.54
         uses: >-
-          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+          NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
         env:
           AI_STP_POSTGRESQL_ASSETS: ${{ runner.temp }}/postgresql-sdk
           AI_STP_REQUIRE_ENGINE: 'true'
