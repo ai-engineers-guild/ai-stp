@@ -107,6 +107,20 @@ trap {
                     }
                 }
             }
+            foreach ($entry in @(Get-WinEvent -ErrorAction SilentlyContinue -FilterHashtable @{
+                LogName = 'Application'; ProviderName = 'Microsoft-Windows-ProcessExitMonitor'
+                StartTime = (Get-Date).AddMinutes(-15)
+            })) {
+                $values = @(([xml] $entry.ToXml()).Event.EventData.Data | ForEach-Object { [string] $_.'#text' })
+                if ($values.Count -ge 1 -and $values[0] -match 'ai-stp-desktop\.exe$') {
+                    if ($entry.Id -eq 3001 -and $values.Count -ge 3) {
+                        $killer = [IO.Path]::GetFileNameWithoutExtension($values[1]).ToLowerInvariant() -replace '[^a-z0-9]', '_'
+                        $null = $codes.Add('process:ended_by_' + $killer.Substring(0, [Math]::Min(28, $killer.Length)))
+                    } else {
+                        $null = $codes.Add('process:ended_by_itself')
+                    }
+                }
+            }
             $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
             if (Test-Path -LiteralPath $errors) {
                 foreach ($line in @(Select-String -LiteralPath $errors -Pattern '^ai-stp-desktop lifecycle: ([a-z-]{1,40})$')) {
@@ -159,6 +173,12 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
 $null = & auditpol.exe /set /subcategory:'Process Creation' /success:enable
 $null = & auditpol.exe /set /subcategory:'Process Termination' /success:enable
 $null = New-ItemProperty -Force -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit' -Name ProcessCreationIncludeCmdLine_Enabled -PropertyType DWord -Value 1
+# Silent process exit monitoring names the process that ended the app, or a self exit.
+$exitOptions = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\ai-stp-desktop.exe'
+$exitMonitor = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SilentProcessExit\ai-stp-desktop.exe'
+$null = New-Item -Force -Path $exitOptions, $exitMonitor
+$null = New-ItemProperty -Force -Path $exitOptions -Name GlobalFlag -PropertyType DWord -Value 0x200
+$null = New-ItemProperty -Force -Path $exitMonitor -Name ReportingMode -PropertyType DWord -Value 0
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'PowerShell 7 is required' }
 [Console]::Out.WriteLine('AI_STP_NATIVE_DESKTOP_STAGE_V1 owner')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
