@@ -1,0 +1,50 @@
+# Build the production application images of one qualified commit through the
+# shared CI library and push them to GHCR, so the host pulls the exact bytes CI
+# built instead of rebuilding them (#1149). Each image is tagged sha-<commit>.
+name: images
+
+on:
+  workflow_call:
+  # A change to the image build itself is built without pushing before it merges.
+  pull_request:
+    paths:
+      - .github/workflows/images.yml
+      - deploy/docker/**
+
+permissions: {}
+
+jobs:
+  image:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {image: ai-stp-api, dockerfile: deploy/docker/Dockerfile.app, target: api}
+          - {image: ai-stp-worker, dockerfile: deploy/docker/Dockerfile.app, target: worker}
+          - image: ai-stp-worker-safety
+            dockerfile: deploy/docker/Dockerfile.app
+            target: worker-safety
+          - image: ai-stp-content-import
+            dockerfile: deploy/docker/Dockerfile.app
+            target: content-import
+          - {image: ai-stp-web, dockerfile: deploy/docker/Dockerfile.web, target: prod}
+          - {image: ai-stp-docs, dockerfile: deploy/docker/Dockerfile.docs, target: prod}
+    permissions:
+      contents: read
+      packages: write
+    # nddev-ci v0.6.54
+    uses: >-
+      NDDev-Technocracy-OpenNetwork/nddev-ci/.github/workflows/image.yml@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
+    with:
+      image: ${{ matrix.image }}
+      dockerfile: ${{ matrix.dockerfile }}
+      target: ${{ matrix.target }}
+      # Public site values only; the web build bakes them into the client bundle.
+      build-args: |
+        NEXT_PUBLIC_APP_URL=${{ vars.AI_STP_PUBLIC_ORIGIN }}
+        AI_STP_WEB_PROFILE=public_saas
+        NEXT_PUBLIC_ANALYTICS_ENABLED=${{ vars.NEXT_PUBLIC_ANALYTICS_ENABLED }}
+        NEXT_PUBLIC_GA_MEASUREMENT_ID=${{ vars.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
+        NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID=${{ vars.NEXT_PUBLIC_YANDEX_METRIKA_COUNTER_ID }}
+        NEXT_PUBLIC_COOKIE_CONSENT_ENABLED=${{ vars.NEXT_PUBLIC_COOKIE_CONSENT_ENABLED }}
+        AI_STP_USER_DOCS_SITE_URL=${{ vars.AI_STP_DOCS_ORIGIN }}

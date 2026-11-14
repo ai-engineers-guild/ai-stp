@@ -596,6 +596,41 @@ def test_every_edge_upstream_has_a_standby_the_deploy_replaces_second() -> None:
         assert primary < next(i for i, words in enumerate(bring_up) if f"{name}-standby" in words)
 
 
+def test_registry_mode_names_ci_images_of_the_exact_commit(tmp_path: Path) -> None:
+    """A registry deploy pulls the CI-built images of its commit instead of building."""
+    commit = "a" * 40
+    script = (
+        "source deploy/lib.sh && use_registry_images " + commit + " && "
+        'printf \'%s\\n\' "$AI_STP_IMAGE_API" "$AI_STP_IMAGE_WORKER_SAFETY" "$AI_STP_IMAGE_WEB"'
+    )
+    result = subprocess.run(
+        ["bash", "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin", "AI_STP_ROOT": str(tmp_path)},
+    )
+    assert result.stdout.split() == [
+        f"ghcr.io/ai-engineers-guild/ai-stp-api:sha-{commit}",
+        f"ghcr.io/ai-engineers-guild/ai-stp-worker-safety:sha-{commit}",
+        f"ghcr.io/ai-engineers-guild/ai-stp-web:sha-{commit}",
+    ]
+    refused = subprocess.run(
+        ["bash", "-c", "source deploy/lib.sh && use_registry_images main"],
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin", "AI_STP_ROOT": str(tmp_path)},
+    )
+    assert refused.returncode != 0
+    deploy = Path("deploy/deploy.sh").read_text(encoding="utf-8")
+    pulled = deploy.split('if [[ "${AI_STP_IMAGE_SOURCE:-build}" == registry ]]; then', 1)[1]
+    pulled = pulled.split("elif", 1)[0]
+    assert "compose pull --quiet --policy always" in pulled and "compose build" not in pulled
+    compose = Path("deploy/compose.prod.yml").read_text(encoding="utf-8")
+    for variable in ("API", "WORKER", "WORKER_SAFETY", "CONTENT_IMPORT", "WEB", "DOCS"):
+        assert f"image: ${{AI_STP_IMAGE_{variable}:-ai_stp-" in compose, variable
+
+
 def test_no_workflow_carries_a_deployment_credential_or_reaches_the_target() -> None:
     """Untrusted pull-request code and the deployment share no job at all.
 
