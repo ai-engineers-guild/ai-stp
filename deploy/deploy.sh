@@ -61,6 +61,10 @@ acquire_deploy_lock
 trap release_deploy_lock EXIT
 
 COMMIT="$(current_git_commit)"
+# The image source is host configuration: .env.prod selects registry, the default builds.
+export AI_STP_IMAGE_SOURCE="${AI_STP_IMAGE_SOURCE:-$(env_file_value AI_STP_IMAGE_SOURCE)}"
+[[ -z "${AI_STP_IMAGE_SOURCE}" || "${AI_STP_IMAGE_SOURCE}" == build || "${AI_STP_IMAGE_SOURCE}" == registry ]] ||
+  die "AI_STP_IMAGE_SOURCE must be build or registry"
 # An operator on a pull-model host names the commit through the one variable
 # this script documents. Without this, the identity resolver never saw it, wrote
 # an empty artifact record, and left `rollback.sh` with no baseline -- while the
