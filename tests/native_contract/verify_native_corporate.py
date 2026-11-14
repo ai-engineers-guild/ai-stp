@@ -61,6 +61,17 @@ def main() -> None:
                         ),
                     ),
                 ]
+                cases.append(
+                    (
+                        "corporate-usage",
+                        partial(
+                            verify_corporate.prove,
+                            credential_store="os_keyring",
+                            historical_consumers=native_os != "macOS",
+                            usage_only=True,
+                        ),
+                    )
+                )
                 if native_os == "macOS":
                     cases.append(
                         (

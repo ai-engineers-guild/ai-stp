@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -66,20 +65,15 @@ async def qualify(
     binding: str,
     checkout: Path,
 ) -> dict[str, Any]:
-    # A native install moves the registry to the native configuration format,
-    # while the journeys after this one begin from an older one. A copy of the
-    # same device state carries the enrollment, and the original stays as it is.
-    copied = state.parent / "usage-state"
-    shutil.copytree(state, copied, symlinks=True)
-    state = copied
-
     async def run(*arguments: str) -> dict[str, Any]:
         return await native(binary, home, [*arguments, "--state-dir", str(state)])
 
     async def enact(planned: dict[str, Any], *prefix: str) -> dict[str, Any]:
-        path = home / f"usage-{planned['plan']['operation_id']}.json"
+        path = home / "usage-plan.json"
         path.write_text(json.dumps(planned["plan"]), encoding="utf-8")
-        return await run(*prefix, "--plan", str(path), "--plan-digest", planned["plan_digest"])
+        # An applied plan names its own state; apply takes no state selector.
+        arguments = [*prefix, "--plan", str(path), "--plan-digest", planned["plan_digest"]]
+        return await native(binary, home, arguments)
 
     async with app.state.sessionmaker() as db:
         issued = await issue_session(db, account_id=account, device_id=None, ttl_seconds=600)
