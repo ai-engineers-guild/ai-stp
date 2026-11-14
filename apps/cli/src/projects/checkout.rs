@@ -335,6 +335,7 @@ fn snapshot(git: &Git, root: &Directory) -> Result<Value> {
 /// infers an immutable provider ID nor creates a marker, account or binding.
 pub fn observe(path: &Path, executable: Option<&Path>) -> Result<Value> {
     let (path, held) = super::open_root(path)?;
+    let path = PathBuf::from(files::location(&path).map_err(|_| invalid())?);
     let root = Directory {
         identity: identity(&held)?,
         held,
