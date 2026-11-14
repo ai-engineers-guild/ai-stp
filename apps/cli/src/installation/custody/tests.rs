@@ -394,11 +394,14 @@ fn a_deleted_claimed_root_does_not_block_another_target() -> std::result::Result
     custody.start(&installed)?;
     put(&path.join("AGENTS.md"), b"guidance")?;
     custody.complete(&installed)?;
-    drop(first);
-    std::fs::remove_dir_all(&path)?;
+    // The second root exists before the first is deleted: a file system may
+    // hand a deleted directory's identity to the next one, and a recorded root
+    // whose identity reappears is treated as that root, which fails closed.
     let other = path.with_file_name("other");
     std::fs::create_dir(&other)?;
     let second = target(&other)?;
+    drop(first);
+    std::fs::remove_dir_all(&path)?;
     let review = custody.review(
         operation(),
         &[Change {
