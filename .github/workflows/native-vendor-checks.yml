@@ -135,6 +135,10 @@ jobs:
           recipe: ci-native-vendor-opencode
       - name: Load Cursor's skills from its pinned distribution
         env:
+          AI_STP_NATIVE_ENGINE_SOURCE: ${{ inputs.engine_source }}
+          AI_STP_NATIVE_ENGINE_SOURCE_RUN: ${{ inputs.source_run_id }}
+          AI_STP_REQUIRE_ENGINE: ${{ inputs.installed_engine && 'true' || 'false' }}
+          AI_STP_NATIVE_ENGINE_ARCHIVES: ${{ steps.engine.outputs.download-path }}
           AI_STP_CURSOR_PROOF: ${{ runner.temp }}/cursor-loading-proof.json
         uses: >-
           NDDev-Technocracy-OpenNetwork/nddev-ci/actions/recipe@9fead1382c452a6b791a0a9e464ac6ac66537ac3
