@@ -438,7 +438,7 @@ def test_pr_native_checks_cover_platform_specific_code_and_real_vault_processes(
         for step in jobs["cli"]["steps"]
         if step.get("name") == "Actual Linux Secret Service enrollment and recovery"
     )
-    assert linux["if"] == "runner.os == 'Linux'"
+    assert linux["if"] == "runner.os == 'Linux' && github.event_name != 'pull_request'"
     assert "bash .github/scripts/check-native-secret-service.sh" in command_text(linux)
     assert linux["env"]["AI_STP_NATIVE_VAULT_ROUNDS"] == (
         "${{ inputs.native_vault_rounds || '100' }}"
