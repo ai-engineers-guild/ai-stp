@@ -102,7 +102,16 @@ def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
         element = field(driver, label, kind="select", scope=scope)
         return element if driver.read("return arguments[0].value;", element) == value else None
 
-    select_element = driver.wait(settled, f"{label} settled on the chosen value")
+    try:
+        select_element = driver.wait(settled, f"{label} settled on the chosen value")
+    except ValueError:
+        state = driver.read(
+            "const s=document.querySelector(arguments[0]);const e=s?.querySelector('select');"
+            "return JSON.stringify({value:e?.value,disabled:e?.disabled,"
+            "options:[...(e?.options??[])].map(o=>o.value),text:s?.innerText});",
+            scope if scope != "main" else "main",
+        )
+        raise ValueError(f"{label} did not settle on {value}: {state}") from None
     # Dismiss the native select popup through a real key event before leaving
     # the control; reading its selected value alone does not close that popup.
     driver.command(

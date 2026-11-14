@@ -139,7 +139,12 @@ export const useContexts = create<ContextState>((set, get) => ({
     return request;
   },
   select: async (id) => {
-    if (get().switching || get().loading)
+    if (get().switching)
+      return failure("Wait for the current context operation.");
+    // A choice made while a background read finishes waits for that read, so
+    // the user's selection is applied instead of silently dropped.
+    if (get().loading && pending) await pending;
+    if (get().switching)
       return failure("Wait for the current context operation.");
     if (!get().views.some((view) => view.id === id))
       return failure("Read the current context views before selecting one.");
