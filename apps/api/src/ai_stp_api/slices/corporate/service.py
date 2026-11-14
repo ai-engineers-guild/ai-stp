@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import unicodedata
 from collections.abc import Collection, Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
@@ -86,6 +85,7 @@ from ai_stp_contracts.corporate_governance import (
     CorporateMemberPrivateGrant,
     CorporatePermissionSource,
 )
+from ai_stp_foundation import unicodedata
 from ai_stp_foundation.ids import new_id
 from ai_stp_foundation.timestamps import format_timestamp
 from ai_stp_platform.catalog_ownership_models import (

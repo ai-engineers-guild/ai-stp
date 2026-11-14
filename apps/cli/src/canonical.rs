@@ -113,7 +113,9 @@ mod tests {
     /// changes canonical bytes for those strings on one side only (#1263, #1481).
     #[test]
     fn nfc_tables_stay_on_the_contract_unicode_version() {
-        assert_eq!(unicode_normalization::UNICODE_VERSION, (17, 0, 0));
+        // The Python owners pin the same version through unicodedata2
+        // (`ai_stp_foundation.unicodedata.CONTRACT_VERSION`).
+        assert_eq!(unicode_normalization::UNICODE_VERSION, (18, 0, 0));
     }
 
     #[test]
