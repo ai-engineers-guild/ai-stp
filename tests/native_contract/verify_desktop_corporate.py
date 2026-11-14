@@ -993,7 +993,39 @@ def installed_journey(
             binary, environment, ["corporate", "heartbeat", "policy", "--context", company]
         )["observation"]["data"]
         assert type(heartbeat_policy["policy_version"]) is int
+        # The installed client offers every harness the engine declares and reads
+        # each one's company assignment preview, never a stale or failed one.
         driver.navigate("corporate", keyboard=True)
+        driver.click(driver.button("Assignments"))
+        harness_field = field(driver, "Harness", kind="select")
+        offered = driver.read("return [...arguments[0].options].map(x=>x.value);", harness_field)
+        assert sorted(offered) == [
+            "antigravity",
+            "claude-code",
+            "codex",
+            "cursor",
+            "grok-build",
+            "opencode",
+            "pi",
+        ], offered
+        previewed: list[str] = []
+        for harness in offered:
+            choose(driver, "Harness", harness)
+            button = driver.button("Preview assignments")
+            if not driver.read("return !arguments[0].disabled;", button):
+                continue
+            driver.click(button)
+            driver.wait(
+                lambda: driver.read(
+                    "const m=document.querySelector('main');"
+                    "return m.textContent.includes(arguments[0])&&"
+                    "!m.querySelector('[role=alert]');",
+                    "This observation cannot be applied as an installation plan.",
+                ),
+                f"installed assignment preview for {harness}",
+            )
+            previewed.append(harness)
+        assert previewed == offered, (previewed, offered)
         driver.click(driver.button("Heartbeat"))
         driver.click(driver.button("Read heartbeat policy"))
         driver.wait(
@@ -1541,6 +1573,7 @@ def installed_journey(
             "link_id": adopted["effect"]["link"]["link_id"],
             "actual_release_package": True,
             "actual_bundled_cli_ipc": True,
+            "seven_harnesses_offered": True,
             "native_os_keyring": True,
             "corporate_onboarding": True,
             "browser_approval": "synthetic_fixture_only",

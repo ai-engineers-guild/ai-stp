@@ -395,8 +395,12 @@ def test_cli_and_web_tests_run_on_three_os_and_backend_stays_on_linux() -> None:
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     three = {"ubuntu-26.04", "macos-26", "windows-latest"}
     jobs = workflow["jobs"]
-    for name in ("cli", "web-unit", "web-e2e", "web-profiles"):
+    for name in ("web-unit", "web-e2e", "web-profiles"):
         assert set(jobs[name]["strategy"]["matrix"]["os"]) == three, name
+    # Dev runs the cli job on all three; a pull request runs only its Linux leg.
+    matrix = jobs["cli"]["strategy"]["matrix"]["os"]
+    assert '["ubuntu-26.04"]' in matrix.split("||")[0]
+    assert all(name in matrix.split("||")[-1] for name in three)
     assert jobs["tests"]["runs-on"] == "ubuntu-26.04"
     native = command_text(jobs["cli"])
     assert "cargo test --locked" in native
