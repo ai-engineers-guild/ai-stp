@@ -58,7 +58,7 @@ def test_compose_imports_repository_snapshot_before_web() -> None:
         assert "ai_stp_platform.content.importer" in text
         assert "target: content-import" in text
         assert "AI_STP_API_GIT_COMMIT: ${AI_STP_API_GIT_COMMIT:-" in text
-        web_block = text.split("\n  web:\n", 1)[1]
+        web_block = re.split(r"\n  web:(?: &web)?\n", text, maxsplit=1)[1]
         assert "content-import:" in web_block
         assert "service_completed_successfully" in web_block
 
@@ -139,8 +139,9 @@ def test_backup_and_restore_preserve_oauth_identity_data() -> None:
     helper = _read("deploy/lib.sh")
     backup = _read("deploy/backup.sh")
     restore = _read("deploy/restore.sh")
-    assert "compose pause api worker" in backup
-    assert "compose unpause api worker" in backup
+    assert "running_services api api-standby worker" in backup
+    assert 'compose pause "${WRITERS[@]}"' in backup
+    assert 'compose unpause "${WRITERS[@]}"' in backup
     for text in (backup, restore):
         assert 'TABLE" && $5 == "DATA"' in text
         assert "oauth_identity" in text
