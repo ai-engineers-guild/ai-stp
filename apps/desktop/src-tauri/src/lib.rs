@@ -1275,8 +1275,26 @@ pub fn run() {
             task_cancel,
             task_list
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running ai-stp desktop");
+        .build(tauri::generate_context!())
+        .expect("error while running ai-stp desktop")
+        .run(|_app, event| lifecycle(&event));
+}
+
+/// Reports window and exit transitions on stderr by kind only, so an unexpected
+/// end of the app has a cause; no labels, paths or content are written.
+fn lifecycle(event: &tauri::RunEvent) {
+    let kind = match event {
+        tauri::RunEvent::ExitRequested { code: None, .. } => "exit-requested-by-window",
+        tauri::RunEvent::ExitRequested { code: Some(_), .. } => "exit-requested-by-code",
+        tauri::RunEvent::Exit => "exit",
+        tauri::RunEvent::WindowEvent { event, .. } => match event {
+            tauri::WindowEvent::CloseRequested { .. } => "window-close-requested",
+            tauri::WindowEvent::Destroyed => "window-destroyed",
+            _ => return,
+        },
+        _ => return,
+    };
+    eprintln!("ai-stp-desktop lifecycle: {kind}");
 }
 
 #[cfg(test)]

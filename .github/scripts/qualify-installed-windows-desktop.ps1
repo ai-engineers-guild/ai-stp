@@ -109,6 +109,9 @@ trap {
             }
             $errors = Join-Path $env:RUNNER_TEMP 'desktop-private-error.log'
             if (Test-Path -LiteralPath $errors) {
+                foreach ($line in @(Select-String -LiteralPath $errors -Pattern '^ai-stp-desktop lifecycle: ([a-z-]{1,40})$')) {
+                    $null = $codes.Add('state:app_' + ($line.Matches[0].Groups[1].Value -replace '-', '_'))
+                }
                 $panic = Select-String -LiteralPath $errors -Pattern 'panicked at ([^\s:]+):(\d+)' | Select-Object -Last 1
                 if ($null -ne $panic) {
                     $parts = @($panic.Matches[0].Groups[1].Value -split '[\\/]' | Select-Object -Last 2)
