@@ -18,6 +18,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, cast
 
+from . import installation
 from .common import binary_digest, environment
 
 PREFIX = "ai-stp-qualification-"
@@ -198,6 +199,46 @@ def qualify(executable: Path, root: Path) -> dict[str, Any]:
     }
 
 
+def qualify_installed(
+    executable: Path, engine: Path, root: Path, engine_proof: dict[str, Any]
+) -> dict[str, Any]:
+    """Install a global MCP server through the engine and observe Cursor load it."""
+    # Cursor reads its MCP configuration from ~/.cursor whatever its config root.
+    case = installation.Installation(
+        engine, root / "i", "CURSOR_CONFIG_DIR", home_relative_vendor_root=".cursor"
+    )
+    case.environment.update(NO_COLOR="1", DO_NOT_TRACK="1", DISABLE_TELEMETRY="1")
+    subprocess.run(["git", "init", "--quiet", str(case.project)], check=True, timeout=10)
+    script = case.root / "probe.py"
+    script.write_text(SERVER, encoding="utf-8")
+    name = PREFIX + "installed-cursor"
+    (case.source / "mcp.json").write_text(
+        json.dumps({"mcpServers": {name: server("installed", script)}}), encoding="utf-8"
+    )
+    receipt = case.install("cursor", "mcp", name, "global")
+    path = case.vendor_home / "mcp.json"
+    assert name in json.loads(path.read_bytes())["mcpServers"]
+    listed_after_install = listed(cursor(executable, case.project, case.environment, "mcp", "list"))
+    assert name in listed_after_install, listed_after_install
+    assert tools(executable, case.project, case.environment, name) == {"probe_installed"}
+    removal = case.remove(receipt)
+    case.apply(removal)
+    remaining = listed(cursor(executable, case.project, case.environment, "mcp", "list"))
+    assert name not in remaining, remaining
+    case.removed()
+    return {
+        "state": "passed",
+        "evidence_kind": "native_engine_vendor_configuration_read",
+        "engine": engine_proof,
+        "install_and_remove_receipts_idempotent": True,
+        "original_context_preserved_across_selected_view": True,
+        "vendor_loaded_installed_mcp_server_and_listed_its_tool": True,
+        "server_absent_after_removal": True,
+        "unowned_preserved_and_pending_cleared": True,
+        "inference_turns_started": 0,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--distribution", type=Path, required=True)
@@ -216,6 +257,12 @@ def main() -> None:
         reported = cursor(executable, root, {**os.environ, "NO_COLOR": "1"}, "--version")
         assert reported.strip() == version, "Cursor reported another version"
         result = qualify(executable.resolve(), root / "q")
+        engine = installation.prepare(root, source)
+        result["installed_configuration"] = (
+            qualify_installed(executable.resolve(), engine[0], root, engine[1])
+            if engine is not None
+            else {"state": "not_selected"}
+        )
         assert binary_digest(executable) == digest, "Vendor binary changed during qualification"
         shutil.rmtree(root / "package")
     proof = {
