@@ -18,8 +18,9 @@ runs:
         version="$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/cli/rust-toolchain.toml)"
         [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
         printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+    # nddev-ci v0.6.54
     - uses: >-
-        NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@9fead1382c452a6b791a0a9e464ac6ac66537ac3
+        NDDev-Technocracy-OpenNetwork/nddev-ci/actions/hosted-sdk@e3698840cdcfc74e2808889b8a03bbcb20bd6d38
       with:
         rust-version: ${{ steps.pin.outputs.version }}
         rust-components: ${{ inputs.components }}
