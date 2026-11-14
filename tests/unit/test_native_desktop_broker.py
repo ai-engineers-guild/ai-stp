@@ -396,10 +396,10 @@ pathlib.Path(sys.argv[3]).write_text("completed")
         ("PRIVATE-CANARY", "refused"),
         ("AI_STP_PRECONDITION_FAILED,ai_stp_private", "refused"),
         ("state:request_button,state:review_region_disabled", "valid"),
-        (
-            "AI_STP_A,AI_STP_B,AI_STP_C,AI_STP_D,AI_STP_E,AI_STP_F,AI_STP_G,AI_STP_H,AI_STP_I",
-            "refused",
-        ),
+        (",".join(f"AI_STP_{letter}" for letter in "ABCDEFGHIJKLMNOP"), "valid"),
+        (",".join(f"AI_STP_{letter}" for letter in "ABCDEFGHIJKLMNOPQ"), "refused"),
+        ("state:app_started,event:id_1000,panic:at_src_lib_rs_12", "valid"),
+        ("process:ended_by_pwsh", "refused"),
         ("AI_STP_PRECONDITION_FAILED", "repeated"),
     ],
 )
