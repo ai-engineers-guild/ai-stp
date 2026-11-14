@@ -13,6 +13,7 @@ def adaptation_fields(
     harness_id: str = "claude-code",
     component_type: str = "skill",
     path: str = "skills/demo/SKILL.md",
+    scope: str = "global",
 ) -> dict[str, object]:
     adaptation = seal_adaptation(
         cast(
@@ -25,7 +26,7 @@ def adaptation_fields(
                 "logical_component_type": component_type,
                 "scope_adaptations": [
                     {
-                        "scope": "global",
+                        "scope": scope,
                         "projection_format": "ai-stp-adaptation-projection/1",
                         "projection_artifact": {"digest": digest, "size_bytes": size},
                         "provider_component_kind": component_type,

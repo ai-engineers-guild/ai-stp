@@ -24,15 +24,15 @@ ARTIFACT_DOMAIN = "ai-stp:artifact:v1"
 PASSPORT_DOMAIN = "ai-stp:passport:v1"
 
 
-def projection(harness: str) -> tuple[dict[str, JsonValue], bytes]:
+def projection(harness: str, scope: str = "global") -> tuple[dict[str, JsonValue], bytes]:
     body = f"---\nname: demo\ndescription: Inspect a project.\n---\n# {harness} skill\n".encode()
     fields = adaptation_fields(
-        digest=digest_bytes(ARTIFACT_DOMAIN, body), size=len(body), harness_id=harness
+        digest=digest_bytes(ARTIFACT_DOMAIN, body), size=len(body), harness_id=harness, scope=scope
     )
     adaptation = cast(list[dict[str, JsonValue]], fields["adaptations"])[0]
-    scope = ScopeAdaptation.model_validate(cast(list[object], adaptation["scope_adaptations"])[0])
-    payload = build_projection(scope, {scope.members[0].path: body})
-    raw = scope.model_dump(mode="json")
+    adapted = ScopeAdaptation.model_validate(cast(list[object], adaptation["scope_adaptations"])[0])
+    payload = build_projection(adapted, {adapted.members[0].path: body})
+    raw = adapted.model_dump(mode="json")
     raw["projection_artifact"] = {
         "digest": digest_bytes(ARTIFACT_DOMAIN, payload),
         "size_bytes": len(payload),
@@ -50,15 +50,21 @@ class StoredFixture:
 
 
 async def store_fixture_artifacts(
-    db: AsyncSession, store: ImmutableObjectStore, *, harness: str
+    db: AsyncSession, store: ImmutableObjectStore, *, harness: str, scope: str = "global"
 ) -> StoredFixture:
     """Store Claude Code and Codex skill projections and a setup for `harness`.
 
+    The `harness` projection targets `scope`; the other stays global.
+
     The fixture component 1.2 and setup 1.0 passports are resealed around the
-    stored bytes; each artifact location names the current owner of its row.
+    stored bytes; storage stays bound to each passport's original publisher.
     """
     adaptations, payloads = zip(
-        *(projection(name) for name in ("claude-code", "codex")), strict=True
+        *(
+            projection(name, scope if name == harness else "global")
+            for name in ("claude-code", "codex")
+        ),
+        strict=True,
     )
     component = (
         await db.scalars(
@@ -84,7 +90,7 @@ async def store_fixture_artifacts(
             payload,
             expected_digest=digest_bytes(ARTIFACT_DOMAIN, payload),
             expected_size=len(payload),
-            owner_account_id=component.owner_account_id,
+            owner_account_id=str(document["owner_id"]),
         )
         for payload in payloads
     ]
@@ -107,7 +113,7 @@ async def store_fixture_artifacts(
         version="1.0",
         harness_id=harness,
         input_digest="sha256:" + "0" * 64,
-        publisher_id=setup.owner_account_id,
+        publisher_id=str(setup_document["owner_id"]),
         created_at=document["created_at"],
         catalog_members=(reference,),
         embedded_members=(),
@@ -116,7 +122,7 @@ async def store_fixture_artifacts(
         definition.payload,
         expected_digest=digest_bytes(ARTIFACT_DOMAIN, definition.payload),
         expected_size=len(definition.payload),
-        owner_account_id=setup.owner_account_id,
+        owner_account_id=str(setup_document["owner_id"]),
     )
     setup_document.update(
         harness_id=harness,
@@ -134,12 +140,15 @@ async def store_fixture_artifacts(
     setup.passport_document = setup_document
     setup.current_revision_id = setup_document["revision_id"]
     setup.passport_digest = digest_canonical(PASSPORT_DOMAIN, setup_document)
-    for row, artifact in ((component, stored[0]), (setup, setup_bytes)):
+    for row, artifact, publisher in (
+        (component, stored[0], document["owner_id"]),
+        (setup, setup_bytes, setup_document["owner_id"]),
+    ):
         db.add(
             ObjectLocation(
                 catalog_metadata_id=row.id,
                 purpose="artifact",
-                owner_account_id=row.owner_account_id,
+                owner_account_id=str(publisher),
                 bucket=artifact.bucket,
                 object_key=artifact.key,
                 digest=artifact.digest,

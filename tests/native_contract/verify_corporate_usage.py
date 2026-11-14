@@ -103,7 +103,7 @@ async def qualify(
             settings=app.state.settings.storage, client=app.state.object_client
         )
         async with app.state.sessionmaker() as db:
-            await store_fixture_artifacts(db, store, harness="claude-code")
+            await store_fixture_artifacts(db, store, harness="claude-code", scope="project")
             await db.commit()
         # Earlier precedence controls retire the employee's Claude Code decision;
         # put that exact decision back for this installation.
