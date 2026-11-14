@@ -328,7 +328,7 @@ def test_recipe_action_rejects_unsupported_preparation() -> None:
     with pytest.raises(AssertionError, match="separate preparation step"):
         _command_owners(
             {
-                "uses": RECIPE_ACTION + "9fead1382c452a6b791a0a9e464ac6ac66537ac3",
+                "uses": RECIPE_ACTION + "e3698840cdcfc74e2808889b8a03bbcb20bd6d38",
                 "with": {"recipe": "ci-native-corporate", "prepare": "ci-native-corporate-prepare"},
             }
         )
