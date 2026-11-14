@@ -16,6 +16,27 @@ INPUTS = {
 }
 
 
+#: A pull request touching any of these runs the Linux native CLI job, whose
+#: corporate journeys otherwise first run after the merge, on Dev.
+CLI_INPUTS = (
+    "apps/cli/",
+    "apps/api/",
+    "apps/platform/",
+    "packages/",
+    "release_scripts/",
+    "tests/native_contract/",
+    "tests/support/",
+    ".github/",
+)
+CLI_FILES = {"justfile", "uv.lock", "pyproject.toml", "alembic.ini"}
+
+
+def select_cli(event: str, changed: set[str]) -> bool:
+    return event != "pull_request" or any(
+        path in CLI_FILES or path.startswith(CLI_INPUTS) for path in changed
+    )
+
+
 def select(event: str, changed: set[str], tracked: set[str]) -> bool:
     unknown = {path for path in tracked | changed if path.startswith(PREFIX)} - {GUEST}
     if unknown:
@@ -50,6 +71,13 @@ def controls() -> None:
         except RuntimeError:
             continue
         raise RuntimeError("Unknown/deleted/unregistered source control was accepted")
+    if select_cli("pull_request", {"apps/web/src/page.tsx"}) or not all(
+        select_cli("pull_request", {path})
+        for path in ["apps/cli/src/main.rs", "tests/native_contract/verify.py", "uv.lock"]
+    ):
+        raise RuntimeError("The native CLI selection must follow its owning sources")
+    if not select_cli("push", set()):
+        raise RuntimeError("Full qualification must include the native CLI job")
 
 
 def git(*arguments: str) -> bytes:
@@ -81,9 +109,19 @@ def main() -> None:
             .split("\0")
         ) - {""}
     chosen = select(event, changed, tracked)
+    cli = select_cli(event, changed)
     with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
         output.write(f"wasi={str(chosen).lower()}\n")
-    print(json.dumps({"registered_wasi_selected": chosen, "selection_controls": "passed"}))
+        output.write(f"cli={str(cli).lower()}\n")
+    print(
+        json.dumps(
+            {
+                "registered_wasi_selected": chosen,
+                "native_cli_selected": cli,
+                "selection_controls": "passed",
+            }
+        )
+    )
 
 
 if __name__ == "__main__":
