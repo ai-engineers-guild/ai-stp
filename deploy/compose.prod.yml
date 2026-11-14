@@ -88,6 +88,7 @@ services:
     logging: *default-logging
 
   migrate:
+    image: ${AI_STP_IMAGE_WORKER:-ai_stp-migrate}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -111,6 +112,7 @@ services:
   # real first-party corpus. The refusal is in `seed_cli.fixtures_wanted`, keyed
   # on `AI_STP_API_ENVIRONMENT`, so it holds however this service is invoked.
   seed:
+    image: ${AI_STP_IMAGE_WORKER:-ai_stp-seed}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -129,6 +131,7 @@ services:
     logging: *default-logging
 
   api: &api
+    image: ${AI_STP_IMAGE_API:-ai_stp-api}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -195,6 +198,7 @@ services:
     # One-shot after migrate + healthy API. Web waits for exit 0 (SPEC-054).
     # The snapshot is built at startup from the release content. The deploy
     # script supplies the exact commit to the API and importer environments.
+    image: ${AI_STP_IMAGE_CONTENT_IMPORT:-ai_stp-content-import}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -220,6 +224,7 @@ services:
     logging: *default-logging
 
   osv-refresh:
+    image: ${AI_STP_IMAGE_WORKER_SAFETY:-ai_stp-osv-refresh}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -256,6 +261,7 @@ services:
     logging: *default-logging
 
   clamav-refresh:
+    image: ${AI_STP_IMAGE_WORKER_SAFETY:-ai_stp-clamav-refresh}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -288,6 +294,7 @@ services:
 
   worker:
     # Safety validate path: pinned scanners + EXTERNAL_CLI (see deploy/docker/Dockerfile.app).
+    image: ${AI_STP_IMAGE_WORKER_SAFETY:-ai_stp-worker}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.app
@@ -351,6 +358,7 @@ services:
     logging: *default-logging
 
   web: &web
+    image: ${AI_STP_IMAGE_WEB:-ai_stp-web}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.web
@@ -402,6 +410,7 @@ services:
       - "${AI_STP_WEB_STANDBY_BIND:-127.0.0.1:58084}:3000"
 
   docs: &docs
+    image: ${AI_STP_IMAGE_DOCS:-ai_stp-docs}
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.docs

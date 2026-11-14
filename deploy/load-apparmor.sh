@@ -50,8 +50,11 @@ done
 [[ -n "${nsenter}" ]] || die "nsenter is missing; cannot enter the host mount namespace"
 
 image=""
-if docker image inspect ai_stp-worker >/dev/null 2>&1; then
-  image="$(docker image inspect ai_stp-worker --format '{{.Id}}')"
+# A registry deploy names the worker image by its CI reference; a local build by
+# compose default name.
+worker_image="${AI_STP_IMAGE_WORKER_SAFETY:-ai_stp-worker}"
+if docker image inspect "${worker_image}" >/dev/null 2>&1; then
+  image="$(docker image inspect "${worker_image}" --format '{{.Id}}')"
 fi
 if [[ -z "${image}" ]]; then
   image="$(

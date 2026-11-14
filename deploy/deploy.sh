@@ -92,7 +92,13 @@ compose config >/dev/null
 log info "compose_config_ok"
 record_deploy_stage "${COMMIT}" "config_validated"
 
-if [[ "${SKIP_BUILD}" -eq 0 ]]; then
+if [[ "${AI_STP_IMAGE_SOURCE:-build}" == registry ]]; then
+  # CI built and pushed this commit's images (`images` workflow). Pull exactly
+  # those instead of rebuilding on the host, then record what was pulled.
+  use_registry_images "${COMMIT}"
+  compose pull --quiet --policy always
+  log info "images_pulled"
+elif [[ "${SKIP_BUILD}" -eq 0 ]]; then
   compose build
   log info "images_built"
 fi
