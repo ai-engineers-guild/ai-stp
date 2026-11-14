@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import unicodedata
 from collections.abc import Iterable
 from typing import Final, Literal
 from urllib.parse import urlsplit
@@ -12,6 +11,8 @@ from markdown_it.renderer import RendererHTML
 from markdown_it.token import Token
 from markdown_it.utils import EnvType, OptionsDict
 from pydantic import BaseModel, ConfigDict
+
+from ai_stp_foundation import unicodedata
 
 DESCRIPTION_FORMAT: Final[Literal["commonmark_v1"]] = "commonmark_v1"
 RENDERER_VERSION: Final[Literal["safe_markdown_v1"]] = "safe_markdown_v1"

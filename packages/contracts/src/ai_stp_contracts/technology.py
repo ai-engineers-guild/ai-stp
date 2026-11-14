@@ -7,7 +7,6 @@ repository execution or a second project identity.
 from __future__ import annotations
 
 import re
-import unicodedata
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -24,6 +23,7 @@ from ai_stp_contracts.http import (
     strict_request_object,
 )
 from ai_stp_contracts.model import ContractModel
+from ai_stp_foundation import unicodedata
 from ai_stp_foundation.ids import stable_id_pattern
 
 TechnologyId = Annotated[str, Field(pattern=stable_id_pattern("technology"))]

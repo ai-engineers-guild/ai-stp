@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import unicodedata
 from collections.abc import Mapping
 
+from ai_stp_foundation import unicodedata
 from ai_stp_sources import (
     antigravity_identity,
     codex_identity,

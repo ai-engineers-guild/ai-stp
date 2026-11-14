@@ -23,6 +23,7 @@ dependencies = [
     "pydantic>=2.14.3",
     "python-ulid>=3.0",
     "rfc8785>=0.1.4",
+    "unicodedata2==18.0.0",
 ]
 
 [project.urls]

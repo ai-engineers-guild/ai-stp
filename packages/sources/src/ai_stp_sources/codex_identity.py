@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from collections.abc import Mapping
 
 from yaml.nodes import MappingNode
 
+from ai_stp_foundation import unicodedata
 from ai_stp_sources.native_frontmatter import (
     fields as _fields,
 )
