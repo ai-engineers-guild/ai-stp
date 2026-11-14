@@ -126,6 +126,8 @@ async def store_fixture_artifacts(
     )
     setup_document.update(
         harness_id=harness,
+        # No exact harness release is declared: the consumer machine runs no vendor.
+        supported_harness_versions=[],
         artifact_format=definition.format,
         components=[
             {
