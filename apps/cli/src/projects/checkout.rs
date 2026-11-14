@@ -40,7 +40,9 @@ struct Directory {
 
 impl Directory {
     fn open(path: &Path) -> Result<Self> {
-        let path = path.canonicalize().map_err(|_| invalid())?;
+        // The same resolved spelling as a registered project root: on Windows a
+        // verbatim prefix would make one physical root two different paths.
+        let path = PathBuf::from(files::location(path).map_err(|_| invalid())?);
         let held =
             Dir::open_ambient_dir(&path, cap_std::ambient_authority()).map_err(|_| invalid())?;
         let identity = identity(&held)?;
@@ -333,6 +335,7 @@ fn snapshot(git: &Git, root: &Directory) -> Result<Value> {
 /// infers an immutable provider ID nor creates a marker, account or binding.
 pub fn observe(path: &Path, executable: Option<&Path>) -> Result<Value> {
     let (path, held) = super::open_root(path)?;
+    let path = PathBuf::from(files::location(&path).map_err(|_| invalid())?);
     let root = Directory {
         identity: identity(&held)?,
         held,
