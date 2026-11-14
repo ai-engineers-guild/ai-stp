@@ -94,6 +94,12 @@ def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
         ),
         label,
     )
+    # Count the change events the control actually delivers, for a failure report.
+    driver.read(
+        "const e=arguments[0];e.__aiStpChanges=0;"
+        "e.addEventListener('change',()=>{e.__aiStpChanges++;});",
+        select_element,
+    )
     driver.click(option)
 
     # Context switching disables this control until its native plan/apply and
@@ -107,7 +113,7 @@ def choose(driver: Any, label: str, value: str, *, scope: str = "main") -> None:
     except ValueError:
         state = driver.read(
             "const s=document.querySelector(arguments[0]);const e=s?.querySelector('select');"
-            "return JSON.stringify({value:e?.value,disabled:e?.disabled,"
+            "return JSON.stringify({value:e?.value,disabled:e?.disabled,changes:e?.__aiStpChanges,"
             "options:[...(e?.options??[])].map(o=>o.value),text:s?.innerText});",
             scope if scope != "main" else "main",
         )
