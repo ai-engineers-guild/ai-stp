@@ -152,6 +152,10 @@ async def qualify(
         if item["stable_id"] == FIXTURE_SETUP_ID
     )
     version = item["version"]
+    # The catalog is the company server this connection signed in to.
+    origin = (await run("account", "status", "--connection", connection))["origin"]
+    config = home / "corporate-usage-config.yml"
+    config.write_text(f"catalog:\n  url: {origin}\n", encoding="utf-8")
     acquired = await run(
         "registry",
         "acquire",
@@ -163,6 +167,8 @@ async def qualify(
         "--private",
         "--connection",
         connection,
+        "--config",
+        str(config),
     )
     await enact(acquired, "local", "apply")
     request = home / "corporate-usage-native.json"
