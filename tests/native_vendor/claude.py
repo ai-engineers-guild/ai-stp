@@ -123,6 +123,9 @@ def hook_configuration(root: Path) -> tuple[dict[str, Any], Path]:
         "assert len(payload)<=32768\n"
         "data=json.loads(payload)\n"
         "assert data['hook_event_name']=='SessionStart' and data['source']=='startup'\n"
+        # The fields the corporate usage hook reads to attribute a session.
+        "assert isinstance(data['session_id'],str) and data['session_id']\n"
+        "assert Path(data['cwd']).is_absolute()\n"
         "with Path(sys.argv[1]).open('a',encoding='utf-8') as stream:\n"
         " stream.write(json.dumps({'event':'SessionStart','source':'startup'})+'\\n')\n",
         encoding="utf-8",

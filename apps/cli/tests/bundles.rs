@@ -1776,6 +1776,7 @@ fn declared_exclusions_are_symmetric_and_do_not_conflict_with_their_owner()
                     continuations: Vec::new(),
                     result: Err(refusal),
                     machine: true,
+                    silent: false,
                     text: None,
                     warnings: Vec::new(),
                 }

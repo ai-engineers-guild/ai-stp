@@ -22,6 +22,7 @@ mod server_plans;
 #[cfg(all(test, unix))]
 mod tests;
 mod transport;
+pub mod usage;
 pub mod visibility;
 
 use journal::{Journal, Pending};
