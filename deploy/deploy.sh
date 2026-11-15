@@ -61,10 +61,6 @@ acquire_deploy_lock
 trap release_deploy_lock EXIT
 
 COMMIT="$(current_git_commit)"
-# The image source is host configuration: .env.prod selects registry, the default builds.
-export AI_STP_IMAGE_SOURCE="${AI_STP_IMAGE_SOURCE:-$(env_file_value AI_STP_IMAGE_SOURCE)}"
-[[ -z "${AI_STP_IMAGE_SOURCE}" || "${AI_STP_IMAGE_SOURCE}" == build || "${AI_STP_IMAGE_SOURCE}" == registry ]] ||
-  die "AI_STP_IMAGE_SOURCE must be build or registry"
 # An operator on a pull-model host names the commit through the one variable
 # this script documents. Without this, the identity resolver never saw it, wrote
 # an empty artifact record, and left `rollback.sh` with no baseline -- while the
@@ -96,13 +92,7 @@ compose config >/dev/null
 log info "compose_config_ok"
 record_deploy_stage "${COMMIT}" "config_validated"
 
-if [[ "${AI_STP_IMAGE_SOURCE:-build}" == registry ]]; then
-  # CI built and pushed this commit's images (`images` workflow). Pull exactly
-  # those instead of rebuilding on the host, then record what was pulled.
-  use_registry_images "${COMMIT}"
-  compose pull --quiet --policy always
-  log info "images_pulled"
-elif [[ "${SKIP_BUILD}" -eq 0 ]]; then
+if [[ "${SKIP_BUILD}" -eq 0 ]]; then
   compose build
   log info "images_built"
 fi

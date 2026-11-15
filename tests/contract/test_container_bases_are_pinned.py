@@ -82,10 +82,7 @@ def test_compose_image_defaults_are_pinned_by_digest() -> None:
     for path in sorted(Path("deploy").glob("compose.*.yml")):
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             found = _IMAGE_DEFAULT.match(line)
-            # A default named after this project is the tag of its own local build
-            # (the service also has a build section), not a pulled third-party image.
-            default = found.group("default") if found else ""
-            if found and "@sha256:" not in default and not default.startswith("ai_stp-"):
+            if found and "@sha256:" not in found.group("default"):
                 unpinned.append(f"{path}:{number} {found.group('default')}")
     assert not unpinned, unpinned
 
