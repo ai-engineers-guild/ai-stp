@@ -649,9 +649,8 @@ jobs:
           # Every use verifies compiler/recipe/bytes and reruns actual API controls.
           # No prefix fallback may import another producer's artifacts.
           key: >-
-            previous-native-v3-${{ runner.os }}-${{ runner.arch }}-${{
-            hashFiles('apps/cli/rust-toolchain.toml',
-            '.github/scripts/build-previous-native-cli.sh',
+            previous-native-v4-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('.github/scripts/build-previous-native-cli.sh',
             '.github/scripts/previous-native-cache.py') }}
       - name: Observe Linux package networking before native checks
         if: runner.os == 'Linux'
