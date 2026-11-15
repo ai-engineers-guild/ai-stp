@@ -78,7 +78,7 @@ def test_the_deploy_workflow_keeps_the_guarantees_it_inherited() -> None:
     assert "github.ref == 'refs/heads/dev'" in jobs["promote"]["if"]
 
     controller = Path("release_scripts/source_promotion.py").read_text()
-    assert "refs/heads/deploy/prod" in controller
+    assert "deploy/prod" not in controller
     assert '"force": False' in controller
     assert '"force": True' not in controller
     assert any(
@@ -146,7 +146,8 @@ def test_a_manually_requested_check_answers_but_does_not_ship() -> None:
 def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> None:
     script = Path("deploy/pull-deploy.sh").read_text(encoding="utf-8")
 
-    assert "+${deploy_ref}:refs/remotes/origin/deploy/prod" in script
+    assert "deploy_ref=${AI_STP_PULL_REF:-refs/heads/main}" in script
+    assert "+${deploy_ref}:refs/remotes/origin/candidate" in script
     assert "merge-base --is-ancestor" in script
     assert 'git --git-dir="${mirror}" archive' in script
     assert "--preserve-permissions" in script
@@ -214,9 +215,16 @@ def test_target_side_deployer_preserves_the_host_state_and_monotonicity() -> Non
         assert directive in service, directive
 
 
-@pytest.mark.parametrize("deploy_exit", [0, 23])
-def test_pull_deploy_never_collects_daemon_objects(tmp_path: Path, deploy_exit: int) -> None:
-    """Exercise both attempt outcomes without a Docker daemon or a live deployment."""
+@pytest.mark.parametrize(("deploy_exit", "published"), [(0, True), (23, True), (0, False)])
+def test_pull_deploy_never_collects_daemon_objects(
+    tmp_path: Path, deploy_exit: int, published: bool
+) -> None:
+    """Exercise the attempt outcomes without a Docker daemon or a live deployment.
+
+    Main reaches a new CLI version before its release is published. Until the
+    linked download answers, the host keeps serving and checking the current
+    release instead of deploying a page that links to a missing download.
+    """
     candidate = "a" * 40
     previous = "b" * 40
     application = tmp_path / "application"
@@ -237,7 +245,14 @@ def test_pull_deploy_never_collects_daemon_objects(tmp_path: Path, deploy_exit: 
 
     executable(
         tools / "git",
-        f"#!{sys.executable}\nimport sys\nif 'rev-parse' in sys.argv: print('{candidate}')\n",
+        f"#!{sys.executable}\nimport sys\nif 'rev-parse' in sys.argv: print('{candidate}')\n"
+        "if 'show' in sys.argv: print('CLI_RELEASES_URL: Final = "
+        '"https://example.invalid/ai-stp/releases/tag/cli-v1.2.3"\')\n',
+    )
+    downloads = tmp_path / "curl-calls"
+    executable(
+        tools / "curl",
+        f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{downloads}'\nexit {0 if published else 22}\n",
     )
     executable(
         tools / "rsync",
@@ -254,6 +269,9 @@ def test_pull_deploy_never_collects_daemon_objects(tmp_path: Path, deploy_exit: 
         executable(release / name, "#!/bin/sh\nexit 0\n")
     executable(release / "run.sh", f"#!/bin/sh\nprintf run > run.called\nexit {deploy_exit}\n")
     executable(release / "verify.sh", "#!/bin/sh\nprintf verify > verify.called\n")
+    # The serving release checks itself from the application root.
+    (application / "deploy").mkdir()
+    executable(application / "deploy/verify.sh", "#!/bin/sh\nprintf verify > verify.called\n")
     result = subprocess.run(
         ["bash", str(Path("deploy/pull-deploy.sh").resolve())],
         cwd=tmp_path,
@@ -270,6 +288,12 @@ def test_pull_deploy_never_collects_daemon_objects(tmp_path: Path, deploy_exit: 
         timeout=15,
     )
     assert result.returncode == deploy_exit, result.stdout + result.stderr
+    assert "releases/download/cli-v1.2.3/ai-stp-cli-1.2.3.crate" in downloads.read_text()
+    if not published:
+        assert "pull_deploy_waiting_for_cli" in result.stdout
+        assert not (application / "run.called").exists()
+        assert (application / "verify.called").is_file()
+        return
     assert (application / "run.called").is_file()
     assert (application / "verify.called").exists() is (deploy_exit == 0)
     assert not calls.exists(), calls.read_text() if calls.exists() else ""

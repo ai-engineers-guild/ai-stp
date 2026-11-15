@@ -1,4 +1,8 @@
-"""Prepare qualified delivery, explicitly advance Main, then reconcile deployment."""
+"""Prepare qualified delivery, explicitly advance Main, then reconcile its release.
+
+The production host deploys Main itself once the CLI download it links to is
+published, so delivery writes no deployment reference.
+"""
 
 from __future__ import annotations
 
@@ -109,13 +113,6 @@ def promote(
     require(
         api.read("git/ref/heads/main")["object"]["sha"] == head, "Main changed before deployment"
     )
-    status, _ = api.request("git/ref/heads/deploy/prod")
-    if status == 404:
-        api.write("git/refs", {"ref": "refs/heads/deploy/prod", "sha": head}, create=True)
-    else:
-        require(status == 200, f"Deployment reference could not be read ({status})")
-        api.write("git/refs/heads/deploy/prod", {"sha": head, "force": False})
-    read_back(api, "deploy/prod", head)
     desktop_version = version(ROOT)
     publish_desktop = reconcile(api, head, desktop_version, run_id)
     output_values(

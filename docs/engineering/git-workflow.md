@@ -171,12 +171,13 @@ not establish a performance budget or causal speedup.
    annotated tag and its publication workflow; an existing completed version
    dispatches deployment reconciliation. Running CLI publication is reused.
    No new credential or Actions bypass is required. A refused write ends the operation.
-6. CI only advances the monotonic `deploy/prod` ref once Main already equals the
-   qualified source and its CLI download is completely published. Admission checks
-   the annotated release tag, source ancestry and all fourteen native payloads and
-   checksum assets. The target owns the rollout; the workflow carries no host
-   credential. Public verification checks the exact source, schema and service
-   health. A preparation run does not claim deployment or publish installers.
+6. The production host follows Main and deploys a new Main commit once the CLI
+   download it links to is publicly published. Delivery claims the deployment
+   only after it checks the annotated release tag, source ancestry and all
+   fourteen native payloads and checksum assets. The target owns the rollout; the
+   workflow carries no host credential. Public verification checks the exact
+   source, schema and service health. A preparation run does not claim
+   deployment or publish installers.
 7. A new Desktop version gets an immutable annotated tag and publication of the
    six installers from that successful source run. All manifests, source identity
    and SHA-256 hashes are verified before publication. The publisher executes no
@@ -195,7 +196,7 @@ Its workflow publishes those exact archives, dispatches the existing standalone
 PyPI/crates.io Trusted Publishers, and checks the actual public registry bytes.
 The existing PyPI environment review remains required. Only successful registry
 owners dispatch deployment reconciliation for the original qualified source run.
-Until publication completes, `deploy/prod` stays unchanged. Main analysis
+Until publication completes, the host keeps serving the previous release. Main analysis
 preparation and the explicit Main operator do not require a download that cannot
 yet be published; actual deployment always does. The canonical download link matches the source package
 version, so a deployed Web page cannot point to the unpublished next version.

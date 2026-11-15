@@ -7,7 +7,7 @@ description: "Установка проверенного нативного к�
 
 Выберите архив для своей ОС, проверьте контрольную сумму и аттестацию и
 установите его по [руководству CLI](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#install-and-update).
-CLI уже входит в [установщик Desktop](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.0).
+CLI уже входит в [установщик Desktop](https://github.com/ai-engineers-guild/ai-stp/releases?q=desktop-v&expanded=true).
 
 Для нового локального состояния:
 

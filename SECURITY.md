@@ -20,6 +20,5 @@ See [trust and safety](https://docs.nddev.asia/en/trust-and-safety/).
 ## Supported versions
 
 Report issues against a specific published version and source commit. The
-current releases are [CLI 0.3.0](https://github.com/ai-engineers-guild/ai-stp/releases/tag/cli-v0.3.0)
-and [Desktop 0.4.0](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.0).
-Fixes ship as new immutable releases.
+latest CLI and Desktop [releases](https://github.com/ai-engineers-guild/ai-stp/releases)
+are supported. Fixes ship as new immutable releases.

@@ -6,7 +6,8 @@ receives public JSON envelopes. Harness programs remain user/vendor managed.
 
 ## Use
 
-Choose the installer for your OS from [Desktop 0.5.3](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.5.3)
+Choose the installer for your OS from the latest
+[Desktop release](https://github.com/ai-engineers-guild/ai-stp/releases?q=desktop-v&expanded=true)
 and verify it against `SHA256SUMS`. The app bundles the optimized native CLI. Overview reports the installed
 engine version and its platform capabilities.
 

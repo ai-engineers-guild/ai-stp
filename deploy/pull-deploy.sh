@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetch and deploy the one monotonic ref published by the green CI workflow.
+# Fetch and deploy Main, the qualified source that only fast-forwards.
 #
 # The source is this repository, and it is public, so the fetch carries no
 # credential at all. That is the point rather than a convenience: a deployment
@@ -12,7 +12,7 @@ umask 077
 root=${AI_STP_ROOT:-"${HOME}/ai_stp"}
 state_root=${AI_STP_PULL_STATE_ROOT:-"${HOME}/.local/state/ai-stp-deployer"}
 repository=${AI_STP_PULL_REPOSITORY:-https://github.com/ai-engineers-guild/ai-stp.git}
-deploy_ref=${AI_STP_PULL_REF:-refs/heads/deploy/prod}
+deploy_ref=${AI_STP_PULL_REF:-refs/heads/main}
 mirror=${state_root}/repository.git
 release_root=${state_root}/releases
 lock_file=${state_root}/pull-deploy.lock
@@ -34,8 +34,8 @@ git --git-dir="${mirror}" remote set-url origin "${repository}"
 GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c http.version=HTTP/1.1 \
   --git-dir="${mirror}" \
   fetch --quiet --no-tags origin \
-  "+${deploy_ref}:refs/remotes/origin/deploy/prod"
-candidate=$(git --git-dir="${mirror}" rev-parse --verify 'refs/remotes/origin/deploy/prod^{commit}')
+  "+${deploy_ref}:refs/remotes/origin/candidate"
+candidate=$(git --git-dir="${mirror}" rev-parse --verify 'refs/remotes/origin/candidate^{commit}')
 [[ ${candidate} =~ ^[0-9a-f]{40}$ ]] || { printf 'invalid deployment commit\n' >&2; exit 1; }
 
 current=
@@ -73,10 +73,30 @@ if [[ -f ${root}/.deploy-state/previous ]]; then
   previous_commit=$(sed -n 's/^git_commit=//p' "${root}/.deploy-state/previous" | head -n 1)
 fi
 
+# Main reaches a new CLI version before that version is published: promotion
+# fast-forwards Main, then the release workflow publishes the download the site
+# links to. A candidate is deployed only once its linked release is publicly
+# downloadable, so a deployed page never points at a missing download. Until
+# then the host keeps serving and checking the current release. A draft release
+# serves no anonymous download, so one asset answering means it is published.
+cli_link=$(git --git-dir="${mirror}" show \
+  "${candidate}:packages/contracts/src/ai_stp_contracts/cli_copy.py" \
+  | sed -n 's|^CLI_RELEASES_URL: Final = "\(.*\)"$|\1|p')
+cli_version=${cli_link##*/cli-v}
+[[ ${cli_link} == "${repository%.git}/releases/tag/cli-v${cli_version}" \
+  && ${cli_version} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+  || { printf 'candidate has no canonical CLI release link\n' >&2; exit 1; }
+if [[ ${current} != "${candidate}" ]] && ! curl -fsSIL --max-time 30 -o /dev/null \
+  "${repository%.git}/releases/download/cli-v${cli_version}/ai-stp-cli-${cli_version}.crate"; then
+  printf 'pull_deploy_waiting_for_cli candidate=%s version=%s\n' "${candidate}" "${cli_version}"
+  [[ -n ${current} ]] || exit 0
+  candidate=${current}
+fi
+
 if [[ ${current} == "${candidate}" ]]; then
   prune_release_archives "${candidate}" "${previous_commit}"
-  # "Already current" is not "healthy": the ref only proves nothing new was
-  # published. This timer tick is the host's only scheduled check, so the
+  # "Already current" is not "healthy": it only proves nothing new is ready
+  # to deploy. This timer tick is the host's only scheduled check, so the
   # external verification still runs against the serving stack.
   (
     cd "${root}"
