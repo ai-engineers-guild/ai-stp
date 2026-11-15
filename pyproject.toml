@@ -72,7 +72,7 @@ docs = [
   "platformdirs==4.14.5",
   "pygments==2.21.0",
   "pymdown-extensions==13.1",
-  "python-dateutil==2.9.0.post0",
+  "python-dateutil==4.0.0",
   "pytz==2026.6",
   "pyyaml==6.0.3",
   "pyyaml-env-tag==1.1",
