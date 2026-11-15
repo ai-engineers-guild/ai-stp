@@ -3,6 +3,6 @@
   "private": true,
   "packageManager": "bun@1.4.4",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.322"
+    "@anthropic-ai/claude-code": "2.1.325"
   }
 }

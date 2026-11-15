@@ -47,7 +47,14 @@ test "$(git show --no-patch --format=%T "${previous_commit}")" = "${previous_tre
 mkdir -p "${previous_root}"
 git archive --format=tar "${previous_commit}" apps/cli |
   tar --extract --directory="${previous_root}"
-cmp apps/cli/rust-toolchain.toml "${previous_root}/apps/cli/rust-toolchain.toml"
+# A previous writer is rebuilt with the toolchain it was released with, not the
+# current one: its own rust-toolchain.toml selects it once the job's override is
+# dropped, and rustup installs that exact channel when it is missing.
+previous_toolchain="$(sed -n 's/^channel = "\(.*\)"$/\1/p' "${previous_root}/apps/cli/rust-toolchain.toml")"
+[[ "${previous_toolchain}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+unset RUSTUP_TOOLCHAIN
+rustup toolchain install "${previous_toolchain}" --profile minimal >/dev/null
+export RUSTUP_TOOLCHAIN="${previous_toolchain}"
 export CARGO_TARGET_DIR="${runner_temp}/ai-stp-previous-native-${previous_commit}-target"
 export CARGO_BUILD_BUILD_DIR="${runner_temp}/ai-stp-previous-native-${previous_commit}-build"
 if [[ "${RUNNER_OS}" == Windows ]]; then
