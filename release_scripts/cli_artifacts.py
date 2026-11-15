@@ -63,7 +63,7 @@ def release_version(api: GitHub, head: str) -> str:
 
 
 def require_published(api: GitHub, head: str) -> None:
-    """Admit the qualified source's public download before changing deploy/prod."""
+    """Admit the qualified source's public download before claiming deployment."""
     version = release_version(api, head)
     tag = "cli-v" + version
     release = api.read("releases/tags/" + tag)

@@ -48,10 +48,6 @@ if method != "GET":
         if status == 200 and not state.get("lose_main_ack"):
             state["main"] = body["sha"]
         result = {"object": {"sha": state["main"]}}
-    elif method == "PATCH" and route == "git/refs/heads/deploy/prod":
-        state["deployment"] = body["sha"]
-        state["deployment_status"] = 200
-        result = {"object": {"sha": state["deployment"]}}
     elif method == "POST" and route == "git/tags":
         status = 201
         if body["tag"].startswith("cli-v"):
@@ -68,11 +64,6 @@ if method != "GET":
         else:
             state["tag_exists"] = True
             result = {"object": {"sha": "annotated-desktop", "type": "tag"}}
-    elif method == "POST" and route == "git/refs":
-        status = 201
-        state["deployment"] = body["sha"]
-        state["deployment_status"] = 200
-        result = {"object": {"sha": state["deployment"]}}
     elif method == "POST" and route == "code-scanning/sarifs":
         status = state.get("upload_status", 202)
         result = {"id": "accepted-payload"}
@@ -168,9 +159,6 @@ elif route == "git/ref/heads/dev":
     result = {"object": {"sha": state.get("dev", head)}}
 elif route == "git/ref/heads/main":
     result = {"object": {"sha": state["main"]}}
-elif route == "git/ref/heads/deploy/prod":
-    status = state.get("deployment_status", 200)
-    result = {"object": {"sha": state["deployment"]}}
 elif route.startswith("compare/"):
     result = {"status": state.get("comparison", "ahead")}
 elif route.startswith("contents/packages/contracts/src/ai_stp_contracts/cli_copy.py?ref="):
@@ -311,7 +299,6 @@ def delivery(tmp_path: Path) -> Delivery:
         {
             "head": head,
             "main": "b" * 40,
-            "deployment": "b" * 40,
             "run": run,
             "trace": [],
             "version": json.loads((ROOT / "apps/desktop/package.json").read_text())["version"],
@@ -394,7 +381,6 @@ def test_ff_refusal_has_one_attempt_and_no_alternate_authority(delivery: Deliver
     assert [(item["method"], item["route"], item["body"]) for item in delivery.writes()] == [
         ("PATCH", "git/refs/heads/main", {"sha": delivery.state["head"], "force": False})
     ]
-    assert delivery.state["deployment"] == "b" * 40
 
 
 def test_hosted_preparation_never_attempts_main_or_claims_deployment(delivery: Delivery) -> None:
@@ -404,7 +390,7 @@ def test_hosted_preparation_never_attempts_main_or_claims_deployment(delivery: D
     assert outcome.returncode == 0, outcome.stderr
     assert delivery.writes() == []
     assert (delivery.directory / "outputs").read_text() == "deployed=false\n"
-    assert delivery.state["main"] == delivery.state["deployment"] == "b" * 40
+    assert delivery.state["main"] == "b" * 40
     assert not any("cli-v" in item["route"] for item in delivery.state["trace"])
 
 
@@ -453,7 +439,6 @@ def test_explicit_operator_verifies_authority_advances_only_main_and_dispatches(
         ),
     ]
     assert delivery.state["main"] == delivery.state["head"]
-    assert delivery.state["deployment"] == "b" * 40
     assert not (delivery.directory / "outputs").exists()
     assert not any("cli-v" in item["route"] for item in delivery.writes())
     # A repair reuses Main, dispatching reconciliation without another ref write.
@@ -466,24 +451,14 @@ def test_explicit_operator_verifies_authority_advances_only_main_and_dispatches(
     assert sum(item["route"] == "git/refs/heads/main" for item in delivery.writes()) == 1
 
 
-@pytest.mark.parametrize("status", [200, 403, 404])
-def test_deployment_creation_requires_actual_missing_ref(delivery: Delivery, status: int) -> None:
+def test_reconciling_qualified_main_writes_no_branch(delivery: Delivery) -> None:
+    """The host deploys Main itself; reconciliation only proves and reports it."""
     delivery.state["main"] = delivery.state["head"]
-    delivery.state["deployment_status"] = status
-    outcome = delivery.run("source_promotion", "--apply")
-    writes = delivery.writes()
-    if status == 403:
-        assert outcome.returncode != 0
-        assert writes == []
-    else:
+    for _ in range(2):
+        outcome = delivery.run("source_promotion", "--apply")
         assert outcome.returncode == 0, outcome.stderr
-        assert writes[0]["method"] == ("POST" if status == 404 else "PATCH")
-        if status == 200:
-            assert writes[0]["body"]["force"] is False
-        assert delivery.state["main"] == delivery.state["deployment"] == delivery.state["head"]
-        again = delivery.run("source_promotion", "--apply")
-        assert again.returncode == 0, again.stderr
-        assert all(item["route"] != "git/refs/heads/main" for item in delivery.writes())
+        assert not any(item["route"].startswith("git/refs/heads/") for item in delivery.writes())
+    assert "deployed=true" in (delivery.directory / "outputs").read_text()
 
 
 @pytest.mark.parametrize(
@@ -513,7 +488,6 @@ def test_deployment_refuses_unpublished_or_stale_cli_admission(
     outcome = delivery.run("source_promotion", "--apply")
     assert outcome.returncode != 0, outcome.stdout
     assert delivery.writes() == []
-    assert delivery.state["deployment"] == "b" * 40
     assert not (delivery.directory / "outputs").exists()
 
 
@@ -526,8 +500,8 @@ def test_publication_then_retry_reconciles_the_same_qualified_main(delivery: Del
     delivery.state["cli_release_status"] = 200
     accepted = delivery.run("source_promotion", "--apply")
     assert accepted.returncode == 0, accepted.stderr
-    assert delivery.state["deployment"] == delivery.state["head"]
-    assert [item["route"] for item in delivery.writes()] == ["git/refs/heads/deploy/prod"]
+    assert delivery.writes() == []
+    assert "deployed=true" in (delivery.directory / "outputs").read_text()
     assert "Published native CLI cli-v0.3.1: all 14 assets" in accepted.stdout
 
 
@@ -697,7 +671,7 @@ def test_invalid_or_unprocessed_analysis_never_changes_refs(
     assert outcome.returncode != 0
     assert all(item["route"] == "code-scanning/sarifs" for item in delivery.writes())
     assert len(delivery.writes()) <= 1
-    assert delivery.state["main"] == delivery.state["deployment"] == "b" * 40
+    assert delivery.state["main"] == "b" * 40
 
 
 def test_rerun_reuses_only_latest_original_language_attempt(tmp_path: Path) -> None:
@@ -793,7 +767,6 @@ def test_operator_creates_exact_cli_tag_and_dispatches_publication_before_deploy
         "ref": "cli-v" + delivery.state["cli_version"],
         "inputs": {"version": delivery.state["cli_version"]},
     }
-    assert delivery.state["deployment"] != delivery.state["head"]
     again = delivery.execute(
         [sys.executable, "-m", "release_scripts.source_promotion", "--advance-main"],
         GITHUB_ACTIONS="false",
@@ -819,7 +792,6 @@ def test_lost_cli_dispatch_reply_reconciles_the_running_owner_without_duplicate_
     )
     assert again.returncode == 0, again.stderr
     assert delivery.writes() == writes
-    assert delivery.state["deployment"] != delivery.state["head"]
 
 
 @pytest.mark.parametrize("failure", ["foreign", "incomplete", "failed"])

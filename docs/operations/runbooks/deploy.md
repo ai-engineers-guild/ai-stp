@@ -35,16 +35,18 @@ From the qualified checkout, the existing Main administrator runs
 `just delivery-promote SOURCE_SHA SOURCE_RUN_ID SOURCE_ATTEMPT`. This repeats
 source and policy admission, requires processed Main analysis, fast-forwards
 Main without force and dispatches CI. Hosted delivery never writes Main or
-switches credentials after a refusal. Once Main equals the source, CI advances
-`deploy/prod`, verifies public rollout and publishes any new Desktop version
-from the qualified installers. See [Git workflow](../../engineering/git-workflow.md).
+switches credentials after a refusal. The host deploys Main once its linked CLI
+download is published; CI then verifies public rollout and publishes any new
+Desktop version from the qualified installers. See [Git workflow](../../engineering/git-workflow.md).
 
 For interrupted publication, complete the original release and dispatch `deploy`
 on Dev with the same successful `source_run_id`. Do not rebuild or rerun full
 qualification merely to release a completed publication hold. Repeating the
 operator command reuses an already advanced Main and dispatches reconciliation.
 The production host is not a CI runner;
-its timer fetches the public repository anonymously and initiates deployment.
+its timer fetches Main from the public repository anonymously every minute and
+deploys a new commit once its linked CLI download answers. Until then the log
+shows `pull_deploy_waiting_for_cli` and the current release keeps serving.
 No production SSH credentials are stored in Actions.
 
 The host locks deployment, validates its environment, transfers the exact source,
