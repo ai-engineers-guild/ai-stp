@@ -7,7 +7,7 @@ description: "Install a verified native client and prepare local state."
 
 Choose the archive for your OS, verify its checksum and attestation, and install
 it using the [CLI installation guide](https://github.com/ai-engineers-guild/ai-stp/blob/main/apps/cli/README.md#install-and-update).
-The [Desktop installer](https://github.com/ai-engineers-guild/ai-stp/releases/tag/desktop-v0.4.0)
+The [Desktop installer](https://github.com/ai-engineers-guild/ai-stp/releases?q=desktop-v&expanded=true)
 bundles the CLI.
 
 For new local state:
