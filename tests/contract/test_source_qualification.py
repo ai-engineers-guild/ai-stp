@@ -128,11 +128,8 @@ class QualificationTests(unittest.TestCase):
         self.assertEqual(set(integration["on"]), {"pull_request"})
         self.assertEqual(full["concurrency"]["cancel-in-progress"], "false")
         self.assertEqual(integration["concurrency"]["cancel-in-progress"], "true")
-        self.assertEqual(full["jobs"]["images"]["needs"], "qualification")
-        self.assertEqual(full["jobs"]["images"]["uses"], "./.github/workflows/images.yml")
         for owner, context in [(full, "full-qualification"), (integration, "qualification")]:
-            extra: set[str] = {"images"} if owner is full else set()
-            self.assertEqual(set(owner["jobs"]), {"verify", "qualification"} | extra)
+            self.assertEqual(set(owner["jobs"]), {"verify", "qualification"})
             self.assertEqual(owner["jobs"]["verify"]["uses"], "./.github/workflows/source.yml")
             gate = owner["jobs"]["qualification"]
             self.assertEqual(gate["name"], context)
