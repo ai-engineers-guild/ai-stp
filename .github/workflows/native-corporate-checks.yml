@@ -121,9 +121,8 @@ jobs:
         with:
           path: ${{ runner.temp }}/ai-stp-previous-native-binaries
           key: >-
-            previous-native-v3-${{ runner.os }}-${{ runner.arch }}-${{
-            hashFiles('apps/cli/rust-toolchain.toml',
-            '.github/scripts/build-previous-native-cli.sh',
+            previous-native-v4-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('.github/scripts/build-previous-native-cli.sh',
             '.github/scripts/previous-native-cache.py') }}
       - name: Build the immutable previous schema58 native writer
         # nddev-ci v0.6.54

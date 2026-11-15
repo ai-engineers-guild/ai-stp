@@ -284,32 +284,6 @@ current_git_commit() {
   echo "${recorded:-unknown}"
 }
 
-# The CI-built images of one commit, as the image settings compose reads.
-# The CI library's image workflow tags each image sha-<commit> under the owner.
-use_registry_images() {
-  local commit="$1" prefix="${AI_STP_IMAGE_REGISTRY:-ghcr.io/ai-engineers-guild/ai-stp}"
-  [[ "${commit}" =~ ^[0-9a-f]{40}$ ]] || die "registry_images_need_a_full_commit"
-  export AI_STP_IMAGE_API="${prefix}-api:sha-${commit}"
-  export AI_STP_IMAGE_WORKER="${prefix}-worker:sha-${commit}"
-  export AI_STP_IMAGE_WORKER_SAFETY="${prefix}-worker-safety:sha-${commit}"
-  export AI_STP_IMAGE_CONTENT_IMPORT="${prefix}-content-import:sha-${commit}"
-  export AI_STP_IMAGE_WEB="${prefix}-web:sha-${commit}"
-  export AI_STP_IMAGE_DOCS="${prefix}-docs:sha-${commit}"
-}
-
-# The pulled digest of every registry image, one `image_<name>=<digest>` line each.
-registry_image_digests() {
-  local variable reference digest
-  for variable in AI_STP_IMAGE_API AI_STP_IMAGE_WORKER AI_STP_IMAGE_WORKER_SAFETY \
-    AI_STP_IMAGE_CONTENT_IMPORT AI_STP_IMAGE_WEB AI_STP_IMAGE_DOCS; do
-    reference="${!variable:-}"
-    [[ -n "${reference}" ]] || continue
-    digest="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "${reference}" \
-      | grep -m1 "^${reference%:*}@" | cut -d@ -f2)"
-    echo "image_${variable#AI_STP_IMAGE_}=${digest}"
-  done
-}
-
 write_artifact_record() {
   # Record deploy identity for rollback. No secrets.
   local path="$1"
@@ -330,10 +304,6 @@ write_artifact_record() {
     echo "git_commit=${commit}"
     echo "recorded_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "compose_file=${AI_STP_COMPOSE_FILE}"
-    if [[ "${AI_STP_IMAGE_SOURCE:-build}" == registry ]]; then
-      echo "image_source=registry"
-      registry_image_digests
-    fi
   } >"${temporary}"
   mv -f "${temporary}" "${path}"
 }
