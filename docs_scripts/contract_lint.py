@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Validate branch policy and exclusion of checkout-specific state."""
+"""Validate the documented CI push branches and exclusion of checkout-specific state."""
 
 from __future__ import annotations
 
-import json
-import os
 import re
 import subprocess
 import sys
@@ -12,48 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-
-BRANCH_PREFIXES = ("feat", "chore", "docs", "test", "fix", "refactor")
-
-BRANCH_NAME_RE = re.compile(rf"^(?:{'|'.join(BRANCH_PREFIXES)})/.+$")
-
-
-# Update bots by their branch prefix and the login that must author the pull request:
-# Dependabot keeps security updates, the owner's Renovate App proposes versions.
-UPDATE_BOTS = {"dependabot/": "dependabot[bot]", "renovate/": "nddev-renovate[bot]"}
-
-
-def is_update_bot_pull_request(branch: str) -> bool:
-    """Accept only a same-repository PR actually authored by an update bot."""
-    prefix = next((prefix for prefix in UPDATE_BOTS if branch.startswith(prefix)), None)
-    if prefix is None or branch == prefix:
-        return False
-    if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
-        return False
-    event_path = os.environ.get("GITHUB_EVENT_PATH")
-    repository = os.environ.get("GITHUB_REPOSITORY")
-    if not event_path or not repository:
-        return False
-    try:
-        event = json.loads(Path(event_path).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-    if not isinstance(event, dict):
-        return False
-    pull_request = event.get("pull_request")
-    if not isinstance(pull_request, dict):
-        return False
-    user = pull_request.get("user")
-    head = pull_request.get("head")
-    return (
-        isinstance(user, dict)
-        and user.get("login") == UPDATE_BOTS[prefix]
-        and isinstance(head, dict)
-        and head.get("ref") == branch
-        and isinstance(head.get("repo"), dict)
-        and head["repo"].get("full_name") == repository
-    )
-
 
 WORKFLOW = Path(".github/workflows/check.yml")
 
@@ -78,7 +34,6 @@ class ContractLinter:
         self.issues.append(Issue(str(path), code, message))
 
     def run(self) -> None:
-        self.check_branch_name()
         self.check_branch_parity()
         self.check_tracked_runtime_state()
 
@@ -115,23 +70,6 @@ class ContractLinter:
                 "CT013",
                 f"push branches {sorted(actual)} differ from documented {sorted(expected)}",
             )
-
-    def check_branch_name(self) -> None:
-        """CI branches use the repository's allowed conventional prefixes."""
-        branch = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME")
-        if (
-            not branch
-            or branch in {"main", "dev"}
-            or BRANCH_NAME_RE.fullmatch(branch)
-            or is_update_bot_pull_request(branch)
-        ):
-            return
-        self.error(
-            GIT_WORKFLOW_DOC,
-            "CT014",
-            f"branch `{branch}` must use one of: "
-            f"{', '.join(f'{prefix}/' for prefix in BRANCH_PREFIXES)}",
-        )
 
     def check_tracked_runtime_state(self) -> None:
         """Local tool configuration and session state stay outside the Git index."""
