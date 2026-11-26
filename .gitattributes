@@ -8,3 +8,34 @@
 *.jpg binary
 *.pdf binary
 *.ico binary
+
+# Repository-only editor, coding-assistant and skill metadata stays out of
+# deployment archives produced by `git archive`.
+AGENTS.md export-ignore
+AGENTS.override.md export-ignore
+CLAUDE.md export-ignore
+CLAUDE.local.md export-ignore
+GEMINI.md export-ignore
+CODEX.md export-ignore
+CURSOR.md export-ignore
+COPILOT.md export-ignore
+.claude export-ignore
+.agents export-ignore
+.codex export-ignore
+.cursor export-ignore
+.serena export-ignore
+.gemini export-ignore
+.antigravity export-ignore
+.pi export-ignore
+.opencode export-ignore
+.cline export-ignore
+.roo export-ignore
+.windsurf export-ignore
+.playwright-mcp export-ignore
+.aider* export-ignore
+.cursorrules export-ignore
+.clinerules export-ignore
+.windsurfrules export-ignore
+.mcp.json export-ignore
+.gds export-ignore
+/skills export-ignore
