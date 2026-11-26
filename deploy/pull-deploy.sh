@@ -42,11 +42,42 @@ current=
 if [[ -f ${root}/.deploy-state/current ]]; then
   current=$(sed -n 's/^git_commit=//p' "${root}/.deploy-state/current" | head -n 1)
 fi
+release_tree_excluded_paths() {
+  local tree=$1
+  [[ -d ${tree} ]] || return 0
+  if [[ -e ${tree}/skills ]]; then
+    printf '%s/skills\n' "${tree}"
+  fi
+  find "${tree}" \
+    \( -name '.claude' -o -name '.agents' -o -name '.codex' -o -name '.cursor' \
+      -o -name '.serena' -o -name '.gemini' -o -name '.antigravity' -o -name '.pi' \
+      -o -name '.opencode' -o -name '.cline' -o -name '.roo' -o -name '.windsurf' \
+      -o -name '.playwright-mcp' -o -name '.gds' \) -prune -print \
+    -o \( -type f \( -iname 'AGENTS.md' -o -iname 'AGENTS.override.md' \
+      -o -iname 'CLAUDE.md' -o -iname 'CLAUDE.local.md' \
+      -o -iname 'GEMINI.md' -o -iname 'CODEX.md' -o -iname 'CURSOR.md' \
+      -o -iname 'COPILOT.md' -o -iname '.cursorrules' -o -iname '.clinerules' \
+      -o -iname '.windsurfrules' -o -iname '.mcp.json' -o -iname 'mcp.json' \
+      -o -iname 'claude_desktop_config.json' -o -iname 'copilot-instructions.md' \
+      -o -iname '.aider*' \) -print \)
+}
+
+verify_clean_release_tree() {
+  local tree=$1
+  local found
+  found=$(release_tree_excluded_paths "${tree}")
+  if [[ -n ${found} ]]; then
+    printf 'release archive contains excluded repository-only paths:\n%s\n' "${found}" >&2
+    return 1
+  fi
+}
+
 prune_release_archives() {
   # Each successful deploy leaves a full git-archive tree under
   # `${release_root}/${sha}`. Without a bound this grew to dozens of copies of
   # the repository. Keep the commit that is live and the one rollback would
-  # return to; everything else is extract cache.
+  # return to (unless that rollback extract still holds repository-only files);
+  # everything else is extract cache.
   local keep_current=$1
   local keep_previous=$2
   local dir name
@@ -58,7 +89,9 @@ prune_release_archives() {
       continue
     fi
     if [[ -n ${keep_previous} && ${name} == "${keep_previous}" ]]; then
-      continue
+      if [[ -z $(release_tree_excluded_paths "${dir}") ]]; then
+        continue
+      fi
     fi
     rm -rf -- "${dir}"
   done
@@ -127,8 +160,11 @@ if [[ ! -d ${release} ]]; then
   trap 'rm -rf -- "${temporary}"' EXIT
   git --git-dir="${mirror}" archive "${candidate}" \
     | tar --extract --preserve-permissions -C "${temporary}"
+  verify_clean_release_tree "${temporary}"
   mv "${temporary}" "${release}"
   trap - EXIT
+else
+  verify_clean_release_tree "${release}"
 fi
 
 AI_STP_REMOTE_ROOT="${root}" bash "${release}/deploy/mark-transfer.sh" "${candidate}"

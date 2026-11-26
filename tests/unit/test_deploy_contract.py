@@ -1091,3 +1091,169 @@ def test_the_overtake_comparison_is_bounded_for_a_busy_repository() -> None:
     assert verify_public.MAX_COMPARE_BYTES >= 4 * 1024 * 1024
     # And still a bound: an unbounded read is what this whole limit exists for.
     assert verify_public.MAX_COMPARE_BYTES < 64 * 1024 * 1024
+
+
+def test_git_archive_excludes_editor_and_agent_files() -> None:
+    """Deployment archives omit repository-only editor, assistant and skill files."""
+    listing = subprocess.run(
+        ["git", "archive", "--worktree-attributes", "--format=tar", "HEAD"],
+        check=True,
+        capture_output=True,
+    )
+    listed = subprocess.run(
+        ["tar", "-tf", "-"],
+        input=listing.stdout,
+        check=True,
+        capture_output=True,
+    )
+    entries = listed.stdout.decode("utf-8").splitlines()
+    assert "deploy/pull-deploy.sh" in entries
+    forbidden_exact = {
+        "agents.md",
+        "agents.override.md",
+        "claude.md",
+        "claude.local.md",
+        "gemini.md",
+        "codex.md",
+        "cursor.md",
+        "copilot.md",
+        ".cursorrules",
+        ".clinerules",
+        ".windsurfrules",
+        ".mcp.json",
+    }
+    forbidden_dirs = {
+        ".claude",
+        ".agents",
+        ".codex",
+        ".cursor",
+        ".serena",
+        ".gemini",
+        ".antigravity",
+        ".pi",
+        ".opencode",
+        ".cline",
+        ".roo",
+        ".windsurf",
+        ".playwright-mcp",
+        ".gds",
+    }
+    offenders: list[str] = []
+    for entry in entries:
+        is_dir = entry.endswith("/")
+        clean = entry.rstrip("/")
+        if clean == "skills" or clean.startswith("skills/"):
+            offenders.append(clean)
+            continue
+        parts = [part.lower() for part in clean.split("/") if part]
+        if any(part in forbidden_dirs for part in parts):
+            offenders.append(clean)
+            continue
+        if (
+            not is_dir
+            and parts
+            and (parts[-1] in forbidden_exact or parts[-1].startswith(".aider"))
+        ):
+            offenders.append(clean)
+    assert offenders == [], offenders
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the deploy scripts are bash on a Linux host")
+def test_pull_deploy_refuses_contaminated_release_and_prunes_legacy_previous(
+    tmp_path: Path,
+) -> None:
+    """A release carrying repository-only files fails closed; legacy extracts are pruned."""
+    candidate = "c" * 40
+    previous_contaminated = "d" * 40
+    previous_clean = "e" * 40
+    application = tmp_path / "application"
+    state = tmp_path / "pull-state"
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (state / "repository.git").mkdir(parents=True)
+    (application / ".deploy-state").mkdir(parents=True)
+    (application / ".deploy-state/current").write_text(f"git_commit={previous_contaminated}\n")
+
+    def executable(path: Path, body: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+        path.chmod(0o755)
+
+    executable(
+        tools / "git",
+        f"#!{sys.executable}\nimport sys\nif 'rev-parse' in sys.argv: print('{candidate}')\n"
+        "if 'show' in sys.argv: print('CLI_RELEASES_URL: Final = "
+        '"https://example.invalid/ai-stp/releases/tag/cli-v1.2.3"\')\n',
+    )
+    executable(tools / "curl", "#!/bin/sh\nexit 0\n")
+    executable(
+        tools / "rsync",
+        f"#!{sys.executable}\nimport shutil, sys\n"
+        "shutil.copytree(sys.argv[-2], sys.argv[-1], dirs_exist_ok=True)\n",
+    )
+
+    # Contaminated candidate fails before rsync or run.sh runs.
+    bad_release = state / "releases" / candidate
+    (bad_release / "deploy").mkdir(parents=True)
+    (bad_release / "AGENTS.md").write_text("repo instructions\n")
+    executable(bad_release / "deploy/mark-transfer.sh", "#!/bin/sh\nexit 0\n")
+    env = {
+        **os.environ,
+        "PATH": str(tools) + os.pathsep + os.environ["PATH"],
+        "AI_STP_ROOT": str(application),
+        "AI_STP_PULL_STATE_ROOT": str(state),
+        "AI_STP_PULL_REPOSITORY": "https://example.invalid/ai-stp.git",
+    }
+    refused = subprocess.run(
+        ["bash", str(Path("deploy/pull-deploy.sh").resolve())],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert refused.returncode != 0
+    assert "AGENTS.md" in refused.stderr
+
+    # Clean candidate deploys and prunes a contaminated previous extract while keeping a clean one.
+    (bad_release / "AGENTS.md").unlink()
+    for name in (
+        "pull-deploy.sh",
+        "run.sh",
+        "verify.sh",
+        "deploy.sh",
+        "lib.sh",
+        "load-apparmor.sh",
+        "mark-transfer.sh",
+    ):
+        executable(bad_release / "deploy" / name, "#!/bin/sh\nexit 0\n")
+    legacy_dir = state / "releases" / previous_contaminated
+    (legacy_dir / ".claude").mkdir(parents=True)
+    (legacy_dir / ".claude" / "CLAUDE.md").write_text("legacy\n")
+    succeeded = subprocess.run(
+        ["bash", str(Path("deploy/pull-deploy.sh").resolve())],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert succeeded.returncode == 0, succeeded.stdout + succeeded.stderr
+    assert not legacy_dir.exists()
+
+    # Clean previous extract is retained during already-current prune.
+    (application / ".deploy-state/current").write_text(f"git_commit={candidate}\n")
+    (application / ".deploy-state/previous").write_text(f"git_commit={previous_clean}\n")
+    clean_prev = state / "releases" / previous_clean
+    (clean_prev / "deploy").mkdir(parents=True)
+    (clean_prev / "deploy" / "run.sh").write_text("#!/bin/sh\nexit 0\n")
+    steady = subprocess.run(
+        ["bash", str(Path("deploy/pull-deploy.sh").resolve())],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert steady.returncode == 0, steady.stdout + steady.stderr
+    assert clean_prev.is_dir()
