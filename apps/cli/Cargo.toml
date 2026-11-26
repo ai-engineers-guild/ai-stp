@@ -49,7 +49,7 @@ unicode-normalization = "=0.1.26"
 unicode-general-category = "=1.1.0"
 unicase = "=2.10.0"
 ureq = { version = "=3.5.1", default-features = false, features = ["rustls"] }
-url = "=2.5.8"
+url = "=2.5.9"
 percent-encoding = "=2.3.2"
 zip = { version = "=9.4.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 crc32fast = "=1.5.4"
